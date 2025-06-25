@@ -10,12 +10,17 @@ const updateCompanySchema = z.object({
   address: z.string().optional(),
   city: z.string().optional(),
   postalCode: z.string().optional(),
-  country: z.string().default("Netherlands").optional(),
+  country: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email("Invalid email").optional(),
+  website: z.string().optional(),
   kvkNumber: z.string().optional(),
   taxNumber: z.string().optional(),
-  bankAccount: z.string().optional(),
-  contactEmail: z.string().email("Invalid email").optional(),
-  contactPhone: z.string().optional(),
+  vatNumber: z.string().optional(),
+  description: z.string().optional(),
+  industry: z.string().optional(),
+  foundedYear: z.number().min(1800).max(new Date().getFullYear()).optional(),
+  employeeCount: z.number().min(1).optional(),
 })
 
 // GET /api/companies - Get the user's company information
@@ -36,8 +41,7 @@ export async function GET(request: NextRequest) {
           select: {
             employees: {
               where: { isActive: true }
-            },
-            payrollRecords: true
+            }
           }
         }
       }
@@ -47,7 +51,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Company not found" }, { status: 404 })
     }
 
-    return NextResponse.json(company)
+    // Add employee count to the company object
+    const companyWithStats = {
+      ...company,
+      employeeCount: company._count?.employees || 0
+    }
+
+    return NextResponse.json({
+      success: true,
+      companies: [companyWithStats]
+    })
+
   } catch (error) {
     console.error("Error fetching company:", error)
     return NextResponse.json(
@@ -88,7 +102,11 @@ export async function PUT(request: NextRequest) {
       data: validatedData
     })
 
-    return NextResponse.json(updatedCompany)
+    return NextResponse.json({
+      success: true,
+      company: updatedCompany
+    })
+
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -104,4 +122,3 @@ export async function PUT(request: NextRequest) {
     )
   }
 }
-
