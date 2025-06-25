@@ -85,9 +85,11 @@ export default function PayrollPage() {
       setLoading(true)
       const response = await fetch("/api/employees")
       if (response.ok) {
-        const data = await response.json()
-        setEmployees(data.filter((emp: Employee) => emp.isActive))
-        setSelectedEmployees(data.filter((emp: Employee) => emp.isActive).map((emp: Employee) => emp.id))
+        const result = await response.json()
+        const employeesData = result.success ? result.employees : []
+        const activeEmployees = employeesData.filter((emp: Employee) => emp.isActive)
+        setEmployees(activeEmployees)
+        setSelectedEmployees(activeEmployees.map((emp: Employee) => emp.id))
       }
     } catch (error) {
       console.error("Error fetching employees:", error)
