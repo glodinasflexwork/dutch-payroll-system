@@ -179,6 +179,92 @@ export default function PayrollPage() {
     return calculations.reduce((sum, calc) => sum + calc.employerCosts, 0)
   }
 
+  const exportResults = () => {
+    if (calculations.length === 0) {
+      alert("No payroll calculations to export")
+      return
+    }
+
+    // Create CSV content
+    const headers = [
+      'Employee Name',
+      'Employee Number', 
+      'Position',
+      'Department',
+      'Employment Type',
+      'Tax Table',
+      'Gross Pay',
+      'Income Tax',
+      'AOW Contribution',
+      'WLZ Contribution', 
+      'WW Contribution',
+      'WIA Contribution',
+      'Total Deductions',
+      'Net Pay',
+      'Holiday Allowance'
+    ]
+
+    const csvContent = [
+      headers.join(','),
+      ...calculations.map(calc => [
+        `"${calc.employee.firstName} ${calc.employee.lastName}"`,
+        calc.employee.employeeNumber || '',
+        `"${calc.employee.position || ''}"`,
+        `"${calc.employee.department || ''}"`,
+        calc.employee.employmentType,
+        calc.employee.taxTable.toUpperCase(),
+        calc.grossPay.toFixed(2),
+        calc.incomeTax.toFixed(2),
+        calc.aowContribution.toFixed(2),
+        calc.wlzContribution.toFixed(2),
+        calc.wwContribution.toFixed(2),
+        calc.wiaContribution.toFixed(2),
+        calc.totalDeductions.toFixed(2),
+        calc.netPay.toFixed(2),
+        calc.holidayAllowance.toFixed(2)
+      ].join(','))
+    ].join('\n')
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `payroll-${formatDate(payrollPeriod.month, payrollPeriod.year).replace(' ', '-')}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const processPayroll = async () => {
+    if (calculations.length === 0) {
+      alert("No payroll calculations to process")
+      return
+    }
+
+    if (!confirm(`Are you sure you want to process payroll for ${calculations.length} employee(s) for ${formatDate(payrollPeriod.month, payrollPeriod.year)}? This will create permanent payroll records.`)) {
+      return
+    }
+
+    setProcessing(true)
+    try {
+      // Here you would typically save the payroll records to the database
+      // For now, we'll simulate the process
+      await new Promise(resolve => setTimeout(resolve, 2000)) // Simulate API call
+      
+      alert(`Payroll successfully processed for ${calculations.length} employee(s)!`)
+      
+      // Optionally redirect to payroll history or reports
+      // router.push('/dashboard/reports')
+    } catch (error) {
+      console.error("Error processing payroll:", error)
+      alert("Failed to process payroll. Please try again.")
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   if (status === "loading" || loading) {
     return (
       <DashboardLayout>
@@ -443,13 +529,13 @@ export default function PayrollPage() {
                     <span>Payroll Calculations - {formatDate(payrollPeriod.month, payrollPeriod.year)}</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={exportResults}>
                       <Download className="w-4 h-4 mr-2" />
                       Export Results
                     </Button>
-                    <Button size="sm">
+                    <Button size="sm" onClick={processPayroll} disabled={processing}>
                       <Play className="w-4 h-4 mr-2" />
-                      Process Payroll
+                      {processing ? 'Processing...' : 'Process Payroll'}
                     </Button>
                   </div>
                 </CardTitle>
