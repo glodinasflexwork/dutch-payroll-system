@@ -74,6 +74,7 @@ export default function EmployeesPage() {
   }
 
   const formatCurrency = (amount: number) => {
+    if (!amount || isNaN(amount)) return '€0'
     return new Intl.NumberFormat('nl-NL', {
       style: 'currency',
       currency: 'EUR',
@@ -83,15 +84,20 @@ export default function EmployeesPage() {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('nl-NL')
+    if (!dateString) return 'N/A'
+    try {
+      return new Date(dateString).toLocaleDateString('nl-NL')
+    } catch (error) {
+      return 'Invalid Date'
+    }
   }
 
   const filteredEmployees = employees.filter(employee => {
     const matchesSearch = 
-      employee.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.bsn.includes(searchTerm)
+      (employee.firstName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (employee.lastName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (employee.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (employee.bsn || '').includes(searchTerm)
 
     const matchesDepartment = filterDepartment === "all" || employee.department === filterDepartment
     const matchesEmploymentType = filterEmploymentType === "all" || employee.employmentType === filterEmploymentType
@@ -99,7 +105,7 @@ export default function EmployeesPage() {
     return matchesSearch && matchesDepartment && matchesEmploymentType
   })
 
-  const departments = [...new Set(employees.map(emp => emp.department))]
+  const departments = [...new Set(employees.map(emp => emp.department).filter(Boolean))]
 
   if (status === "loading" || loading) {
     return (
@@ -286,19 +292,19 @@ export default function EmployeesPage() {
                         <td className="py-3 px-4">
                           <div>
                             <p className="font-medium text-gray-900">
-                              {employee.firstName} {employee.lastName}
+                              {(employee.firstName || '')} {(employee.lastName || '')}
                             </p>
-                            <p className="text-sm text-gray-500">{employee.email}</p>
-                            <p className="text-sm text-gray-500">{employee.position}</p>
+                            <p className="text-sm text-gray-500">{employee.email || 'No email'}</p>
+                            <p className="text-sm text-gray-500">{employee.position || 'No position'}</p>
                           </div>
                         </td>
                         <td className="py-3 px-4">
                           <code className="text-sm bg-gray-100 px-2 py-1 rounded">
-                            {employee.bsn}
+                            {employee.bsn || 'No BSN'}
                           </code>
                         </td>
                         <td className="py-3 px-4">
-                          <Badge variant="secondary">{employee.department}</Badge>
+                          <Badge variant="secondary">{employee.department || 'No Department'}</Badge>
                         </td>
                         <td className="py-3 px-4">
                           <Badge variant={employee.employmentType === 'monthly' ? 'default' : 'outline'}>
@@ -308,7 +314,7 @@ export default function EmployeesPage() {
                         <td className="py-3 px-4">
                           <div>
                             {employee.employmentType === 'monthly' ? (
-                              <p className="font-medium">{formatCurrency(employee.salary)}</p>
+                              <p className="font-medium">{formatCurrency(employee.salary || 0)}</p>
                             ) : (
                               <p className="font-medium">{formatCurrency(employee.hourlyRate || 0)}/hour</p>
                             )}
@@ -318,8 +324,8 @@ export default function EmployeesPage() {
                           </div>
                         </td>
                         <td className="py-3 px-4">
-                          <Badge variant={employee.taxTable === 'wit' ? 'default' : 'success'}>
-                            {employee.taxTable.toUpperCase()}
+                          <Badge variant={(employee.taxTable || 'wit') === 'wit' ? 'default' : 'success'}>
+                            {(employee.taxTable || 'wit').toUpperCase()}
                           </Badge>
                         </td>
                         <td className="py-3 px-4">
