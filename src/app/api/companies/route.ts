@@ -12,7 +12,7 @@ const updateCompanySchema = z.object({
   postalCode: z.string().optional(),
   country: z.string().optional(),
   phone: z.string().optional(),
-  email: z.string().email("Invalid email").optional(),
+  email: z.string().email("Invalid email").optional().or(z.literal("")),
   website: z.string().optional(),
   kvkNumber: z.string().optional(),
   taxNumber: z.string().optional(),
@@ -22,6 +22,31 @@ const updateCompanySchema = z.object({
   foundedYear: z.number().min(1800).max(new Date().getFullYear()).optional(),
   employeeCount: z.number().min(1).optional(),
 })
+
+// Preprocess data to handle empty strings and type conversions
+function preprocessCompanyData(data: any) {
+  const processed = { ...data }
+  
+  // Convert empty strings to undefined
+  Object.keys(processed).forEach(key => {
+    if (processed[key] === "") {
+      processed[key] = undefined
+    }
+  })
+  
+  // Convert string numbers to actual numbers
+  if (processed.foundedYear && typeof processed.foundedYear === 'string') {
+    const year = parseInt(processed.foundedYear)
+    processed.foundedYear = isNaN(year) ? undefined : year
+  }
+  
+  if (processed.employeeCount && typeof processed.employeeCount === 'string') {
+    const count = parseInt(processed.employeeCount)
+    processed.employeeCount = isNaN(count) ? undefined : count
+  }
+  
+  return processed
+}
 
 // GET /api/companies - Get the user's company information
 export async function GET(request: NextRequest) {
@@ -82,8 +107,11 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json()
     
+    // Preprocess the data to handle empty strings and type conversions
+    const preprocessedData = preprocessCompanyData(body)
+    
     // Validate the request body
-    const validatedData = updateCompanySchema.parse(body)
+    const validatedData = updateCompanySchema.parse(preprocessedData)
 
     // Check if company exists
     const existingCompany = await prisma.company.findUnique({
