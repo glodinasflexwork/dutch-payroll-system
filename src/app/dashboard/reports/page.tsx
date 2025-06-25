@@ -44,77 +44,70 @@ interface EmployeeReport {
 
 export default function ReportsPage() {
   const { data: session } = useSession()
-  const [activeTab, setActiveTab] = useState('payroll-history')
+  const [activeTab, setActiveTab] = useState('employee-reports')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedPeriod, setSelectedPeriod] = useState('all')
   const [loading, setLoading] = useState(false)
+  const [employees, setEmployees] = useState<EmployeeReport[]>([])
+  const [payrollHistory, setPayrollHistory] = useState<PayrollRecord[]>([])
 
-  // Mock data for demonstration
-  const payrollHistory: PayrollRecord[] = [
-    {
-      id: '1',
-      period: 'juni 2025',
-      employeeCount: 14,
-      totalGross: 56000,
-      totalNet: 42000,
-      totalTax: 14000,
-      status: 'completed',
-      processedAt: '2025-06-25T10:30:00Z'
-    },
-    {
-      id: '2',
-      period: 'mei 2025',
-      employeeCount: 13,
-      totalGross: 52000,
-      totalNet: 39000,
-      totalTax: 13000,
-      status: 'completed',
-      processedAt: '2025-05-25T10:30:00Z'
-    },
-    {
-      id: '3',
-      period: 'april 2025',
-      employeeCount: 12,
-      totalGross: 48000,
-      totalNet: 36000,
-      totalTax: 12000,
-      status: 'completed',
-      processedAt: '2025-04-25T10:30:00Z'
+  useEffect(() => {
+    if (session?.user?.companyId) {
+      fetchEmployees()
+      fetchPayrollHistory()
     }
-  ]
+  }, [session])
 
-  const employeeReports: EmployeeReport[] = [
-    {
-      id: '1',
-      name: 'Anna de Vries',
-      department: 'Engineering',
-      position: 'Senior Software Engineer',
-      grossPay: 5500,
-      netPay: 4100,
-      taxDeductions: 1000,
-      socialSecurity: 400
-    },
-    {
-      id: '2',
-      name: 'Jan van der Berg',
-      department: 'Sales',
-      position: 'Sales Manager',
-      grossPay: 4800,
-      netPay: 3600,
-      taxDeductions: 900,
-      socialSecurity: 300
-    },
-    {
-      id: '3',
-      name: 'Maria Jansen',
-      department: 'HR',
-      position: 'HR Specialist',
-      grossPay: 4200,
-      netPay: 3200,
-      taxDeductions: 750,
-      socialSecurity: 250
+  const fetchEmployees = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch("/api/employees")
+      if (response.ok) {
+        const result = await response.json()
+        const employeesData = result.success ? result.employees : []
+        
+        // Transform employee data to match EmployeeReport interface
+        const employeeReports = employeesData.map((emp: any) => ({
+          id: emp.id,
+          name: `${emp.firstName} ${emp.lastName}`,
+          department: emp.department || 'N/A',
+          position: emp.position || 'N/A',
+          grossPay: emp.salary || 0,
+          netPay: Math.round((emp.salary || 0) * 0.68), // Approximate net pay (68% of gross)
+          taxDeductions: Math.round((emp.salary || 0) * 0.25), // Approximate tax (25%)
+          socialSecurity: Math.round((emp.salary || 0) * 0.07) // Approximate social security (7%)
+        }))
+        
+        setEmployees(employeeReports)
+      }
+    } catch (error) {
+      console.error("Error fetching employees:", error)
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
+
+  const fetchPayrollHistory = async () => {
+    try {
+      // For now, use mock data for payroll history
+      // This would typically fetch from a payroll records API
+      const mockHistory: PayrollRecord[] = [
+        {
+          id: '1',
+          period: 'juni 2025',
+          employeeCount: employees.length,
+          totalGross: employees.reduce((sum, emp) => sum + emp.grossPay, 0),
+          totalNet: employees.reduce((sum, emp) => sum + emp.netPay, 0),
+          totalTax: employees.reduce((sum, emp) => sum + emp.taxDeductions + emp.socialSecurity, 0),
+          status: 'completed',
+          processedAt: new Date().toISOString()
+        }
+      ]
+      setPayrollHistory(mockHistory)
+    } catch (error) {
+      console.error("Error fetching payroll history:", error)
+    }
+  }
 
   const handleExportPDF = (type: string, id?: string) => {
     setLoading(true)
@@ -125,13 +118,54 @@ export default function ReportsPage() {
     }, 2000)
   }
 
-  const handleGeneratePayslip = (employeeId: string) => {
+  const handleGeneratePayslip = async (employeeId: string) => {
     setLoading(true)
-    // Simulate payslip generation
-    setTimeout(() => {
+    try {
+      // Get current month and year
+      const now = new Date()
+      const month = now.getMonth() + 1
+      const year = now.getFullYear()
+
+      // Generate payslip HTML
+      const response = await fetch("/api/payslips", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          employeeId,
+          month,
+          year
+        }),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success) {
+          // Create a new window/tab with the payslip HTML
+          const newWindow = window.open('', '_blank')
+          if (newWindow) {
+            newWindow.document.write(result.html)
+            newWindow.document.close()
+            
+            // Optional: Trigger print dialog
+            setTimeout(() => {
+              newWindow.print()
+            }, 1000)
+          }
+        } else {
+          alert('Failed to generate payslip: ' + result.error)
+        }
+      } else {
+        const errorData = await response.json()
+        alert('Error generating payslip: ' + (errorData.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Error generating payslip:', error)
+      alert('Network error. Please try again.')
+    } finally {
       setLoading(false)
-      alert('Payslip generated successfully!')
-    }, 1500)
+    }
   }
 
   const formatCurrency = (amount: number) => {
@@ -328,7 +362,7 @@ export default function ReportsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {employeeReports.map((employee) => (
+                    {employees.map((employee) => (
                       <tr key={employee.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>

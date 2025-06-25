@@ -265,6 +265,51 @@ export default function PayrollPage() {
     }
   }
 
+  const generatePayslip = async (employeeId: string) => {
+    setProcessing(true)
+    try {
+      // Generate payslip HTML
+      const response = await fetch("/api/payslips", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          employeeId,
+          month: payrollPeriod.month,
+          year: payrollPeriod.year
+        }),
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success) {
+          // Create a new window/tab with the payslip HTML
+          const newWindow = window.open('', '_blank')
+          if (newWindow) {
+            newWindow.document.write(result.html)
+            newWindow.document.close()
+            
+            // Optional: Trigger print dialog
+            setTimeout(() => {
+              newWindow.print()
+            }, 1000)
+          }
+        } else {
+          alert('Failed to generate payslip: ' + result.error)
+        }
+      } else {
+        const errorData = await response.json()
+        alert('Error generating payslip: ' + (errorData.error || 'Unknown error'))
+      }
+    } catch (error) {
+      console.error('Error generating payslip:', error)
+      alert('Network error. Please try again.')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   if (status === "loading" || loading) {
     return (
       <DashboardLayout>
@@ -598,10 +643,22 @@ export default function PayrollPage() {
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex items-center space-x-2">
-                              <Button variant="ghost" size="sm">
-                                <Eye className="w-4 h-4" />
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => generatePayslip(calc.employeeId)}
+                                disabled={processing}
+                                title="Generate Payslip"
+                              >
+                                <FileText className="w-4 h-4" />
                               </Button>
-                              <Button variant="ghost" size="sm">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => generatePayslip(calc.employeeId)}
+                                disabled={processing}
+                                title="Download Payslip"
+                              >
                                 <Download className="w-4 h-4" />
                               </Button>
                             </div>
