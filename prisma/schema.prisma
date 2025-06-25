@@ -1,0 +1,195 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          String    @default("admin")
+  companyId     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  company  Company? @relation(fields: [companyId], references: [id])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Company {
+  id                String   @id @default(cuid())
+  name              String
+  address           String?
+  city              String?
+  postalCode        String?
+  country           String   @default("Netherlands")
+  kvkNumber         String?  // Chamber of Commerce number
+  taxNumber         String?  // Tax identification number
+  bankAccount       String?
+  contactEmail      String?
+  contactPhone      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  users             User[]
+  employees         Employee[]
+  payrollRecords    PayrollRecord[]
+  taxSettings       TaxSettings[]
+}
+
+model Employee {
+  id                String   @id @default(cuid())
+  employeeNumber    String   @unique
+  firstName         String
+  lastName          String
+  email             String?
+  phone             String?
+  address           String?
+  city              String?
+  postalCode        String?
+  bsn               String   @unique // Burgerservicenummer
+  dateOfBirth       DateTime
+  startDate         DateTime
+  endDate           DateTime?
+  position          String
+  department        String?
+  employmentType    String   // "monthly" or "hourly"
+  salary            Float    // Monthly salary or hourly rate
+  taxTable          String   // "wit" or "groen"
+  isActive          Boolean  @default(true)
+  bankAccount       String?
+  emergencyContact  String?
+  emergencyPhone    String?
+  companyId         String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  company           Company @relation(fields: [companyId], references: [id])
+  payrollRecords    PayrollRecord[]
+}
+
+model PayrollRecord {
+  id                String   @id @default(cuid())
+  employeeId        String
+  companyId         String
+  payPeriodStart    DateTime
+  payPeriodEnd      DateTime
+  processedDate     DateTime @default(now())
+  
+  // Basic pay information
+  baseSalary        Float
+  hoursWorked       Float    @default(0)
+  overtimeHours     Float    @default(0)
+  overtimeRate      Float    @default(1.5)
+  
+  // Gross pay calculations
+  regularPay        Float
+  overtimePay       Float
+  holidayAllowance  Float    @default(0) // Vakantiegeld
+  grossPay          Float
+  
+  // Tax deductions
+  incomeTax         Float
+  aowContribution   Float    // AOW (State pension)
+  wlzContribution   Float    // WLZ (Long-term care)
+  wwContribution    Float    // WW (Unemployment insurance)
+  wiaContribution   Float    // WIA (Disability insurance)
+  totalDeductions   Float
+  
+  // Net pay
+  netPay            Float
+  
+  // Additional information
+  taxTable          String   // "wit" or "groen"
+  taxYear           Int
+  payslipGenerated  Boolean  @default(false)
+  notes             String?
+  
+  employee          Employee @relation(fields: [employeeId], references: [id])
+  company           Company  @relation(fields: [companyId], references: [id])
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model TaxSettings {
+  id                    String   @id @default(cuid())
+  companyId             String
+  taxYear               Int
+  
+  // Income tax brackets
+  incomeTaxRate1        Float    @default(36.93) // First bracket rate
+  incomeTaxRate2        Float    @default(49.50) // Second bracket rate
+  incomeTaxBracket1Max  Float    @default(75518) // Maximum for first bracket
+  
+  // Social security rates
+  aowRate               Float    @default(17.90) // AOW rate
+  wlzRate               Float    @default(9.65)  // WLZ rate
+  wwRate                Float    @default(2.70)  // WW rate
+  wiaRate               Float    @default(0.60)  // WIA rate
+  
+  // Maximum contribution bases
+  aowMaxBase            Float    @default(40000)  // AOW maximum base
+  wlzMaxBase            Float    @default(40000)  // WLZ maximum base
+  wwMaxBase             Float    @default(69000)  // WW maximum base
+  wiaMaxBase            Float    @default(69000)  // WIA maximum base
+  
+  // Other settings
+  holidayAllowanceRate  Float    @default(8.0)   // Holiday allowance percentage
+  minimumWage           Float    @default(12.83) // Minimum wage per hour
+  
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  company               Company  @relation(fields: [companyId], references: [id])
+  
+  @@unique([companyId, taxYear])
+}
+
