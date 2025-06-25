@@ -129,7 +129,14 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/payroll - Calculate and create a new payroll record
+// Validation schema for bulk payroll calculation
+const bulkPayrollSchema = z.object({
+  employeeIds: z.array(z.string().min(1, "Employee ID is required")),
+  month: z.number().min(1).max(12),
+  year: z.number().min(2020).max(2030),
+})
+
+// POST /api/payroll - Calculate payroll for multiple employees
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -141,84 +148,86 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     
     // Validate the request body
-    const validatedData = payrollSchema.parse(body)
+    const validatedData = bulkPayrollSchema.parse(body)
 
-    // Get employee information
-    const employee = await prisma.employee.findFirst({
+    // Create date range for the payroll period
+    const payPeriodStart = new Date(validatedData.year, validatedData.month - 1, 1)
+    const payPeriodEnd = new Date(validatedData.year, validatedData.month, 0) // Last day of month
+
+    // Get employees
+    const employees = await prisma.employee.findMany({
       where: {
-        id: validatedData.employeeId,
+        id: { in: validatedData.employeeIds },
         companyId: session.user.companyId,
         isActive: true
       }
     })
 
-    if (!employee) {
-      return NextResponse.json({ error: "Employee not found" }, { status: 404 })
+    if (employees.length === 0) {
+      return NextResponse.json({ error: "No valid employees found" }, { status: 404 })
     }
 
     // Get tax settings for the company
     const taxSettings = await prisma.taxSettings.findFirst({
       where: {
         companyId: session.user.companyId,
-        taxYear: new Date().getFullYear(),
+        taxYear: validatedData.year,
         isActive: true
       }
     })
 
     if (!taxSettings) {
-      return NextResponse.json({ error: "Tax settings not found" }, { status: 404 })
+      return NextResponse.json({ error: "Tax settings not found for this year" }, { status: 404 })
     }
 
-    // Calculate gross pay
-    let regularPay = 0
-    let overtimePay = 0
+    const calculations = []
 
-    if (employee.employmentType === "monthly") {
-      regularPay = employee.salary
-      overtimePay = 0 // Monthly employees typically don't get overtime
-    } else {
-      // Hourly employee
-      regularPay = validatedData.hoursWorked * employee.salary
-      overtimePay = validatedData.overtimeHours * employee.salary * validatedData.overtimeRate
-    }
+    // Process each employee
+    for (const employee of employees) {
+      // Calculate gross pay
+      let regularPay = 0
+      let overtimePay = 0
+      let hoursWorked = 0
 
-    // Calculate holiday allowance (8% of annual salary, paid proportionally)
-    const holidayAllowance = (employee.salary * (taxSettings.holidayAllowanceRate / 100)) / 12
-
-    const grossPay = regularPay + overtimePay + holidayAllowance
-
-    // Calculate taxes and deductions
-    const taxCalculations = calculateDutchTaxes(grossPay, taxSettings, employee.taxTable)
-
-    const netPay = grossPay - taxCalculations.totalDeductions
-
-    // Check if payroll record already exists for this period
-    const existingRecord = await prisma.payrollRecord.findFirst({
-      where: {
-        employeeId: validatedData.employeeId,
-        payPeriodStart: validatedData.payPeriodStart,
-        payPeriodEnd: validatedData.payPeriodEnd
+      if (employee.employmentType === "monthly") {
+        regularPay = employee.salary
+        hoursWorked = 160 // Standard monthly hours
+      } else {
+        // For hourly employees, assume standard hours if not specified
+        hoursWorked = 160
+        regularPay = hoursWorked * employee.salary
       }
-    })
 
-    if (existingRecord) {
-      return NextResponse.json(
-        { error: "Payroll record already exists for this period" },
-        { status: 400 }
-      )
-    }
+      // Calculate holiday allowance (8% of annual salary, paid proportionally)
+      const holidayAllowance = (employee.salary * (taxSettings.holidayAllowanceRate / 100)) / 12
 
-    // Create the payroll record
-    const payrollRecord = await prisma.payrollRecord.create({
-      data: {
-        employeeId: validatedData.employeeId,
-        companyId: session.user.companyId,
-        payPeriodStart: validatedData.payPeriodStart,
-        payPeriodEnd: validatedData.payPeriodEnd,
-        baseSalary: employee.salary,
-        hoursWorked: validatedData.hoursWorked,
-        overtimeHours: validatedData.overtimeHours,
-        overtimeRate: validatedData.overtimeRate,
+      const grossPay = regularPay + overtimePay + holidayAllowance
+
+      // Calculate taxes and deductions
+      const taxCalculations = calculateDutchTaxes(grossPay, taxSettings, employee.taxTable)
+
+      const netPay = grossPay - taxCalculations.totalDeductions
+      const employerCosts = grossPay + (grossPay * 0.20) // Approximate employer costs
+
+      calculations.push({
+        employeeId: employee.id,
+        employee: {
+          id: employee.id,
+          firstName: employee.firstName,
+          lastName: employee.lastName,
+          employeeNumber: employee.employeeNumber,
+          position: employee.position,
+          department: employee.department,
+          employmentType: employee.employmentType,
+          taxTable: employee.taxTable
+        },
+        payPeriod: {
+          start: payPeriodStart,
+          end: payPeriodEnd,
+          month: validatedData.month,
+          year: validatedData.year
+        },
+        hoursWorked,
         regularPay: Math.round(regularPay * 100) / 100,
         overtimePay: Math.round(overtimePay * 100) / 100,
         holidayAllowance: Math.round(holidayAllowance * 100) / 100,
@@ -230,22 +239,31 @@ export async function POST(request: NextRequest) {
         wiaContribution: taxCalculations.wiaContribution,
         totalDeductions: taxCalculations.totalDeductions,
         netPay: Math.round(netPay * 100) / 100,
-        taxTable: employee.taxTable,
-        taxYear: new Date().getFullYear()
-      },
-      include: {
-        employee: {
-          select: {
-            firstName: true,
-            lastName: true,
-            employeeNumber: true,
-            position: true
-          }
-        }
+        employerCosts: Math.round(employerCosts * 100) / 100
+      })
+    }
+
+    // Calculate totals
+    const totals = {
+      totalGrossPay: calculations.reduce((sum, calc) => sum + calc.grossPay, 0),
+      totalDeductions: calculations.reduce((sum, calc) => sum + calc.totalDeductions, 0),
+      totalNetPay: calculations.reduce((sum, calc) => sum + calc.netPay, 0),
+      totalEmployerCosts: calculations.reduce((sum, calc) => sum + calc.employerCosts, 0),
+      employeeCount: calculations.length
+    }
+
+    return NextResponse.json({
+      success: true,
+      calculations,
+      totals,
+      payrollPeriod: {
+        month: validatedData.month,
+        year: validatedData.year,
+        start: payPeriodStart,
+        end: payPeriodEnd
       }
     })
 
-    return NextResponse.json(payrollRecord, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
