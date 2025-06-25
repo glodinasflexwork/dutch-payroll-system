@@ -107,21 +107,21 @@ export default function CompanyPage() {
 
   const handleEdit = () => {
     setEditing(true)
-    setError(null)
+    setError(null) // Clear any existing errors
     setSuccess(null)
   }
 
   const handleCancel = () => {
     setEditing(false)
     setFormData(company || {})
-    setError(null)
+    setError(null) // Clear any existing errors
     setSuccess(null)
   }
 
   const handleSave = async () => {
     try {
       setSaving(true)
-      setError(null)
+      setError(null) // Clear any existing errors
 
       const response = await fetch("/api/companies", {
         method: "PUT",
@@ -144,7 +144,15 @@ export default function CompanyPage() {
         }
       } else {
         const errorData = await response.json()
-        setError(errorData.error || "Failed to update company")
+        // Provide more specific error messages
+        if (errorData.details && Array.isArray(errorData.details)) {
+          const errorMessages = errorData.details.map((detail: any) => 
+            `${detail.path?.join('.')}: ${detail.message}`
+          ).join(', ')
+          setError(`Validation failed: ${errorMessages}`)
+        } else {
+          setError(errorData.error || "Failed to update company")
+        }
       }
     } catch (error) {
       console.error("Error updating company:", error)
@@ -159,6 +167,10 @@ export default function CompanyPage() {
       ...prev,
       [field]: value
     }))
+    // Clear error when user starts typing
+    if (error) {
+      setError(null)
+    }
   }
 
   const formatDate = (dateString: string) => {
