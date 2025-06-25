@@ -4,28 +4,26 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
-// Validation schema for employee data
+// Validation schema for employee data - updated to match frontend
 const employeeSchema = z.object({
-  employeeNumber: z.string().min(1, "Employee number is required"),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Invalid email").optional().nullable(),
-  phone: z.string().optional().nullable(),
-  address: z.string().optional().nullable(),
-  city: z.string().optional().nullable(),
-  postalCode: z.string().optional().nullable(),
+  email: z.string().email("Invalid email").optional().or(z.literal("")),
+  phoneNumber: z.string().optional().or(z.literal("")),
+  address: z.string().optional().or(z.literal("")),
+  city: z.string().optional().or(z.literal("")),
+  postalCode: z.string().optional().or(z.literal("")),
   bsn: z.string().min(8, "BSN must be at least 8 characters").max(9, "BSN must be at most 9 characters"),
-  dateOfBirth: z.string().transform((str) => new Date(str)),
-  startDate: z.string().transform((str) => new Date(str)),
-  endDate: z.string().transform((str) => new Date(str)).optional().nullable(),
+  startDate: z.string().min(1, "Start date is required"),
   position: z.string().min(1, "Position is required"),
-  department: z.string().optional().nullable(),
+  department: z.string().min(1, "Department is required"),
   employmentType: z.enum(["monthly", "hourly"]),
-  salary: z.number().positive("Salary must be positive"),
+  salary: z.string().optional().or(z.literal("")),
+  hourlyRate: z.string().optional().or(z.literal("")),
   taxTable: z.enum(["wit", "groen"]),
-  bankAccount: z.string().optional().nullable(),
-  emergencyContact: z.string().optional().nullable(),
-  emergencyPhone: z.string().optional().nullable(),
+  bankAccount: z.string().optional().or(z.literal("")),
+  emergencyContact: z.string().optional().or(z.literal("")),
+  emergencyPhone: z.string().optional().or(z.literal("")),
 })
 
 // GET /api/employees - Get all employees for the user's company
@@ -67,46 +65,70 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
+    console.log("Received employee data:", body) // Debug log
     
     // Validate the request body
     const validatedData = employeeSchema.parse(body)
 
-    // Check if employee number already exists
-    const existingEmployee = await prisma.employee.findUnique({
-      where: { employeeNumber: validatedData.employeeNumber }
+    // Generate employee number
+    const employeeCount = await prisma.employee.count({
+      where: { companyId: session.user.companyId }
     })
-
-    if (existingEmployee) {
-      return NextResponse.json(
-        { error: "Employee number already exists" },
-        { status: 400 }
-      )
-    }
+    const employeeNumber = `EMP${String(employeeCount + 1).padStart(4, '0')}`
 
     // Check if BSN already exists
-    const existingBSN = await prisma.employee.findUnique({
-      where: { bsn: validatedData.bsn }
+    const existingBSN = await prisma.employee.findFirst({
+      where: { 
+        bsn: validatedData.bsn,
+        companyId: session.user.companyId
+      }
     })
 
     if (existingBSN) {
       return NextResponse.json(
-        { error: "BSN already exists" },
+        { error: "BSN already exists in your company" },
         { status: 400 }
       )
     }
 
+    // Convert salary/hourly rate to number
+    const salaryValue = validatedData.employmentType === 'monthly' 
+      ? parseFloat(validatedData.salary || '0')
+      : parseFloat(validatedData.hourlyRate || '0')
+
     // Create the employee
     const employee = await prisma.employee.create({
       data: {
-        ...validatedData,
+        employeeNumber,
+        firstName: validatedData.firstName,
+        lastName: validatedData.lastName,
+        email: validatedData.email || null,
+        phone: validatedData.phoneNumber || null,
+        address: validatedData.address || null,
+        city: validatedData.city || null,
+        postalCode: validatedData.postalCode || null,
+        bsn: validatedData.bsn,
+        dateOfBirth: new Date('1990-01-01'), // Default date, can be updated later
+        startDate: new Date(validatedData.startDate),
+        endDate: null,
+        position: validatedData.position,
+        department: validatedData.department,
+        employmentType: validatedData.employmentType,
+        salary: salaryValue,
+        taxTable: validatedData.taxTable,
+        bankAccount: validatedData.bankAccount || null,
+        emergencyContact: validatedData.emergencyContact || null,
+        emergencyPhone: validatedData.emergencyPhone || null,
         companyId: session.user.companyId,
         isActive: true
       }
     })
 
+    console.log("Employee created successfully:", employee.id) // Debug log
     return NextResponse.json(employee, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.error("Validation error:", error.errors) // Debug log
       return NextResponse.json(
         { error: "Validation error", details: error.errors },
         { status: 400 }
@@ -115,7 +137,7 @@ export async function POST(request: NextRequest) {
 
     console.error("Error creating employee:", error)
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", details: error.message },
       { status: 500 }
     )
   }
