@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/employees - Create a new employee (using original working logic)
+// POST /api/employees - Create a new employee (restored working logic)
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -47,8 +47,8 @@ export async function POST(request: NextRequest) {
     const data = await request.json()
     console.log("Received employee data:", data) // Debug logging
     
-    // Validate required fields (using original field names)
-    const required_fields = ['firstName', 'lastName', 'email', 'bsn', 'startDate', 'position', 'employmentType']
+    // Validate required fields
+    const required_fields = ['firstName', 'lastName', 'email', 'bsn', 'startDate', 'position', 'department', 'employmentType']
     for (const field of required_fields) {
       if (!data[field] || data[field] === '') {
         const error_msg = `Missing or empty required field: ${field}`
@@ -111,20 +111,23 @@ export async function POST(request: NextRequest) {
     }
     
     // Validate salary data based on employment type
+    let salaryAmount = 0
     if (data.employmentType === 'monthly') {
-      if (!data.salary || data.salary === '' || parseFloat(data.salary) <= 0) {
+      if (!data.salary || (typeof data.salary === 'string' && data.salary === '') || Number(data.salary) <= 0) {
         return NextResponse.json({
           success: false,
           error: 'Monthly salary is required and must be greater than 0 for monthly employees'
         }, { status: 400 })
       }
+      salaryAmount = Number(data.salary)
     } else if (data.employmentType === 'hourly') {
-      if (!data.hourlyRate || data.hourlyRate === '' || parseFloat(data.hourlyRate) <= 0) {
+      if (!data.hourlyRate || (typeof data.hourlyRate === 'string' && data.hourlyRate === '') || Number(data.hourlyRate) <= 0) {
         return NextResponse.json({
           success: false,
           error: 'Hourly rate is required and must be greater than 0 for hourly employees'
         }, { status: 400 })
       }
+      salaryAmount = Number(data.hourlyRate)
     }
     
     // Generate employee number
@@ -133,14 +136,14 @@ export async function POST(request: NextRequest) {
     })
     const employeeNumber = `EMP${String(employeeCount + 1).padStart(4, '0')}`
     
-    // Create new employee with original working structure
+    // Create new employee with proper field mapping
     const employee = await prisma.employee.create({
       data: {
         employeeNumber,
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,
-        phone: data.phoneNumber || null,
+        phone: data.phoneNumber || null, // Map phoneNumber to phone
         address: data.address || null,
         postalCode: data.postalCode || null,
         city: data.city || null,
@@ -149,9 +152,9 @@ export async function POST(request: NextRequest) {
         startDate: hireDate,
         endDate: null,
         position: data.position,
-        department: data.department || null,
+        department: data.department,
         employmentType: data.employmentType,
-        salary: data.employmentType === 'monthly' ? parseFloat(data.salary) : parseFloat(data.hourlyRate || '0'),
+        salary: salaryAmount,
         taxTable: data.taxTable || 'wit',
         bankAccount: data.bankAccount || null,
         emergencyContact: data.emergencyContact || null,
@@ -170,7 +173,7 @@ export async function POST(request: NextRequest) {
     }, { status: 201 })
     
   } catch (error) {
-    const error_msg = `Error creating employee: ${error.message}`
+    const error_msg = `Error creating employee: ${error instanceof Error ? error.message : 'Unknown error'}`
     console.error("Exception:", error_msg)
     console.error(error)
     return NextResponse.json({
