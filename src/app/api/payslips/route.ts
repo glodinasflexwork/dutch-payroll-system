@@ -201,15 +201,137 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = payslipSchema.parse(body)
 
-    // Get payslip data (reuse GET logic)
-    const payslipResponse = await GET(request)
-    const payslipResult = await payslipResponse.json()
+    // Get employee information
+    const employee = await prisma.employee.findFirst({
+      where: {
+        id: validatedData.employeeId,
+        companyId: session.user.companyId,
+        isActive: true
+      }
+    })
 
-    if (!payslipResult.success) {
-      return NextResponse.json(payslipResult, { status: payslipResponse.status })
+    if (!employee) {
+      return NextResponse.json({ error: "Employee not found" }, { status: 404 })
     }
 
-    const payslip = payslipResult.payslip
+    // Get company information
+    const company = await prisma.company.findFirst({
+      where: {
+        id: session.user.companyId
+      }
+    })
+
+    if (!company) {
+      return NextResponse.json({ error: "Company not found" }, { status: 404 })
+    }
+
+    // Get tax settings
+    const taxSettings = await prisma.taxSettings.findFirst({
+      where: {
+        companyId: session.user.companyId,
+        taxYear: validatedData.year,
+        isActive: true
+      }
+    })
+
+    if (!taxSettings) {
+      return NextResponse.json({ error: "Tax settings not found" }, { status: 404 })
+    }
+
+    // Calculate payroll for this employee (similar to bulk calculation)
+    let regularPay = 0
+    let hoursWorked = 0
+
+    if (employee.employmentType === "monthly") {
+      regularPay = employee.salary
+      hoursWorked = 160 // Standard monthly hours
+    } else {
+      hoursWorked = 160
+      regularPay = hoursWorked * employee.salary
+    }
+
+    // Calculate holiday allowance
+    const holidayAllowance = (employee.salary * (taxSettings.holidayAllowanceRate / 100)) / 12
+    const grossPay = regularPay + holidayAllowance
+
+    // Calculate Dutch taxes
+    const { incomeTaxRate1, incomeTaxRate2, incomeTaxBracket1Max, aowRate, wlzRate, wwRate, wiaRate } = taxSettings
+
+    // Income tax calculation
+    let incomeTax = 0
+    if (grossPay <= incomeTaxBracket1Max) {
+      incomeTax = grossPay * (incomeTaxRate1 / 100)
+    } else {
+      incomeTax = incomeTaxBracket1Max * (incomeTaxRate1 / 100) + 
+                  (grossPay - incomeTaxBracket1Max) * (incomeTaxRate2 / 100)
+    }
+
+    // Apply tax table adjustment
+    if (employee.taxTable === "groen") {
+      incomeTax = Math.max(0, incomeTax - 3070) // Standard tax credit for 2025
+    }
+
+    // Social security contributions
+    const aowContribution = Math.min(grossPay, taxSettings.aowMaxBase) * (aowRate / 100)
+    const wlzContribution = Math.min(grossPay, taxSettings.wlzMaxBase) * (wlzRate / 100)
+    const wwContribution = Math.min(grossPay, taxSettings.wwMaxBase) * (wwRate / 100)
+    const wiaContribution = Math.min(grossPay, taxSettings.wiaMaxBase) * (wiaRate / 100)
+
+    const totalDeductions = incomeTax + aowContribution + wlzContribution + wwContribution + wiaContribution
+    const netPay = grossPay - totalDeductions
+
+    // Create payslip data
+    const payslip = {
+      company: {
+        name: company.name,
+        address: company.address || '',
+        city: company.city || '',
+        postalCode: company.postalCode || '',
+        kvkNumber: company.kvkNumber || '',
+        taxNumber: company.taxNumber || ''
+      },
+      employee: {
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+        employeeNumber: employee.employeeNumber || '',
+        position: employee.position || '',
+        department: employee.department || '',
+        bsn: employee.bsn,
+        startDate: employee.startDate,
+        employmentType: employee.employmentType,
+        taxTable: employee.taxTable
+      },
+      payPeriod: {
+        month: validatedData.month,
+        year: validatedData.year,
+        monthName: new Date(validatedData.year, validatedData.month - 1).toLocaleDateString('nl-NL', { month: 'long' })
+      },
+      earnings: {
+        baseSalary: Math.round(regularPay * 100) / 100,
+        holidayAllowance: Math.round(holidayAllowance * 100) / 100,
+        grossPay: Math.round(grossPay * 100) / 100,
+        hoursWorked
+      },
+      deductions: {
+        incomeTax: Math.round(incomeTax * 100) / 100,
+        aowContribution: Math.round(aowContribution * 100) / 100,
+        wlzContribution: Math.round(wlzContribution * 100) / 100,
+        wwContribution: Math.round(wwContribution * 100) / 100,
+        wiaContribution: Math.round(wiaContribution * 100) / 100,
+        totalDeductions: Math.round(totalDeductions * 100) / 100
+      },
+      netPay: Math.round(netPay * 100) / 100,
+      taxRates: {
+        incomeTaxRate1,
+        incomeTaxRate2,
+        aowRate,
+        wlzRate,
+        wwRate,
+        wiaRate,
+        holidayAllowanceRate: taxSettings.holidayAllowanceRate
+      },
+      generatedAt: new Date().toISOString()
+    }
 
     // Generate HTML content for the payslip
     const htmlContent = generatePayslipHTML(payslip)
