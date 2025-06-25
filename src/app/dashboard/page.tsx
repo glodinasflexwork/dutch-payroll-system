@@ -52,11 +52,13 @@ export default function Dashboard() {
 
       // Fetch employees to get detailed counts
       const employeesResponse = await fetch("/api/employees")
-      const employeesData = await employeesResponse.json()
+      const employeesResult = await employeesResponse.json()
+      const employeesData = employeesResult.success ? employeesResult.employees : []
 
       // Fetch payroll records
       const payrollResponse = await fetch("/api/payroll")
-      const payrollData = await payrollResponse.json()
+      const payrollResult = await payrollResponse.json()
+      const payrollData = payrollResult.success ? payrollResult.records || payrollResult.payrollRecords || [] : []
 
       const monthlyEmployees = employeesData.filter((emp: any) => emp.employmentType === "monthly").length
       const hourlyEmployees = employeesData.filter((emp: any) => emp.employmentType === "hourly").length
@@ -66,10 +68,18 @@ export default function Dashboard() {
         monthlyEmployees,
         hourlyEmployees,
         totalPayrollRecords: payrollData.length,
-        companyName: companyData.name
+        companyName: companyData.name || "Your Company"
       })
     } catch (error) {
       console.error("Error fetching dashboard stats:", error)
+      // Set default stats on error
+      setStats({
+        totalEmployees: 0,
+        monthlyEmployees: 0,
+        hourlyEmployees: 0,
+        totalPayrollRecords: 0,
+        companyName: "Your Company"
+      })
     } finally {
       setLoading(false)
     }

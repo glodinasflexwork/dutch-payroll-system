@@ -62,8 +62,9 @@ export default function EmployeesPage() {
     try {
       const response = await fetch("/api/employees")
       if (response.ok) {
-        const data = await response.json()
-        setEmployees(data)
+        const result = await response.json()
+        const employeesData = result.success ? result.employees : []
+        setEmployees(employeesData)
       }
     } catch (error) {
       console.error("Error fetching employees:", error)
