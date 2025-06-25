@@ -18,7 +18,7 @@ const updateCompanySchema = z.object({
   country: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
-  website: z.string().url("Invalid website URL").optional().or(z.literal("")),
+  website: z.string().optional(),
   kvkNumber: z.string()
     .refine((val) => !val || DUTCH_KVK_PATTERN.test(val), {
       message: "KvK number must be 8 digits (e.g., 12345678)"
@@ -123,12 +123,15 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
+    console.log("Received company data:", body)
     
     // Preprocess the data to handle empty strings and type conversions
     const preprocessedData = preprocessCompanyData(body)
+    console.log("Preprocessed data:", preprocessedData)
     
     // Validate the request body
     const validatedData = updateCompanySchema.parse(preprocessedData)
+    console.log("Validated data:", validatedData)
 
     // Check if company exists
     const existingCompany = await prisma.company.findUnique({
