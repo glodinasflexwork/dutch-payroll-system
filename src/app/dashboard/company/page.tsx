@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { getIndustryOptions, getCAOByIndustry, type CAOInfo } from "@/lib/cao-data"
 import { 
   Building2, 
   MapPin, 
@@ -21,7 +22,10 @@ import {
   AlertCircle,
   Users,
   Calendar,
-  CreditCard
+  CreditCard,
+  Clock,
+  Euro,
+  Award
 } from "lucide-react"
 
 interface Company {
@@ -54,12 +58,24 @@ export default function CompanyPage() {
   const [formData, setFormData] = useState<Partial<Company>>({})
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [currentCAO, setCurrentCAO] = useState<CAOInfo | null>(null)
+  const [industryOptions] = useState(getIndustryOptions())
 
   useEffect(() => {
     if (session?.user?.companyId) {
       fetchCompany()
     }
   }, [session])
+
+  useEffect(() => {
+    // Update CAO information when industry changes
+    if (formData.industry) {
+      const cao = getCAOByIndustry(formData.industry)
+      setCurrentCAO(cao || null)
+    } else {
+      setCurrentCAO(null)
+    }
+  }, [formData.industry])
 
   const fetchCompany = async () => {
     try {
@@ -71,6 +87,12 @@ export default function CompanyPage() {
           const companyData = result.companies[0]
           setCompany(companyData)
           setFormData(companyData)
+          
+          // Set initial CAO information
+          if (companyData.industry) {
+            const cao = getCAOByIndustry(companyData.industry)
+            setCurrentCAO(cao || null)
+          }
         }
       } else {
         setError("Failed to load company information")
@@ -259,16 +281,40 @@ export default function CompanyPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Industry
+                        Industry & CAO
                       </label>
                       {editing ? (
-                        <Input
-                          value={formData.industry || ''}
-                          onChange={(e) => handleInputChange('industry', e.target.value)}
-                          placeholder="e.g., Technology, Finance, Healthcare"
-                        />
+                        <div className="space-y-2">
+                          <select
+                            value={formData.industry || ''}
+                            onChange={(e) => handleInputChange('industry', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="">Select industry...</option>
+                            {industryOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label} ({option.cao})
+                              </option>
+                            ))}
+                          </select>
+                          {currentCAO && (
+                            <div className="text-xs text-gray-600 bg-blue-50 p-2 rounded">
+                              <strong>CAO:</strong> {currentCAO.name} - {currentCAO.description}
+                            </div>
+                          )}
+                        </div>
                       ) : (
-                        <p className="text-gray-900">{company.industry || 'Not specified'}</p>
+                        <div className="space-y-1">
+                          <p className="text-gray-900">{company.industry || 'Not specified'}</p>
+                          {currentCAO && (
+                            <div className="flex items-center space-x-2">
+                              <Badge variant="outline" className="text-xs">
+                                <Award className="w-3 h-3 mr-1" />
+                                {currentCAO.name}
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -557,6 +603,87 @@ export default function CompanyPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* CAO Information */}
+              {currentCAO && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Award className="w-5 h-5" />
+                      <span>CAO Information</span>
+                    </CardTitle>
+                    <CardDescription>
+                      Collective Labor Agreement details
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        CAO Name
+                      </label>
+                      <p className="text-sm font-medium text-gray-900">{currentCAO.name}</p>
+                      <p className="text-xs text-gray-500">{currentCAO.fullName}</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="flex items-center space-x-1 mb-1">
+                          <Clock className="w-3 h-3 text-blue-600" />
+                          <span className="text-xs font-medium text-gray-700">Work Hours</span>
+                        </div>
+                        <p className="text-sm text-gray-900">{currentCAO.standardWorkingHours}h/week</p>
+                      </div>
+                      <div>
+                        <div className="flex items-center space-x-1 mb-1">
+                          <Calendar className="w-3 h-3 text-green-600" />
+                          <span className="text-xs font-medium text-gray-700">Holiday Days</span>
+                        </div>
+                        <p className="text-sm text-gray-900">{currentCAO.holidayDays} days</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="flex items-center space-x-1 mb-1">
+                          <Euro className="w-3 h-3 text-purple-600" />
+                          <span className="text-xs font-medium text-gray-700">Min. Wage</span>
+                        </div>
+                        <p className="text-sm text-gray-900">€{currentCAO.minimumWage?.toLocaleString()}/month</p>
+                      </div>
+                      <div>
+                        <div className="flex items-center space-x-1 mb-1">
+                          <CreditCard className="w-3 h-3 text-orange-600" />
+                          <span className="text-xs font-medium text-gray-700">Holiday Pay</span>
+                        </div>
+                        <p className="text-sm text-gray-900">{currentCAO.holidayAllowanceRate}%</p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Overtime Rules
+                      </label>
+                      <p className="text-xs text-gray-600">
+                        {currentCAO.overtimeRules.rate}x pay after {currentCAO.overtimeRules.threshold} hours/week
+                      </p>
+                    </div>
+
+                    {currentCAO.website && (
+                      <div>
+                        <a 
+                          href={currentCAO.website} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:underline flex items-center space-x-1"
+                        >
+                          <Globe className="w-3 h-3" />
+                          <span>View CAO Details</span>
+                        </a>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* System Information */}
               <Card>
