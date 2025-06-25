@@ -4,6 +4,11 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 
+// Dutch business number validation patterns
+const DUTCH_KVK_PATTERN = /^\d{8}$/  // 8 digits
+const DUTCH_TAX_PATTERN = /^\d{9}L\d{2}$/  // 9 digits + L + 2 digits (Loonheffingsnummer)
+const DUTCH_VAT_PATTERN = /^NL\d{9}B\d{2}$/  // NL + 9 digits + B + 2 digits (BTW nummer)
+
 // Validation schema for company updates
 const updateCompanySchema = z.object({
   name: z.string().min(1, "Company name is required").optional(),
@@ -13,10 +18,22 @@ const updateCompanySchema = z.object({
   country: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
-  website: z.string().optional(),
-  kvkNumber: z.string().optional(),
-  taxNumber: z.string().optional(),
-  vatNumber: z.string().optional(),
+  website: z.string().url("Invalid website URL").optional().or(z.literal("")),
+  kvkNumber: z.string()
+    .refine((val) => !val || DUTCH_KVK_PATTERN.test(val), {
+      message: "KvK number must be 8 digits (e.g., 12345678)"
+    })
+    .optional(),
+  taxNumber: z.string()
+    .refine((val) => !val || DUTCH_TAX_PATTERN.test(val), {
+      message: "Tax number must be in format: 123456789L01 (9 digits + L + 2 digits)"
+    })
+    .optional(),
+  vatNumber: z.string()
+    .refine((val) => !val || DUTCH_VAT_PATTERN.test(val), {
+      message: "VAT number must be in format: NL123456789B01"
+    })
+    .optional(),
   description: z.string().optional(),
   industry: z.string().optional(),
   foundedYear: z.number().min(1800).max(new Date().getFullYear()).optional(),
