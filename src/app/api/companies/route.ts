@@ -68,12 +68,16 @@ function preprocessCompanyData(data: any) {
 // GET /api/companies - Get the user's company information
 export async function GET(request: NextRequest) {
   try {
+    console.log("GET /api/companies - Starting request")
     const session = await getServerSession(authOptions)
+    console.log("Session:", session?.user?.email, "CompanyId:", session?.user?.companyId)
     
     if (!session?.user?.companyId) {
+      console.log("No session or companyId found")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    console.log("Fetching company with ID:", session.user.companyId)
     const company = await prisma.company.findUnique({
       where: {
         id: session.user.companyId
@@ -89,7 +93,9 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    console.log("Company found:", !!company)
     if (!company) {
+      console.log("Company not found in database")
       return NextResponse.json({ error: "Company not found" }, { status: 404 })
     }
 
@@ -99,6 +105,7 @@ export async function GET(request: NextRequest) {
       employeeCount: company._count?.employees || 0
     }
 
+    console.log("Returning company data successfully")
     return NextResponse.json({
       success: true,
       companies: [companyWithStats]
@@ -107,7 +114,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Error fetching company:", error)
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", details: error.message },
       { status: 500 }
     )
   }
