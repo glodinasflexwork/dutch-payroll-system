@@ -11,8 +11,10 @@ export default withAuth(
         if (req.nextUrl.pathname.startsWith("/dashboard")) {
           return !!token
         }
-        // Protect API routes (except auth routes)
-        if (req.nextUrl.pathname.startsWith("/api") && !req.nextUrl.pathname.startsWith("/api/auth")) {
+        // Protect API routes (except auth routes and reset route)
+        if (req.nextUrl.pathname.startsWith("/api") && 
+            !req.nextUrl.pathname.startsWith("/api/auth") && 
+            !req.nextUrl.pathname.startsWith("/api/reset")) {
           return !!token
         }
         return true

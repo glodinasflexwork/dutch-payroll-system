@@ -74,16 +74,16 @@ export async function POST(request: NextRequest) {
     console.log("Creating default tax settings...")
     await prisma.taxSettings.create({
       data: {
-        year: 2025,
+        taxYear: 2025,
         incomeTaxRate1: 36.93,
         incomeTaxRate2: 49.50,
-        incomeTaxThreshold: 75518,
+        incomeTaxBracket1Max: 75518,
         aowRate: 17.90,
         wlzRate: 9.65,
-        wwRate: 2.94,
+        wwRate: 2.70,
         wiaRate: 0.60,
         holidayAllowanceRate: 8.0,
-        minimumWage: 2070,
+        minimumWage: 12.83,
         isActive: true,
         companyId: company.id
       }
