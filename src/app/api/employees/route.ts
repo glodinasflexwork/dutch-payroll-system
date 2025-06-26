@@ -130,11 +130,22 @@ export async function POST(request: NextRequest) {
       salaryAmount = Number(data.hourlyRate)
     }
     
-    // Generate employee number
-    const employeeCount = await prisma.employee.count({
-      where: { companyId: session.user.companyId }
+    // Generate unique employee number
+    const lastEmployee = await prisma.employee.findFirst({
+      where: { companyId: session.user.companyId },
+      orderBy: { employeeNumber: 'desc' }
     })
-    const employeeNumber = `EMP${String(employeeCount + 1).padStart(4, '0')}`
+    
+    let nextNumber = 1
+    if (lastEmployee && lastEmployee.employeeNumber) {
+      // Extract number from employeeNumber (e.g., "EMP0001" -> 1)
+      const match = lastEmployee.employeeNumber.match(/EMP(\d+)/)
+      if (match) {
+        nextNumber = parseInt(match[1]) + 1
+      }
+    }
+    
+    const employeeNumber = `EMP${String(nextNumber).padStart(4, '0')}`
     
     // Create new employee with proper field mapping
     const employee = await prisma.employee.create({
