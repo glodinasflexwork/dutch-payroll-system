@@ -7,16 +7,27 @@ export default withAuth(
   {
     callbacks: {
       authorized: ({ token, req }) => {
+        // Allow all NextAuth API routes to work without authentication
+        if (req.nextUrl.pathname.startsWith("/api/auth")) {
+          return true
+        }
+        
+        // Allow debug and reset routes
+        if (req.nextUrl.pathname.startsWith("/api/debug") || 
+            req.nextUrl.pathname.startsWith("/api/reset")) {
+          return true
+        }
+        
         // Protect dashboard routes
         if (req.nextUrl.pathname.startsWith("/dashboard")) {
           return !!token
         }
-        // Protect API routes (except auth routes and reset route)
-        if (req.nextUrl.pathname.startsWith("/api") && 
-            !req.nextUrl.pathname.startsWith("/api/auth") && 
-            !req.nextUrl.pathname.startsWith("/api/reset")) {
+        
+        // Protect other API routes (require authentication)
+        if (req.nextUrl.pathname.startsWith("/api")) {
           return !!token
         }
+        
         return true
       },
     },
