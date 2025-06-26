@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { validateSubscription, hasFeature } from "@/lib/subscription"
 import { z } from "zod"
 
 // Validation schema for payroll calculation
@@ -69,6 +70,20 @@ export async function GET(request: NextRequest) {
     
     if (!session?.user?.companyId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Validate subscription and check payroll feature access
+    const subscriptionValidation = await validateSubscription(session.user.companyId)
+    if (!subscriptionValidation.isValid) {
+      return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
+    }
+
+    // Check if user has access to payroll features
+    const hasPayrollAccess = await hasFeature(session.user.companyId, 'payroll_management')
+    if (!hasPayrollAccess) {
+      return NextResponse.json({ 
+        error: "Payroll management requires a higher subscription plan" 
+      }, { status: 403 })
     }
 
     const { searchParams } = new URL(request.url)
@@ -143,6 +158,41 @@ export async function POST(request: NextRequest) {
     
     if (!session?.user?.companyId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Validate subscription and check payroll limits
+    const subscriptionValidation = await validateSubscription(session.user.companyId)
+    if (!subscriptionValidation.isValid) {
+      return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
+    }
+
+    // Check if user has access to payroll features
+    const hasPayrollAccess = await hasFeature(session.user.companyId, 'payroll_management')
+    if (!hasPayrollAccess) {
+      return NextResponse.json({ 
+        error: "Payroll management requires a higher subscription plan" 
+      }, { status: 403 })
+    }
+
+    // Check monthly payroll limit
+    const currentMonth = new Date()
+    currentMonth.setDate(1)
+    currentMonth.setHours(0, 0, 0, 0)
+    
+    const currentPayrollCount = await prisma.payrollRecord.count({
+      where: {
+        companyId: session.user.companyId,
+        createdAt: {
+          gte: currentMonth
+        }
+      }
+    })
+
+    const maxPayrolls = subscriptionValidation.limits?.maxPayrolls
+    if (maxPayrolls && currentPayrollCount >= maxPayrolls) {
+      return NextResponse.json({ 
+        error: `Monthly payroll limit reached. Your plan allows up to ${maxPayrolls} payrolls per month.` 
+      }, { status: 403 })
     }
 
     const body = await request.json()

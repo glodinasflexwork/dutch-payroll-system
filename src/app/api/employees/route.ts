@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { validateSubscription } from "@/lib/subscription"
 
 // GET /api/employees - Get all employees for the user's company
 export async function GET(request: NextRequest) {
@@ -10,6 +11,12 @@ export async function GET(request: NextRequest) {
     
     if (!session?.user?.companyId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Validate subscription
+    const subscriptionValidation = await validateSubscription(session.user.companyId)
+    if (!subscriptionValidation.isValid) {
+      return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
     }
 
     const employees = await prisma.employee.findMany({
@@ -24,7 +31,11 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      employees: employees
+      employees: employees,
+      subscription: {
+        plan: subscriptionValidation.subscription?.plan?.name,
+        limits: subscriptionValidation.limits
+      }
     })
   } catch (error) {
     console.error("Error fetching employees:", error)
@@ -35,13 +46,31 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/employees - Create a new employee (restored working logic)
+// POST /api/employees - Create a new employee with subscription limits
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     
     if (!session?.user?.companyId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Check subscription and employee limits
+    const currentEmployeeCount = await prisma.employee.count({
+      where: { companyId: session.user.companyId, isActive: true }
+    })
+
+    const subscriptionValidation = await validateSubscription(session.user.companyId)
+    if (!subscriptionValidation.isValid) {
+      return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
+    }
+
+    // Check employee limit
+    const maxEmployees = subscriptionValidation.limits?.maxEmployees
+    if (maxEmployees && currentEmployeeCount >= maxEmployees) {
+      return NextResponse.json({ 
+        error: `Employee limit reached. Your plan allows up to ${maxEmployees} employees.` 
+      }, { status: 403 })
     }
 
     const data = await request.json()
