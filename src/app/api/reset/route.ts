@@ -29,8 +29,24 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       console.log("Found existing user, deleting...")
       
-      // Delete company if it exists
+      // Delete related data in the correct order to avoid foreign key constraints
       if (existingUser.companyId) {
+        // Delete payroll records first
+        await prisma.payrollRecord.deleteMany({
+          where: { companyId: existingUser.companyId }
+        })
+        
+        // Delete employees
+        await prisma.employee.deleteMany({
+          where: { companyId: existingUser.companyId }
+        })
+        
+        // Delete tax settings
+        await prisma.taxSettings.deleteMany({
+          where: { companyId: existingUser.companyId }
+        })
+        
+        // Now delete the company
         await prisma.company.delete({
           where: { id: existingUser.companyId }
         })
