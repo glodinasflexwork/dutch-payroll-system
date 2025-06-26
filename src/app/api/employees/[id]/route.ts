@@ -2,34 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { z } from "zod"
 
-// Validation schema for employee updates
-const updateEmployeeSchema = z.object({
-  employeeNumber: z.string().min(1, "Employee number is required").optional(),
-  firstName: z.string().min(1, "First name is required").optional(),
-  lastName: z.string().min(1, "Last name is required").optional(),
-  email: z.string().email("Invalid email").optional().nullable(),
-  phone: z.string().optional().nullable(),
-  address: z.string().optional().nullable(),
-  city: z.string().optional().nullable(),
-  postalCode: z.string().optional().nullable(),
-  bsn: z.string().min(8, "BSN must be at least 8 characters").max(9, "BSN must be at most 9 characters").optional(),
-  dateOfBirth: z.string().transform((str) => new Date(str)).optional(),
-  startDate: z.string().transform((str) => new Date(str)).optional(),
-  endDate: z.string().transform((str) => new Date(str)).optional().nullable(),
-  position: z.string().min(1, "Position is required").optional(),
-  department: z.string().optional().nullable(),
-  employmentType: z.enum(["monthly", "hourly"]).optional(),
-  salary: z.number().positive("Salary must be positive").optional(),
-  taxTable: z.enum(["wit", "groen"]).optional(),
-  bankAccount: z.string().optional().nullable(),
-  emergencyContact: z.string().optional().nullable(),
-  emergencyPhone: z.string().optional().nullable(),
-  isActive: z.boolean().optional(),
-})
-
-// GET /api/employees/[id] - Get a specific employee
+// GET /api/employees/[id] - Get specific employee details
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -45,6 +19,14 @@ export async function GET(
       where: {
         id: params.id,
         companyId: session.user.companyId
+      },
+      include: {
+        payrollRecords: {
+          orderBy: { payPeriodStart: 'desc' },
+          take: 5 // Last 5 payroll records
+        },
+        employeeAllowances: true,
+        employeeDeductions: true
       }
     })
 
@@ -52,17 +34,20 @@ export async function GET(
       return NextResponse.json({ error: "Employee not found" }, { status: 404 })
     }
 
-    return NextResponse.json(employee)
+    return NextResponse.json({
+      success: true,
+      employee: employee
+    })
   } catch (error) {
     console.error("Error fetching employee:", error)
     return NextResponse.json(
-      { error: "Internal server error" },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     )
   }
 }
 
-// PUT /api/employees/[id] - Update a specific employee
+// PUT /api/employees/[id] - Update specific employee
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -74,75 +59,108 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const body = await request.json()
+    const data = await request.json()
     
-    // Validate the request body
-    const validatedData = updateEmployeeSchema.parse(body)
-
-    // Check if employee exists and belongs to the user's company
+    // Check if employee exists and belongs to the company
     const existingEmployee = await prisma.employee.findFirst({
       where: {
         id: params.id,
         companyId: session.user.companyId
       }
     })
-
+    
     if (!existingEmployee) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 })
     }
-
-    // Check if employee number already exists (if being updated)
-    if (validatedData.employeeNumber && validatedData.employeeNumber !== existingEmployee.employeeNumber) {
-      const existingEmployeeNumber = await prisma.employee.findUnique({
-        where: { employeeNumber: validatedData.employeeNumber }
-      })
-
-      if (existingEmployeeNumber) {
-        return NextResponse.json(
-          { error: "Employee number already exists" },
-          { status: 400 }
-        )
+    
+    // Validate BSN if being updated
+    if (data.bsn && data.bsn !== existingEmployee.bsn) {
+      if (!/^\d{9}$/.test(data.bsn)) {
+        return NextResponse.json({
+          success: false,
+          error: 'BSN must be exactly 9 digits'
+        }, { status: 400 })
       }
-    }
-
-    // Check if BSN already exists (if being updated)
-    if (validatedData.bsn && validatedData.bsn !== existingEmployee.bsn) {
-      const existingBSN = await prisma.employee.findUnique({
-        where: { bsn: validatedData.bsn }
+      
+      const existingBSN = await prisma.employee.findFirst({
+        where: { 
+          bsn: data.bsn,
+          companyId: session.user.companyId,
+          id: { not: params.id }
+        }
       })
-
+      
       if (existingBSN) {
-        return NextResponse.json(
-          { error: "BSN already exists" },
-          { status: 400 }
-        )
+        return NextResponse.json({
+          success: false,
+          error: 'Another employee with this BSN already exists'
+        }, { status: 400 })
       }
     }
-
-    // Update the employee
+    
+    // Validate employee number if being updated
+    if (data.employeeNumber && data.employeeNumber !== existingEmployee.employeeNumber) {
+      const existingEmployeeNumber = await prisma.employee.findFirst({
+        where: { 
+          employeeNumber: data.employeeNumber,
+          companyId: session.user.companyId,
+          id: { not: params.id }
+        }
+      })
+      
+      if (existingEmployeeNumber) {
+        return NextResponse.json({
+          success: false,
+          error: 'Employee number already exists'
+        }, { status: 400 })
+      }
+    }
+    
+    // Parse dates if provided
+    const updateData: any = { ...data }
+    if (data.startDate) updateData.startDate = new Date(data.startDate)
+    if (data.dateOfBirth) updateData.dateOfBirth = new Date(data.dateOfBirth)
+    if (data.probationEndDate) updateData.probationEndDate = new Date(data.probationEndDate)
+    if (data.endDate) updateData.endDate = new Date(data.endDate)
+    
+    // Convert numeric fields
+    if (data.salary !== undefined) updateData.salary = parseFloat(data.salary) || 0
+    if (data.hourlyRate !== undefined) updateData.hourlyRate = parseFloat(data.hourlyRate) || null
+    if (data.workingHours !== undefined) updateData.workingHours = parseFloat(data.workingHours) || 40
+    if (data.workingDays !== undefined) updateData.workingDays = parseFloat(data.workingDays) || 5
+    if (data.taxCredit !== undefined) updateData.taxCredit = parseFloat(data.taxCredit) || 0
+    if (data.holidayAllowance !== undefined) updateData.holidayAllowance = parseFloat(data.holidayAllowance) || 8.33
+    if (data.holidayDays !== undefined) updateData.holidayDays = parseInt(data.holidayDays) || 25
+    
+    // Remove undefined values to avoid overwriting with null
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key]
+      }
+    })
+    
+    // Update employee
     const updatedEmployee = await prisma.employee.update({
       where: { id: params.id },
-      data: validatedData
+      data: updateData
     })
-
-    return NextResponse.json(updatedEmployee)
+    
+    return NextResponse.json({
+      success: true,
+      employee: updatedEmployee,
+      message: 'Employee updated successfully'
+    })
+    
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Validation error", details: error.errors },
-        { status: 400 }
-      )
-    }
-
     console.error("Error updating employee:", error)
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    )
+    return NextResponse.json({
+      success: false,
+      error: "Failed to update employee"
+    }, { status: 500 })
   }
 }
 
-// DELETE /api/employees/[id] - Delete (deactivate) a specific employee
+// DELETE /api/employees/[id] - Soft delete employee
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -153,35 +171,56 @@ export async function DELETE(
     if (!session?.user?.companyId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-
-    // Check if employee exists and belongs to the user's company
+    
+    // Check if employee exists and belongs to the company
     const existingEmployee = await prisma.employee.findFirst({
       where: {
         id: params.id,
         companyId: session.user.companyId
       }
     })
-
+    
     if (!existingEmployee) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 })
     }
-
-    // Soft delete by setting isActive to false
-    const updatedEmployee = await prisma.employee.update({
-      where: { id: params.id },
-      data: { 
-        isActive: false,
-        endDate: new Date()
-      }
+    
+    // Check if employee has payroll records
+    const payrollCount = await prisma.payrollRecord.count({
+      where: { employeeId: params.id }
     })
-
-    return NextResponse.json({ message: "Employee deactivated successfully" })
+    
+    if (payrollCount > 0) {
+      // Soft delete by setting isActive to false and endDate to now
+      await prisma.employee.update({
+        where: { id: params.id },
+        data: {
+          isActive: false,
+          endDate: new Date()
+        }
+      })
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Employee deactivated successfully (payroll history preserved)'
+      })
+    } else {
+      // Hard delete if no payroll records exist
+      await prisma.employee.delete({
+        where: { id: params.id }
+      })
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Employee deleted successfully'
+      })
+    }
+    
   } catch (error) {
     console.error("Error deleting employee:", error)
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    )
+    return NextResponse.json({
+      success: false,
+      error: "Failed to delete employee"
+    }, { status: 500 })
   }
 }
 

@@ -97,7 +97,9 @@ model Company {
 
 model Employee {
   id                String   @id @default(cuid())
-  employeeNumber    String   // Changed from @unique to allow per-company uniqueness
+  employeeNumber    String   // Company-specific employee number
+  
+  // Personal Information
   firstName         String
   lastName          String
   email             String?
@@ -105,25 +107,65 @@ model Employee {
   address           String?
   city              String?
   postalCode        String?
-  bsn               String   // Changed from @unique to allow per-company uniqueness
+  country           String   @default("Netherlands")
+  
+  // Dutch-specific identifiers
+  bsn               String   // Burgerservicenummer (Dutch social security number)
+  nationality       String   @default("Dutch")
+  
+  // Employment Information
   dateOfBirth       DateTime
   startDate         DateTime
   endDate           DateTime?
+  probationEndDate  DateTime? // Proeftijd
   position          String
   department        String?
-  employmentType    String   // "monthly" or "hourly"
-  salary            Float    // Monthly salary or hourly rate
-  taxTable          String   // "wit" or "groen"
-  isActive          Boolean  @default(true)
-  bankAccount       String?
+  
+  // Contract Information
+  employmentType    String   // "permanent", "temporary", "freelance", "intern"
+  contractType      String   // "fulltime", "parttime", "zero_hours"
+  workingHours      Float    @default(40) // Hours per week
+  workingDays       Float    @default(5)  // Days per week
+  
+  // Salary Information
+  salary            Float    // Monthly gross salary
+  salaryType        String   @default("monthly") // "monthly", "hourly", "annual"
+  hourlyRate        Float?   // For hourly employees
+  
+  // Dutch Tax Information
+  taxTable          String   // "wit" (white) or "groen" (green)
+  taxCredit         Float    @default(0) // Heffingskorting
+  payrollTaxNumber  String?  // Loonheffingsnummer
+  
+  // Benefits and Allowances
+  holidayAllowance  Float    @default(8.33) // Vakantiegeld percentage
+  holidayDays       Int      @default(25)   // Vacation days per year
+  pensionScheme     String?  // Pension scheme type
+  
+  // Banking Information
+  bankAccount       String?  // IBAN
+  bankName          String?
+  
+  // Emergency Contact
   emergencyContact  String?
   emergencyPhone    String?
+  emergencyRelation String?
+  
+  // Employment Status
+  isActive          Boolean  @default(true)
+  isDGA             Boolean  @default(false) // Directeur-grootaandeelhouder
+  
+  // System fields
   companyId         String
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-
+  createdBy         String?  // User who created the employee
+  
+  // Relations
   company           Company @relation(fields: [companyId], references: [id])
   payrollRecords    PayrollRecord[]
+  employeeAllowances EmployeeAllowance[]
+  employeeDeductions EmployeeDeduction[]
   
   // Compound unique constraints for per-company uniqueness
   @@unique([companyId, employeeNumber])
