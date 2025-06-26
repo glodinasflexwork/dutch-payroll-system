@@ -69,11 +69,19 @@ model Company {
   city              String?
   postalCode        String?
   country           String   @default("Netherlands")
+  phone             String?  // Company phone number
+  email             String?  // Company email
+  website           String?  // Company website
   kvkNumber         String?  // Chamber of Commerce number
-  taxNumber         String?  // Tax identification number
+  taxNumber         String?  // Tax identification number (Loonheffingsnummer)
+  vatNumber         String?  // VAT number (BTW nummer)
   bankAccount       String?
-  contactEmail      String?
-  contactPhone      String?
+  contactEmail      String?  // Legacy field - keeping for compatibility
+  contactPhone      String?  // Legacy field - keeping for compatibility
+  description       String?  // Company description
+  industry          String?  // Industry/sector
+  foundedYear       Int?     // Year company was founded
+  employeeCount     Int?     // Number of employees
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
