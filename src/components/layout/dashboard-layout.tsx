@@ -15,7 +15,9 @@ import {
   Menu,
   X,
   LogOut,
-  User
+  User,
+  CreditCard,
+  Crown
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -55,6 +57,18 @@ const navigation = [
     href: "/dashboard/reports",
     icon: FileText,
     description: "View payroll reports"
+  },
+  {
+    name: "Subscription",
+    href: "/subscription",
+    icon: Crown,
+    description: "Manage your plan"
+  },
+  {
+    name: "Billing",
+    href: "/billing",
+    icon: CreditCard,
+    description: "Invoices and payments"
   },
   {
     name: "Tax Settings",

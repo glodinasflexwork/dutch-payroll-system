@@ -9,20 +9,28 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !session?.user?.companyId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Fetch all available plans
-    const plans = await prisma.plan.findMany({
-      orderBy: {
-        price: 'asc'
+    // Fetch current subscription for the user's company
+    const subscription = await prisma.subscription.findFirst({
+      where: {
+        companyId: session.user.companyId,
+        status: 'active'
+      },
+      include: {
+        plan: true
       }
     });
 
-    return NextResponse.json(plans);
+    if (!subscription) {
+      return NextResponse.json(null);
+    }
+
+    return NextResponse.json(subscription);
   } catch (error) {
-    console.error('Error fetching plans:', error);
+    console.error('Error fetching subscription:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
