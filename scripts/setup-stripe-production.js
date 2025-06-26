@@ -53,8 +53,14 @@ async function main() {
 
   try {
     // Import Stripe after confirming setup
-    const { stripe } = require('../src/lib/stripe')
-    const { prisma } = require('../src/lib/prisma')
+    const Stripe = require('stripe')
+    const { PrismaClient } = require('@prisma/client')
+    
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2024-11-20.acacia'
+    })
+    
+    const prisma = new PrismaClient()
 
     console.log('\n📦 Creating Stripe products and prices...')
 
