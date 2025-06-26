@@ -26,60 +26,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get company information
-    const company = await prisma.company.findUnique({
-      where: { id: session.user.companyId },
-      include: {
-        subscriptions: {
-          where: { status: 'active' },
-          include: { plan: true }
-        }
-      }
-    });
-
-    if (!company) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
-
-    // Get the plan details
-    const plan = await prisma.plan.findUnique({
-      where: { id: planId }
-    });
-
-    if (!plan) {
-      return NextResponse.json({ error: 'Plan not found' }, { status: 404 });
-    }
-
-    // Create or get Stripe customer
-    let customerId = company.stripeCustomerId;
-    
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: session.user.email!,
-        name: company.name,
-        metadata: {
-          companyId: company.id,
-          userId: session.user.id
-        }
-      });
-      
-      customerId = customer.id;
-      
-      // Update company with Stripe customer ID
-      await prisma.company.update({
-        where: { id: company.id },
-        data: { stripeCustomerId: customerId }
-      });
-    }
-
-    // Determine if this is an upgrade/downgrade or new subscription
-    const currentSubscription = company.subscriptions[0];
-    const isUpgrade = currentSubscription && currentSubscription.plan.price < plan.price;
-    const isDowngrade = currentSubscription && currentSubscription.plan.price > plan.price;
-
-    // Create Stripe checkout session
+    // Create Stripe checkout session directly (simplified version)
     const checkoutSession = await stripe.checkout.sessions.create({
-      customer: customerId,
       payment_method_types: ['card'],
       line_items: [
         {
@@ -91,24 +39,18 @@ export async function POST(request: NextRequest) {
       success_url: `${process.env.NEXTAUTH_URL}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXTAUTH_URL}/subscription?canceled=true`,
       metadata: {
-        companyId: company.id,
+        companyId: session.user.companyId,
         planId: planId,
-        userId: session.user.id,
-        isUpgrade: isUpgrade ? 'true' : 'false',
-        isDowngrade: isDowngrade ? 'true' : 'false'
+        userId: session.user.id
       },
       subscription_data: {
         metadata: {
-          companyId: company.id,
+          companyId: session.user.companyId,
           planId: planId
         }
       },
       allow_promotion_codes: true,
-      billing_address_collection: 'required',
-      customer_update: {
-        address: 'auto',
-        name: 'auto'
-      }
+      billing_address_collection: 'required'
     });
 
     return NextResponse.json({ url: checkoutSession.url });
