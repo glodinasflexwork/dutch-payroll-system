@@ -53,6 +53,13 @@ model User {
   sessions      Session[]
   company       Company?     @relation(fields: [companyId], references: [id]) // Legacy relationship
   companies     UserCompany[] // New multi-tenant relationship
+  
+  // Payroll approval relations
+  payrollApprovalsSubmitted PayrollApproval[] @relation("PayrollApprovalSubmittedBy")
+  payrollApprovalsReviewed  PayrollApproval[] @relation("PayrollApprovalReviewedBy")
+  payrollApprovalsApproved  PayrollApproval[] @relation("PayrollApprovalApprovedBy")
+  payrollApprovalsFinalized PayrollApproval[] @relation("PayrollApprovalFinalizedBy")
+  payrollApprovalHistory    PayrollApprovalHistory[]
 }
 
 model VerificationToken {
@@ -90,6 +97,7 @@ model Company {
   userCompanies     UserCompany[] // New multi-tenant relationship
   employees         Employee[]
   payrollRecords    PayrollRecord[]
+  payrollApprovals  PayrollApproval[]
   taxSettings       TaxSettings[]
   subscription      Subscription? // One-to-one relationship with subscription
   tenantConfig      TenantConfig? // One-to-one relationship with tenant config
@@ -214,6 +222,7 @@ model PayrollRecord {
   
   employee          Employee @relation(fields: [employeeId], references: [id])
   company           Company  @relation(fields: [companyId], references: [id])
+  approval          PayrollApproval?
   
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -329,5 +338,65 @@ model TenantConfig {
   updatedAt     DateTime @updatedAt
   
   company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+
+
+// Payroll Approval Workflow Models
+
+model PayrollApproval {
+  id                String   @id @default(cuid())
+  payrollRecordId   String   @unique
+  companyId         String
+  
+  // Workflow status
+  status            String   // draft, pending, approved, rejected, finalized, paid, cancelled
+  
+  // Workflow participants
+  submittedBy       String
+  submittedAt       DateTime
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  approvedBy        String?
+  approvedAt        DateTime?
+  finalizedBy       String?
+  finalizedAt       DateTime?
+  
+  // Comments and reasons
+  comments          String?
+  rejectionReason   String?
+  
+  // Relations
+  payrollRecord     PayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Cascade)
+  company           Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  submittedByUser   User          @relation("PayrollApprovalSubmittedBy", fields: [submittedBy], references: [id])
+  reviewedByUser    User?         @relation("PayrollApprovalReviewedBy", fields: [reviewedBy], references: [id])
+  approvedByUser    User?         @relation("PayrollApprovalApprovedBy", fields: [approvedBy], references: [id])
+  finalizedByUser   User?         @relation("PayrollApprovalFinalizedBy", fields: [finalizedBy], references: [id])
+  history           PayrollApprovalHistory[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model PayrollApprovalHistory {
+  id                  String   @id @default(cuid())
+  payrollApprovalId   String
+  
+  // Action details
+  action              String   // submit, approve, reject, finalize, cancel
+  performedBy         String
+  performedAt         DateTime
+  comments            String?
+  
+  // Status transition
+  previousStatus      String
+  newStatus           String
+  
+  // Relations
+  payrollApproval     PayrollApproval @relation(fields: [payrollApprovalId], references: [id], onDelete: Cascade)
+  performedByUser     User            @relation(fields: [performedBy], references: [id])
+  
+  createdAt           DateTime @default(now())
 }
 

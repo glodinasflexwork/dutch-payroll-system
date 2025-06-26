@@ -53,6 +53,12 @@ const navigation = [
     description: "Process payroll calculations"
   },
   {
+    name: "Payroll Management",
+    href: "/payroll-management",
+    icon: Users,
+    description: "Batch processing and approvals"
+  },
+  {
     name: "Reports",
     href: "/dashboard/reports",
     icon: FileText,
