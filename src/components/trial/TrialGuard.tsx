@@ -17,7 +17,7 @@ interface TrialGuardProps {
   requiresPaid?: boolean; // If true, requires paid subscription, not just trial
 }
 
-export default function TrialGuard({ 
+export function TrialGuard({ 
   children, 
   feature = 'this feature',
   fallback,
