@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
+import { createTrial } from "@/lib/trial"
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Create company and user in a transaction
+    // Create company, user, and trial in a transaction
     const result = await prisma.$transaction(async (tx) => {
       // Create company
       const company = await tx.company.create({
@@ -79,14 +80,27 @@ export async function POST(request: NextRequest) {
       return { user, company }
     })
 
+    // Create 14-day trial for the new company (outside transaction to avoid conflicts)
+    try {
+      await createTrial(result.company.id)
+    } catch (trialError) {
+      console.error("Error creating trial:", trialError)
+      // Don't fail registration if trial creation fails
+    }
+
     return NextResponse.json({
-      message: "User created successfully",
+      message: "User created successfully with 14-day free trial",
       user: {
         id: result.user.id,
         name: result.user.name,
         email: result.user.email,
         role: result.user.role,
         companyId: result.user.companyId
+      },
+      trial: {
+        active: true,
+        daysRemaining: 14,
+        message: "Your 14-day free trial has started!"
       }
     })
 

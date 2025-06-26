@@ -4,6 +4,8 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import DashboardLayout from "@/components/layout/dashboard-layout"
+import TrialBanner from "@/components/trial/TrialBanner"
+import TrialCountdown from "@/components/trial/TrialCountdown"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -153,6 +155,9 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Trial Banner */}
+        <TrialBanner />
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="hover-lift">
@@ -208,19 +213,29 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {quickActions.map((action, index) => (
-            <Card key={index} className="hover-lift cursor-pointer group" onClick={() => router.push(action.href)}>
-              <CardHeader className="pb-3">
-                <div className={`w-12 h-12 ${action.color} rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
-                  <action.icon className="w-6 h-6 text-white" />
-                </div>
-                <CardTitle className="text-lg">{action.title}</CardTitle>
-                <CardDescription>{action.description}</CardDescription>
-              </CardHeader>
-            </Card>
-          ))}
+        {/* Trial Countdown and Quick Actions */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Trial Countdown - Takes 1 column */}
+          <div className="lg:col-span-1">
+            <TrialCountdown />
+          </div>
+          
+          {/* Quick Actions - Takes 3 columns */}
+          <div className="lg:col-span-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {quickActions.map((action, index) => (
+                <Card key={index} className="hover-lift cursor-pointer group" onClick={() => router.push(action.href)}>
+                  <CardHeader className="pb-3">
+                    <div className={`w-12 h-12 ${action.color} rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                      <action.icon className="w-6 h-6 text-white" />
+                    </div>
+                    <CardTitle className="text-lg">{action.title}</CardTitle>
+                    <CardDescription>{action.description}</CardDescription>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* System Status */}

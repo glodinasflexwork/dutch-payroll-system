@@ -232,19 +232,30 @@ model Plan {
 model Subscription {
   id                 String   @id @default(cuid())
   companyId          String   @unique
-  planId             String
-  status             String   // active, canceled, past_due, trialing, etc.
+  planId             String?  // Allow null for trial subscriptions
+  status             String   // active, canceled, past_due, trialing, trial_expired, etc.
   stripeSubscriptionId String? // Stripe subscription ID
   stripeCustomerId   String?  // Stripe customer ID
   currentPeriodStart DateTime
   currentPeriodEnd   DateTime
   cancelAtPeriodEnd  Boolean  @default(false)
-  trialEnd          DateTime?
+  
+  // Enhanced trial tracking
+  trialStart        DateTime? // When trial started
+  trialEnd          DateTime? // When trial ends
+  isTrialActive     Boolean   @default(false) // Whether currently in trial
+  trialDaysUsed     Int       @default(0) // Days of trial used
+  trialExtensions   Int       @default(0) // Number of trial extensions granted
+  
+  // Conversion tracking
+  convertedFromTrial Boolean  @default(false) // Whether this was converted from trial
+  trialConvertedAt   DateTime? // When trial was converted to paid
+  
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   
   company           Company @relation(fields: [companyId], references: [id])
-  plan              Plan    @relation(fields: [planId], references: [id])
+  plan              Plan?   @relation(fields: [planId], references: [id])
 }
 
 model UserCompany {
