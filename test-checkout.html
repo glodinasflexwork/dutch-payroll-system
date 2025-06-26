@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Checkout</title>
+</head>
+<body>
+    <h1>Test Checkout API</h1>
+    <button onclick="testCheckout()">Test Starter Plan Checkout</button>
+    <div id="result"></div>
+
+    <script>
+        async function testCheckout() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch('/api/test-checkout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        priceId: 'price_1ReIAFKopO2jXhaHl9D9oblI' // Starter plan
+                    }),
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<p style="color: green;">✅ Success! Checkout URL: <a href="${data.url}" target="_blank">${data.url}</a></p>`;
+                } else {
+                    resultDiv.innerHTML = `<p style="color: red;">❌ Error: ${data.error}<br>Details: ${data.details || 'No details'}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color: red;">❌ Network Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
+
