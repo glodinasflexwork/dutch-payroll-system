@@ -98,6 +98,8 @@ model Company {
   employees         Employee[]
   payrollRecords    PayrollRecord[]
   payrollApprovals  PayrollApproval[]
+  employeeAllowances EmployeeAllowance[]
+  employeeDeductions EmployeeDeduction[]
   taxSettings       TaxSettings[]
   subscription      Subscription? // One-to-one relationship with subscription
   tenantConfig      TenantConfig? // One-to-one relationship with tenant config
@@ -398,5 +400,72 @@ model PayrollApprovalHistory {
   performedByUser     User            @relation(fields: [performedBy], references: [id])
   
   createdAt           DateTime @default(now())
+}
+
+
+
+// Employee Allowances and Deductions Models
+
+model EmployeeAllowance {
+  id          String   @id @default(cuid())
+  employeeId  String
+  companyId   String
+  
+  // Allowance details
+  type        String   // "car", "phone", "internet", "travel", "meal", "clothing", "other"
+  name        String   // Human readable name
+  description String?  // Optional description
+  
+  // Amount configuration
+  amount      Float    // Monthly allowance amount
+  currency    String   @default("EUR")
+  taxable     Boolean  @default(true) // Whether this allowance is taxable
+  
+  // Validity period
+  startDate   DateTime
+  endDate     DateTime?
+  isActive    Boolean  @default(true)
+  
+  // Relations
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([employeeId])
+  @@index([companyId])
+}
+
+model EmployeeDeduction {
+  id          String   @id @default(cuid())
+  employeeId  String
+  companyId   String
+  
+  // Deduction details
+  type        String   // "pension", "union", "insurance", "loan", "garnishment", "other"
+  name        String   // Human readable name
+  description String?  // Optional description
+  
+  // Amount configuration
+  amount      Float    // Monthly deduction amount
+  currency    String   @default("EUR")
+  isPercentage Boolean @default(false) // Whether amount is a percentage of salary
+  maxAmount   Float?   // Maximum deduction amount (for percentage-based)
+  
+  // Validity period
+  startDate   DateTime
+  endDate     DateTime?
+  isActive    Boolean  @default(true)
+  
+  // Relations
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([employeeId])
+  @@index([companyId])
 }
 
