@@ -203,6 +203,9 @@ model PayrollRecord {
   // Net pay
   netPay            Float
   
+  // Employer costs
+  employerCosts     Float    @default(0) // Total employer contributions
+  
   // Additional information
   taxTable          String   // "wit" or "groen"
   taxYear           Int

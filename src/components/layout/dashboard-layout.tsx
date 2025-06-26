@@ -48,7 +48,7 @@ const navigation = [
   },
   {
     name: "Payroll",
-    href: "/dashboard/payroll",
+    href: "/payroll",
     icon: Calculator,
     description: "Process payroll calculations"
   },
