@@ -214,12 +214,12 @@ export default function SubscriptionPage() {
                       {plan.maxPayrolls === -1 ? 'Unlimited' : `${plan.maxPayrolls}`} payrolls per year
                     </span>
                   </li>
-                  {plan.features.map((feature, index) => (
+                  {Array.isArray(plan.features) ? plan.features.map((feature, index) => (
                     <li key={index} className="flex items-start">
                       <Check className="h-5 w-5 text-green-600 mt-0.5 mr-3 flex-shrink-0" />
                       <span className="text-gray-700">{feature}</span>
                     </li>
-                  ))}
+                  )) : null}
                 </ul>
 
                 <div className="mt-8">

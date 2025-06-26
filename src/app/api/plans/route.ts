@@ -20,7 +20,15 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    return NextResponse.json(plans);
+    // Ensure features are properly formatted as arrays
+    const formattedPlans = plans.map(plan => ({
+      ...plan,
+      features: Array.isArray(plan.features) ? plan.features : 
+                typeof plan.features === 'string' ? JSON.parse(plan.features) :
+                []
+    }));
+
+    return NextResponse.json(formattedPlans);
   } catch (error) {
     console.error('Error fetching plans:', error);
     return NextResponse.json(
