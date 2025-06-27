@@ -17,7 +17,8 @@ import {
   LogOut,
   User,
   CreditCard,
-  Crown
+  Crown,
+  Calendar
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -45,6 +46,12 @@ const navigation = [
     href: "/dashboard/employees",
     icon: Users,
     description: "Manage employee records"
+  },
+  {
+    name: "Verlofbeheer",
+    href: "/dashboard/leave-management",
+    icon: Calendar,
+    description: "Leave requests and balances"
   },
   {
     name: "Payroll",
