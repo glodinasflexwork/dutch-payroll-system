@@ -135,29 +135,33 @@ export default function EmployeesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Employee Management</h1>
+          <h1 className="text-2xl font-bold text-red-600">🔴 DEPLOYMENT TEST - Employee Management 🔴</h1>
           <p className="mt-1 text-sm text-gray-500">
             Manage your company's employees and their information
           </p>
         </div>
-        <div className="mt-4 sm:mt-0">
-          <button
-            onClick={() => alert('TEST: JavaScript is working!')}
-            className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors mr-2"
-          >
-            TEST BUTTON
-          </button>
-          <button
-            onClick={() => {
-              console.log('Add Employee button clicked!');
-              alert('Button clicked! Modal should open...');
-              setShowAddModal(true);
-            }}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Employee
-          </button>
+        <div className="mt-4 sm:mt-0 space-y-2">
+          <div>
+            <button
+              onClick={() => alert('TEST: JavaScript is working!')}
+              className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-lg font-bold"
+            >
+              🔴 TEST BUTTON - CLICK ME 🔴
+            </button>
+          </div>
+          <div>
+            <button
+              onClick={() => {
+                console.log('Add Employee button clicked!');
+                alert('Button clicked! Modal should open...');
+                setShowAddModal(true);
+              }}
+              className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Employee
+            </button>
+          </div>
         </div>
       </div>
 
