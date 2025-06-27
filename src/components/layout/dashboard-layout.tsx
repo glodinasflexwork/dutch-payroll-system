@@ -244,3 +244,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   )
 }
 
+// Named export for compatibility
+export { DashboardLayout }
+export default DashboardLayout
+
