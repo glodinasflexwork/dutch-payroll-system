@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { CompanySwitcher } from "@/components/ui/company-switcher"
 import { cn } from "@/lib/utils"
 
 interface DashboardLayoutProps {
@@ -94,6 +95,12 @@ const navigation = [
     href: "/dashboard/company",
     icon: Building2,
     description: "Company information"
+  },
+  {
+    name: "Bedrijfsbeheer",
+    href: "/dashboard/companies",
+    icon: Building2,
+    description: "Manage multiple companies"
   }
 ]
 
@@ -228,6 +235,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              <CompanySwitcher />
               <Badge variant="outline" className="hidden sm:flex">
                 {new Date().toLocaleDateString('nl-NL', { 
                   weekday: 'long', 

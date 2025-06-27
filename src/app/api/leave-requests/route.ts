@@ -1,34 +1,17 @@
-import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { NextRequest, NextResponse } from 'next/server'
+import { validateCompanyAccess, auditLog, createCompanyFilter } from '@/lib/company-context'
+import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url)
-    const companyId = searchParams.get('companyId')
-    const employeeId = searchParams.get('employeeId')
-    const status = searchParams.get('status')
+    const { context, error, status } = await validateCompanyAccess(request, ['employee'])
     
-    if (!companyId) {
-      return NextResponse.json(
-        { error: "Company ID is required" },
-        { status: 400 }
-      )
-    }
-
-    const whereClause: any = {
-      companyId
-    }
-
-    if (employeeId) {
-      whereClause.employeeId = employeeId
-    }
-
-    if (status) {
-      whereClause.status = status
+    if (!context || error) {
+      return NextResponse.json({ error }, { status })
     }
 
     const leaveRequests = await prisma.leaveRequest.findMany({
-      where: whereClause,
+      where: createCompanyFilter(context.companyId),
       include: {
         employee: {
           select: {
@@ -40,27 +23,18 @@ export async function GET(request: NextRequest) {
         leaveType: {
           select: {
             name: true,
-            nameNl: true,
-            color: true,
-            code: true
+            nameEn: true,
+            color: true
           }
         },
-        requestedByUser: {
+        requestedBy: {
           select: {
-            name: true,
-            email: true
+            name: true
           }
         },
-        reviewedByUser: {
+        reviewedBy: {
           select: {
-            name: true,
-            email: true
-          }
-        },
-        approvedByUser: {
-          select: {
-            name: true,
-            email: true
+            name: true
           }
         }
       },
@@ -69,11 +43,22 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return NextResponse.json(leaveRequests)
+    // Audit log
+    await auditLog(context, 'READ', 'leave_requests', undefined, { count: leaveRequests.length })
+
+    return NextResponse.json({
+      success: true,
+      leaveRequests,
+      company: {
+        id: context.companyId,
+        name: context.companyName
+      }
+    })
+
   } catch (error) {
-    console.error("Error fetching leave requests:", error)
+    console.error('Error fetching leave requests:', error)
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Failed to fetch leave requests' },
       { status: 500 }
     )
   }
@@ -81,59 +66,80 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { 
+    const { context, error, status } = await validateCompanyAccess(request, ['employee'])
+    
+    if (!context || error) {
+      return NextResponse.json({ error }, { status })
+    }
+
+    const {
       employeeId,
-      companyId,
       leaveTypeId,
       startDate,
       endDate,
       reason,
-      requestedBy
+      isHalfDay = false,
+      halfDayPeriod
     } = await request.json()
 
-    if (!employeeId || !companyId || !leaveTypeId || !startDate || !endDate || !requestedBy) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      )
+    if (!employeeId || !leaveTypeId || !startDate || !endDate) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Validate dates
+    // Verify employee belongs to the same company
+    const employee = await prisma.employee.findFirst({
+      where: {
+        id: employeeId,
+        ...createCompanyFilter(context.companyId)
+      }
+    })
+
+    if (!employee) {
+      return NextResponse.json({ error: 'Employee not found or access denied' }, { status: 404 })
+    }
+
+    // Verify leave type belongs to the same company
+    const leaveType = await prisma.leaveType.findFirst({
+      where: {
+        id: leaveTypeId,
+        ...createCompanyFilter(context.companyId)
+      }
+    })
+
+    if (!leaveType) {
+      return NextResponse.json({ error: 'Leave type not found or access denied' }, { status: 404 })
+    }
+
+    // Calculate working days
     const start = new Date(startDate)
     const end = new Date(endDate)
-    
-    if (start >= end) {
-      return NextResponse.json(
-        { error: "End date must be after start date" },
-        { status: 400 }
-      )
-    }
-
-    // Calculate days requested (excluding weekends)
-    const timeDiff = end.getTime() - start.getTime()
-    const totalDays = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1
-    
-    // Simple weekday calculation (can be enhanced later)
     let workingDays = 0
+    
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const dayOfWeek = d.getDay()
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Not Sunday or Saturday
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Not Sunday (0) or Saturday (6)
         workingDays++
       }
     }
 
+    if (isHalfDay) {
+      workingDays = 0.5
+    }
+
+    // Create leave request
     const leaveRequest = await prisma.leaveRequest.create({
       data: {
         employeeId,
-        companyId,
         leaveTypeId,
-        startDate: start,
-        endDate: end,
-        daysRequested: workingDays,
-        reason: reason || "",
-        status: "pending",
-        requestedBy,
-        requestedAt: new Date()
+        companyId: context.companyId,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+        workingDays,
+        reason,
+        isHalfDay,
+        halfDayPeriod,
+        status: 'pending',
+        requestedById: context.userId
       },
       include: {
         employee: {
@@ -146,19 +152,31 @@ export async function POST(request: NextRequest) {
         leaveType: {
           select: {
             name: true,
-            nameNl: true,
-            color: true,
-            requiresApproval: true
+            nameEn: true,
+            color: true
           }
         }
       }
     })
 
-    return NextResponse.json(leaveRequest)
+    // Audit log
+    await auditLog(context, 'CREATE', 'leave_request', leaveRequest.id, {
+      employeeId,
+      leaveTypeId,
+      workingDays,
+      status: 'pending'
+    })
+
+    return NextResponse.json({
+      success: true,
+      leaveRequest,
+      message: 'Leave request created successfully'
+    })
+
   } catch (error) {
-    console.error("Error creating leave request:", error)
+    console.error('Error creating leave request:', error)
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Failed to create leave request' },
       { status: 500 }
     )
   }
