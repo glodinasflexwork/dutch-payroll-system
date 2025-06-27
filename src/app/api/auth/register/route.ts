@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 import { createTrial } from "@/lib/trial"
+import { EmailService } from "@/lib/email-service"
+import { generateVerificationToken } from "@/app/api/auth/verify-email/route"
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,14 +46,15 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      // Create user
+      // Create user (not verified yet)
       const user = await tx.user.create({
         data: {
           name,
           email,
           password: hashedPassword,
           role: "admin",
-          companyId: company.id
+          companyId: company.id,
+          emailVerified: null // Not verified yet
         }
       })
 
@@ -88,19 +91,31 @@ export async function POST(request: NextRequest) {
       // Don't fail registration if trial creation fails
     }
 
+    // Generate verification token and send email
+    try {
+      const verificationToken = await generateVerificationToken(email)
+      const baseUrl = process.env.NEXTAUTH_URL || request.nextUrl.origin
+      
+      await EmailService.sendVerificationEmail(email, verificationToken, baseUrl)
+    } catch (emailError) {
+      console.error("Error sending verification email:", emailError)
+      // Don't fail registration if email sending fails
+    }
+
     return NextResponse.json({
-      message: "User created successfully with 14-day free trial",
+      message: "Registration successful! Please check your email to verify your account.",
       user: {
         id: result.user.id,
         name: result.user.name,
         email: result.user.email,
         role: result.user.role,
-        companyId: result.user.companyId
+        companyId: result.user.companyId,
+        emailVerified: false
       },
       trial: {
         active: true,
         daysRemaining: 14,
-        message: "Your 14-day free trial has started!"
+        message: "Your 14-day free trial will start after email verification!"
       }
     })
 

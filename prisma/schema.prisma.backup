@@ -60,14 +60,6 @@ model User {
   payrollApprovalsApproved  PayrollApproval[] @relation("PayrollApprovalApprovedBy")
   payrollApprovalsFinalized PayrollApproval[] @relation("PayrollApprovalFinalizedBy")
   payrollApprovalHistory    PayrollApprovalHistory[]
-  
-  // Phase 1 new relations
-  leaveRequestsRequested    LeaveRequest[] @relation("LeaveRequestRequestedBy")
-  leaveRequestsReviewed     LeaveRequest[] @relation("LeaveRequestReviewedBy")
-  leaveRequestsApproved     LeaveRequest[] @relation("LeaveRequestApprovedBy")
-  timeEntriesApproved       TimeEntry[] @relation("TimeEntryApprovedBy")
-  timeSheetsApproved        TimeSheet[] @relation("TimeSheetApprovedBy")
-  reportsCreated            Report[] @relation("ReportCreatedBy")
 }
 
 model VerificationToken {
@@ -111,15 +103,6 @@ model Company {
   taxSettings       TaxSettings[]
   subscription      Subscription? // One-to-one relationship with subscription
   tenantConfig      TenantConfig? // One-to-one relationship with tenant config
-  
-  // Phase 1 new relations
-  leaveTypes        LeaveType[]
-  leaveBalances     LeaveBalance[]
-  leaveRequests     LeaveRequest[]
-  projects          Project[]
-  timeEntries       TimeEntry[]
-  timeSheets        TimeSheet[]
-  reports           Report[]
 }
 
 model Employee {
@@ -193,12 +176,6 @@ model Employee {
   payrollRecords    PayrollRecord[]
   employeeAllowances EmployeeAllowance[]
   employeeDeductions EmployeeDeduction[]
-  
-  // Phase 1 new relations
-  leaveBalances     LeaveBalance[]
-  leaveRequests     LeaveRequest[]
-  timeEntries       TimeEntry[]
-  timeSheets        TimeSheet[]
   
   // Compound unique constraints for per-company uniqueness
   @@unique([companyId, employeeNumber])
@@ -719,4 +696,164 @@ model Report {
 }
 
 // Update existing models with new relations
+
+model Company {
+  id                String   @id @default(cuid())
+  name              String
+  address           String?
+  city              String?
+  postalCode        String?
+  country           String   @default("Netherlands")
+  phone             String?  // Company phone number
+  email             String?  // Company email
+  website           String?  // Company website
+  kvkNumber         String?  // Chamber of Commerce number
+  taxNumber         String?  // Tax identification number (Loonheffingsnummer)
+  vatNumber         String?  // VAT number (BTW nummer)
+  bankAccount       String?
+  contactEmail      String?  // Legacy field - keeping for compatibility
+  contactPhone      String?  // Legacy field - keeping for compatibility
+  description       String?  // Company description
+  industry          String?  // Industry/sector
+  foundedYear       Int?     // Year company was founded
+  employeeCount     Int?     // Number of employees
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  users             User[]        // Legacy relationship
+  userCompanies     UserCompany[] // New multi-tenant relationship
+  employees         Employee[]
+  payrollRecords    PayrollRecord[]
+  payrollApprovals  PayrollApproval[]
+  employeeAllowances EmployeeAllowance[]
+  employeeDeductions EmployeeDeduction[]
+  taxSettings       TaxSettings[]
+  subscription      Subscription? // One-to-one relationship with subscription
+  tenantConfig      TenantConfig? // One-to-one relationship with tenant config
+  
+  // Phase 1 new relations
+  leaveTypes        LeaveType[]
+  leaveBalances     LeaveBalance[]
+  leaveRequests     LeaveRequest[]
+  projects          Project[]
+  timeEntries       TimeEntry[]
+  timeSheets        TimeSheet[]
+  reports           Report[]
+}
+
+model Employee {
+  id                String   @id @default(cuid())
+  employeeNumber    String   // Company-specific employee number
+  
+  // Personal Information
+  firstName         String
+  lastName          String
+  email             String?
+  phone             String?
+  address           String?
+  city              String?
+  postalCode        String?
+  country           String   @default("Netherlands")
+  
+  // Dutch-specific identifiers
+  bsn               String   // Burgerservicenummer (Dutch social security number)
+  nationality       String   @default("Dutch")
+  
+  // Employment Information
+  dateOfBirth       DateTime
+  startDate         DateTime
+  endDate           DateTime?
+  probationEndDate  DateTime? // Proeftijd
+  position          String
+  department        String?
+  
+  // Contract Information
+  employmentType    String   // "permanent", "temporary", "freelance", "intern"
+  contractType      String   // "fulltime", "parttime", "zero_hours"
+  workingHours      Float    @default(40) // Hours per week
+  workingDays       Float    @default(5)  // Days per week
+  
+  // Salary Information
+  salary            Float    // Monthly gross salary
+  salaryType        String   @default("monthly") // "monthly", "hourly", "annual"
+  hourlyRate        Float?   // For hourly employees
+  
+  // Dutch Tax Information
+  taxTable          String   // "wit" (white) or "groen" (green)
+  taxCredit         Float    @default(0) // Heffingskorting
+  payrollTaxNumber  String?  // Loonheffingsnummer
+  
+  // Benefits and Allowances
+  holidayAllowance  Float    @default(8.33) // Vakantiegeld percentage
+  holidayDays       Int      @default(25)   // Vacation days per year
+  pensionScheme     String?  // Pension scheme type
+  
+  // Banking Information
+  bankAccount       String?  // IBAN
+  bankName          String?
+  
+  // Emergency Contact
+  emergencyContact  String?
+  emergencyPhone    String?
+  emergencyRelation String?
+  
+  // Employment Status
+  isActive          Boolean  @default(true)
+  isDGA             Boolean  @default(false) // Directeur-grootaandeelhouder
+  
+  // System fields
+  companyId         String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  createdBy         String?  // User who created the employee
+  
+  // Relations
+  company           Company @relation(fields: [companyId], references: [id])
+  payrollRecords    PayrollRecord[]
+  employeeAllowances EmployeeAllowance[]
+  employeeDeductions EmployeeDeduction[]
+  
+  // Phase 1 new relations
+  leaveBalances     LeaveBalance[]
+  leaveRequests     LeaveRequest[]
+  timeEntries       TimeEntry[]
+  timeSheets        TimeSheet[]
+  
+  // Compound unique constraints for per-company uniqueness
+  @@unique([companyId, employeeNumber])
+  @@unique([companyId, bsn])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          String    @default("admin") // Global role, will be deprecated in favor of UserCompany roles
+  companyId     String?   // Legacy field - keeping for backward compatibility during migration
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  company       Company?     @relation(fields: [companyId], references: [id]) // Legacy relationship
+  companies     UserCompany[] // New multi-tenant relationship
+  
+  // Payroll approval relations
+  payrollApprovalsSubmitted PayrollApproval[] @relation("PayrollApprovalSubmittedBy")
+  payrollApprovalsReviewed  PayrollApproval[] @relation("PayrollApprovalReviewedBy")
+  payrollApprovalsApproved  PayrollApproval[] @relation("PayrollApprovalApprovedBy")
+  payrollApprovalsFinalized PayrollApproval[] @relation("PayrollApprovalFinalizedBy")
+  payrollApprovalHistory    PayrollApprovalHistory[]
+  
+  // Phase 1 new relations
+  leaveRequestsRequested    LeaveRequest[] @relation("LeaveRequestRequestedBy")
+  leaveRequestsReviewed     LeaveRequest[] @relation("LeaveRequestReviewedBy")
+  leaveRequestsApproved     LeaveRequest[] @relation("LeaveRequestApprovedBy")
+  timeEntriesApproved       TimeEntry[] @relation("TimeEntryApprovedBy")
+  timeSheetsApproved        TimeSheet[] @relation("TimeSheetApprovedBy")
+  reportsCreated            Report[] @relation("ReportCreatedBy")
+}
 
