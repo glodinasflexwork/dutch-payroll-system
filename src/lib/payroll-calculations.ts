@@ -1,5 +1,5 @@
 /**
- * Dutch Payroll Calculations Library - 2025
+ * SalarySync Payroll Calculations Library - 2025
  * 
  * Comprehensive library for calculating Dutch payroll taxes, social security contributions,
  * and net salary based on official Belastingdienst rates for 2025.

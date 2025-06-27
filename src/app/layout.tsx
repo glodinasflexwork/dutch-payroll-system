@@ -9,8 +9,12 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Dutch Payroll System",
-  description: "Professional payroll management system for Dutch companies",
+  title: "SalarySync - Professional Dutch Payroll Management",
+  description: "Professional payroll management system designed specifically for Dutch companies",
+  icons: {
+    icon: '/logo-icon-only.png',
+    apple: '/logo-icon-only.png',
+  },
 };
 
 export default function RootLayout({

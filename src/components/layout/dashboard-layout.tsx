@@ -114,12 +114,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* Logo and close button */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Calculator className="w-5 h-5 text-white" />
-              </div>
+              <img src="/logo-icon-only.png" alt="SalarySync" className="w-8 h-8" />
               <div>
-                <h1 className="text-lg font-semibold text-gray-900">Dutch Payroll</h1>
-                <p className="text-xs text-gray-500">Professional System</p>
+                <h1 className="text-lg font-semibold text-gray-900">SalarySync</h1>
+                <p className="text-xs text-gray-500">Professional Payroll</p>
               </div>
             </div>
             <Button
