@@ -1,27 +1,26 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
+import { validateCompanyAccess, auditLog, createCompanyFilter } from "@/lib/company-context"
 import { prisma } from "@/lib/prisma"
 import { validateSubscription } from "@/lib/subscription"
 
-// GET /api/employees - Get all employees for the user's company
+// GET /api/employees - Get all employees for the current company
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const { context, error, status } = await validateCompanyAccess(request, ['employee'])
     
-    if (!session?.user?.companyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!context || error) {
+      return NextResponse.json({ error }, { status })
     }
 
     // Validate subscription
-    const subscriptionValidation = await validateSubscription(session.user.companyId)
+    const subscriptionValidation = await validateSubscription(context.companyId)
     if (!subscriptionValidation.isValid) {
       return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
     }
 
     const employees = await prisma.employee.findMany({
       where: {
-        companyId: session.user.companyId,
+        ...createCompanyFilter(context.companyId),
         isActive: true
       },
       orderBy: {
@@ -29,9 +28,16 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // Audit log
+    await auditLog(context, 'READ', 'employees', undefined, { count: employees.length })
+
     return NextResponse.json({
       success: true,
       employees: employees,
+      company: {
+        id: context.companyId,
+        name: context.companyName
+      },
       subscription: {
         plan: subscriptionValidation.subscription?.plan?.name,
         limits: subscriptionValidation.limits
@@ -49,18 +55,21 @@ export async function GET(request: NextRequest) {
 // POST /api/employees - Create a new employee with comprehensive Dutch payroll fields
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const { context, error, status } = await validateCompanyAccess(request, ['admin', 'hr', 'manager'])
     
-    if (!session?.user?.companyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!context || error) {
+      return NextResponse.json({ error }, { status })
     }
 
     // Check subscription and employee limits
     const currentEmployeeCount = await prisma.employee.count({
-      where: { companyId: session.user.companyId, isActive: true }
+      where: { 
+        ...createCompanyFilter(context.companyId), 
+        isActive: true 
+      }
     })
 
-    const subscriptionValidation = await validateSubscription(session.user.companyId)
+    const subscriptionValidation = await validateSubscription(context.companyId)
     if (!subscriptionValidation.isValid) {
       return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
     }
@@ -74,14 +83,12 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await request.json()
-    console.log("Received employee data:", data)
     
     // Validate required fields
     const requiredFields = ['firstName', 'lastName', 'email', 'bsn', 'startDate', 'position', 'employmentType', 'contractType']
     for (const field of requiredFields) {
       if (!data[field] || data[field] === '') {
         const errorMsg = `Missing or empty required field: ${field}`
-        console.log("Validation error:", errorMsg)
         return NextResponse.json({
           success: false,
           error: errorMsg
