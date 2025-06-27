@@ -159,8 +159,7 @@ export default function EmployeesPage() {
   }
 
   return (
-    <TrialGuard feature="employee management">
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -635,7 +634,7 @@ export default function EmployeesPage() {
           </div>
         </div>
       )}
-    </TrialGuard>
+    </div>
   );
 }
 
