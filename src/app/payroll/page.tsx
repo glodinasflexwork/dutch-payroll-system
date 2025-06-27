@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import DashboardLayout from '@/components/layout/dashboard-layout';
 import { 
   Calculator, 
   Users, 
@@ -206,8 +207,9 @@ export default function PayrollPage() {
   ];
 
   return (
-    <TrialGuard feature="payroll processing">
-      <div className="space-y-6">
+    <DashboardLayout>
+      <TrialGuard feature="payroll processing">
+        <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -559,8 +561,9 @@ export default function PayrollPage() {
             </div>
           </div>
         )}
-      </div>
-    </TrialGuard>
+        </div>
+      </TrialGuard>
+    </DashboardLayout>
   );
 }
 

@@ -142,7 +142,7 @@ export default function EmployeesPage() {
               <Download className="w-4 h-4 mr-2" />
               Export
             </Button>
-            <Button>
+            <Button onClick={() => router.push('/dashboard/employees/add')}>
               <Plus className="w-4 h-4 mr-2" />
               Add Employee
             </Button>
@@ -276,7 +276,7 @@ export default function EmployeesPage() {
                             <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                             <p className="text-lg font-medium">No employees yet</p>
                             <p className="text-sm">Get started by adding your first employee</p>
-                            <Button className="mt-4">
+                            <Button className="mt-4" onClick={() => router.push('/dashboard/employees/add')}>
                               <Plus className="w-4 h-4 mr-2" />
                               Add Employee
                             </Button>
