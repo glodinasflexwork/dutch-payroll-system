@@ -26,6 +26,7 @@ interface EmployeeFormData {
   email: string
   bsn: string
   employmentType: 'monthly' | 'hourly'
+  contractType: string
   department: string
   position: string
   salary: string
@@ -52,6 +53,7 @@ export default function AddEmployeePage() {
     email: '',
     bsn: '',
     employmentType: 'monthly',
+    contractType: 'permanent',
     department: '',
     position: '',
     salary: '',
@@ -425,6 +427,22 @@ export default function AddEmployeePage() {
                   >
                     <option value="monthly">Monthly Salary</option>
                     <option value="hourly">Hourly Rate</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Contract Type *
+                  </label>
+                  <select
+                    value={formData.contractType}
+                    onChange={(e) => handleInputChange('contractType', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  >
+                    <option value="permanent">Permanent Contract</option>
+                    <option value="temporary">Temporary Contract</option>
+                    <option value="freelance">Freelance</option>
+                    <option value="internship">Internship</option>
                   </select>
                 </div>
 
