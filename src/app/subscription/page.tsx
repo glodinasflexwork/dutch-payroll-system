@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import DashboardLayout from '@/components/layout/dashboard-layout';
 import { Check, Crown, Star, Zap } from 'lucide-react';
 
 interface Plan {
@@ -145,8 +146,8 @@ export default function SubscriptionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <DashboardLayout>
+      <div className="space-y-6">
         {/* Header */}
         <div className="text-center">
           <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl">
@@ -289,7 +290,7 @@ export default function SubscriptionPage() {
           </div>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
 

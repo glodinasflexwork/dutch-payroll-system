@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import DashboardLayout from '@/components/layout/dashboard-layout';
 import { 
   CreditCard, 
   Calendar, 
@@ -203,8 +204,8 @@ export default function BillingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <DashboardLayout>
+      <div className="space-y-6">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Billing & Subscription</h1>
@@ -407,7 +408,7 @@ export default function BillingPage() {
           </div>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
 
