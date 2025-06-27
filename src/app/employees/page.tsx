@@ -142,6 +142,12 @@ export default function EmployeesPage() {
         </div>
         <div className="mt-4 sm:mt-0">
           <button
+            onClick={() => alert('TEST: JavaScript is working!')}
+            className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors mr-2"
+          >
+            TEST BUTTON
+          </button>
+          <button
             onClick={() => {
               console.log('Add Employee button clicked!');
               alert('Button clicked! Modal should open...');
