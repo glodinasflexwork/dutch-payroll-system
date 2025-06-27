@@ -97,7 +97,7 @@ function SubscriptionSuccessContent() {
             Subscription Activated!
           </h1>
           <p className="text-gray-600 mb-6">
-            Thank you for subscribing to our Dutch Payroll System. Your subscription is now active.
+            Thank you for subscribing to SalarySync. Your subscription is now active.
           </p>
 
           {/* Subscription Details */}

@@ -26,7 +26,7 @@ export default function TrialExpiredModal({ isOpen, onClose }: TrialExpiredModal
             Trial Expired
           </h2>
           <p className="text-gray-600">
-            Your 14-day free trial has ended. Upgrade to a paid plan to continue using all features of your Dutch Payroll System.
+            Your 14-day free trial has ended. Upgrade to a paid plan to continue using all features of SalarySync.
           </p>
         </div>
 
