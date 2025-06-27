@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Plus, Search, Filter, Edit, Trash2, Eye, Users, Calendar, Euro, X } from 'lucide-react';
 import Link from 'next/link';
-import { TrialGuard } from '@/components/trial/TrialGuard';
 
 interface Employee {
   id: string;
@@ -12,23 +11,22 @@ interface Employee {
   firstName: string;
   lastName: string;
   email?: string;
+  phone?: string;
   position: string;
   department?: string;
-  employmentType: string;
-  contractType: string;
   salary: number;
   startDate: string;
-  isActive: boolean;
+  employmentType: string;
+  contractType: string;
+  bsn: string;
   isDGA: boolean;
+  status: string;
 }
 
 export default function EmployeesPage() {
   const { data: session } = useSession();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterDepartment, setFilterDepartment] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [formData, setFormData] = useState({
     employeeNumber: '',
@@ -40,9 +38,9 @@ export default function EmployeesPage() {
     department: '',
     salary: '',
     startDate: '',
-    bsn: '',
     employmentType: 'permanent',
     contractType: 'fulltime',
+    bsn: '',
     isDGA: false
   });
 
@@ -66,6 +64,14 @@ export default function EmployeesPage() {
     }
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -76,7 +82,7 @@ export default function EmployeesPage() {
         },
         body: JSON.stringify({
           ...formData,
-          salary: parseFloat(formData.salary) || 0,
+          salary: parseFloat(formData.salary)
         }),
       });
 
@@ -92,9 +98,9 @@ export default function EmployeesPage() {
           department: '',
           salary: '',
           startDate: '',
-          bsn: '',
           employmentType: 'permanent',
           contractType: 'fulltime',
+          bsn: '',
           isDGA: false
         });
         fetchEmployees();
@@ -106,46 +112,12 @@ export default function EmployeesPage() {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
-    }));
-  };
-
-  const filteredEmployees = employees.filter(employee => {
-    const matchesSearch = 
-      employee.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.employeeNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesDepartment = !filterDepartment || employee.department === filterDepartment;
-    const matchesStatus = filterStatus === 'all' || 
-      (filterStatus === 'active' && employee.isActive) ||
-      (filterStatus === 'inactive' && !employee.isActive);
-
-    return matchesSearch && matchesDepartment && matchesStatus;
-  });
-
-  const departments = [...new Set(employees.map(emp => emp.department).filter(Boolean))];
-
-  const getEmploymentTypeColor = (type: string) => {
+  const getContractTypeColor = (type: string) => {
     switch (type) {
       case 'permanent': return 'bg-green-100 text-green-800';
       case 'temporary': return 'bg-yellow-100 text-yellow-800';
       case 'freelance': return 'bg-blue-100 text-blue-800';
       case 'intern': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getContractTypeColor = (type: string) => {
-    switch (type) {
-      case 'fulltime': return 'bg-blue-100 text-blue-800';
-      case 'parttime': return 'bg-orange-100 text-orange-800';
-      case 'zero_hours': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -160,145 +132,144 @@ export default function EmployeesPage() {
 
   return (
     <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Employee Management</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Manage your company's employees and their information
-            </p>
-          </div>
-          <div className="mt-4 sm:mt-0">
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Employee
-            </button>
-          </div>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Employee Management</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Manage your company's employees and their information
+          </p>
         </div>
+        <div className="mt-4 sm:mt-0">
+          <button
+            onClick={() => {
+              console.log('Add Employee button clicked!');
+              alert('Button clicked! Modal should open...');
+              setShowAddModal(true);
+            }}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Employee
+          </button>
+        </div>
+      </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <Users className="w-8 h-8 text-blue-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Employees</p>
-                <p className="text-2xl font-bold text-gray-900">{employees.length}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <Users className="w-8 h-8 text-green-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Active Employees</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {employees.filter(emp => emp.isActive).length}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <Calendar className="w-8 h-8 text-purple-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Departments</p>
-                <p className="text-2xl font-bold text-gray-900">{departments.length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <Euro className="w-8 h-8 text-yellow-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Avg. Salary</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  €{employees.length > 0 ? Math.round(employees.reduce((sum, emp) => sum + emp.salary, 0) / employees.length).toLocaleString() : '0'}
-                </p>
-              </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="flex items-center">
+            <Users className="w-8 h-8 text-blue-600" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Total Employees</p>
+              <p className="text-2xl font-bold text-gray-900">{employees.length}</p>
+              <p className="text-xs text-gray-500">{employees.filter(e => e.status === 'active').length} active</p>
             </div>
           </div>
         </div>
 
-        {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex flex-col sm:flex-row gap-4">
+        <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="flex items-center">
+            <Calendar className="w-8 h-8 text-green-600" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Monthly Employees</p>
+              <p className="text-2xl font-bold text-gray-900">{employees.filter(e => e.contractType === 'fulltime').length}</p>
+              <p className="text-xs text-gray-500">Fixed salary employees</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="flex items-center">
+            <Calendar className="w-8 h-8 text-orange-600" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Hourly Employees</p>
+              <p className="text-2xl font-bold text-gray-900">{employees.filter(e => e.contractType === 'parttime').length}</p>
+              <p className="text-xs text-gray-500">Hourly rate employees</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow-sm border">
+          <div className="flex items-center">
+            <Users className="w-8 h-8 text-purple-600" />
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-500">Departments</p>
+              <p className="text-2xl font-bold text-gray-900">{new Set(employees.map(e => e.department).filter(Boolean)).size}</p>
+              <p className="text-xs text-gray-500">Active departments</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Employee Directory */}
+      <div className="bg-white shadow-sm rounded-lg border">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-medium text-gray-900">Employee Directory</h2>
+              <p className="mt-1 text-sm text-gray-500">Search and filter your employee records</p>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
                   type="text"
                   placeholder="Search employees by name, email, or BSN..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
             </div>
             <div className="flex gap-2">
-              <select
-                value={filterDepartment}
-                onChange={(e) => setFilterDepartment(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Departments</option>
-                {departments.map(dept => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
+              <select className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <option>All Departments</option>
               </select>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All Types</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
+              <select className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                <option>All Types</option>
               </select>
             </div>
           </div>
         </div>
 
-        {/* Employee Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">BSN</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employment</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salary</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tax Table</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {employees.length === 0 ? (
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Employee
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    BSN
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Department
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Employment
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Salary
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tax Table
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  <td colSpan={8} className="px-6 py-12 text-center">
+                    <Users className="mx-auto h-12 w-12 text-gray-400" />
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">No employees yet</h3>
+                    <p className="mt-1 text-sm text-gray-500">Get started by adding your first employee</p>
+                    {employees.length === 0 && (
+                      <div className="mt-6">
+                        <button
+                          onClick={() => setShowAddModal(true)}
+                          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add First Employee
+                        </button>
+                      </div>
+                    )}
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredEmployees.map((employee) => (
+              ) : (
+                employees.map((employee) => (
                   <tr key={employee.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -312,40 +283,21 @@ export default function EmployeesPage() {
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
                             {employee.firstName} {employee.lastName}
-                            {employee.isDGA && (
-                              <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                DGA
-                              </span>
-                            )}
                           </div>
-                          <div className="text-sm text-gray-500">
-                            #{employee.employeeNumber}
-                          </div>
-                          {employee.email && (
-                            <div className="text-sm text-gray-500">{employee.email}</div>
-                          )}
+                          <div className="text-sm text-gray-500">{employee.email}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ***-**-{employee.id.slice(-4)}
+                      {employee.bsn}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {employee.department || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{employee.position}</div>
-                      {employee.department && (
-                        <div className="text-sm text-gray-500">{employee.department}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="space-y-1">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getEmploymentTypeColor(employee.employmentType)}`}>
-                          {employee.employmentType}
-                        </span>
-                        <br />
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getContractTypeColor(employee.contractType)}`}>
-                          {employee.contractType}
-                        </span>
-                      </div>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getContractTypeColor(employee.employmentType)}`}>
+                        {employee.employmentType}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       €{employee.salary.toLocaleString()}
@@ -354,14 +306,12 @@ export default function EmployeesPage() {
                       {employee.isDGA ? 'DGA' : 'Standard'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        employee.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {employee.isActive ? 'Active' : 'Inactive'}
+                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                        {employee.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
                         <Link
                           href={`/employees/${employee.id}`}
                           className="text-blue-600 hover:text-blue-900"
@@ -370,7 +320,7 @@ export default function EmployeesPage() {
                         </Link>
                         <Link
                           href={`/employees/${employee.id}/edit`}
-                          className="text-indigo-600 hover:text-indigo-900"
+                          className="text-green-600 hover:text-green-900"
                         >
                           <Edit className="w-4 h-4" />
                         </Link>
@@ -380,34 +330,10 @@ export default function EmployeesPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {filteredEmployees.length === 0 && (
-            <div className="text-center py-12">
-              <Users className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No employees found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {employees.length === 0 
-                  ? "Get started by adding your first employee."
-                  : "Try adjusting your search or filter criteria."
-                }
-              </p>
-              {employees.length === 0 && (
-                <div className="mt-6">
-                  <button
-                    onClick={() => setShowAddModal(true)}
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add First Employee
-                  </button>
-                </div>
+                ))
               )}
-            </div>
-          )}
+            </tbody>
+          </table>
         </div>
       </div>
 
