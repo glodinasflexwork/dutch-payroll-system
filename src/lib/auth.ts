@@ -24,7 +24,7 @@ export const authOptions: NextAuthOptions = {
           },
           include: {
             company: true,
-            userCompanies: {
+            companies: {
               where: {
                 isActive: true
               },
@@ -57,14 +57,14 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Get the user's primary company (first one they joined)
-        const primaryUserCompany = user.userCompanies[0]
+        const primaryUserCompany = user.companies[0]
         const currentCompany = primaryUserCompany?.company || user.company
 
         return {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: primaryUserCompany?.role || 'owner', // Use company-specific role
+          role: primaryUserCompany?.role || user.role || 'owner', // Use company-specific role or fallback to global role
           companyId: currentCompany?.id || user.companyId,
           company: currentCompany
         }

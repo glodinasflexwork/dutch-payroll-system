@@ -164,6 +164,30 @@ export default function CompaniesPage() {
     }
   }
 
+  const handleCompanySettings = (companyId: string) => {
+    // Navigate to company settings page
+    window.location.href = `/dashboard/company?id=${companyId}`
+  }
+
+  const handleDeleteCompany = async (companyId: string) => {
+    if (confirm('Are you sure you want to delete this company? This action cannot be undone.')) {
+      try {
+        const response = await fetch(`/api/companies/${companyId}`, {
+          method: 'DELETE'
+        })
+        
+        if (response.ok) {
+          fetchCompanies() // Refresh the companies list
+        } else {
+          alert('Failed to delete company. Please try again.')
+        }
+      } catch (error) {
+        console.error('Failed to delete company:', error)
+        alert('Failed to delete company. Please try again.')
+      }
+    }
+  }
+
   const getRoleIcon = (role: string) => {
     switch (role.toLowerCase()) {
       case 'owner':
@@ -244,7 +268,7 @@ export default function CompaniesPage() {
                     <Label htmlFor="company">Bedrijf</Label>
                     <Select value={selectedCompany} onValueChange={setSelectedCompany}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecteer bedrijf" />
+                        <SelectValue placeholder="Select company" />
                       </SelectTrigger>
                       <SelectContent>
                         {companies.filter(c => ['owner', 'admin'].includes(c.role)).map(company => (
@@ -283,9 +307,9 @@ export default function CompaniesPage() {
                   </div>
                   <div className="flex justify-end space-x-2">
                     <Button type="button" variant="outline" onClick={() => setShowInviteDialog(false)}>
-                      Annuleren
+                      Cancel
                     </Button>
-                    <Button type="submit">Uitnodiging versturen</Button>
+                    <Button type="submit">Send Invitation</Button>
                   </div>
                 </form>
               </DialogContent>
@@ -300,9 +324,9 @@ export default function CompaniesPage() {
               </DialogTrigger>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>Nieuw bedrijf aanmaken</DialogTitle>
+                  <DialogTitle>Create New Company</DialogTitle>
                   <DialogDescription>
-                    Voeg een nieuw bedrijf toe aan uw SalarySync account.
+                    Add a new company to your SalarySync account.
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={createCompany} className="space-y-4">
@@ -317,7 +341,7 @@ export default function CompaniesPage() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="industry">Branche</Label>
+                      <Label htmlFor="industry">Industry</Label>
                       <Input
                         id="industry"
                         value={companyForm.industry}
@@ -447,14 +471,17 @@ export default function CompaniesPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleCompanySettings(company.id)}>
                             <Settings className="h-4 w-4 mr-2" />
-                            Instellingen
+                            Settings
                           </DropdownMenuItem>
                           {['owner', 'admin'].includes(company.role) && (
-                            <DropdownMenuItem className="text-red-600">
+                            <DropdownMenuItem 
+                              className="text-red-600"
+                              onClick={() => handleDeleteCompany(company.id)}
+                            >
                               <Trash2 className="h-4 w-4 mr-2" />
-                              Verwijderen
+                              Delete
                             </DropdownMenuItem>
                           )}
                         </DropdownMenuContent>
@@ -463,7 +490,7 @@ export default function CompaniesPage() {
                     <CardContent>
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-500">Uw rol:</span>
+                          <span className="text-sm text-gray-500">Your role:</span>
                           <Badge className={getRoleBadgeColor(company.role)}>
                             <span className="flex items-center space-x-1">
                               {getRoleIcon(company.role)}
@@ -473,18 +500,18 @@ export default function CompaniesPage() {
                         </div>
                         {company.industry && (
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-500">Branche:</span>
+                            <span className="text-sm text-gray-500">Industry:</span>
                             <span className="text-sm font-medium">{company.industry}</span>
                           </div>
                         )}
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-500">Medewerkers:</span>
+                          <span className="text-sm text-gray-500">Employees:</span>
                           <span className="text-sm font-medium">{company.employeeCount || 0}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-gray-500">Status:</span>
                           <Badge variant={company.isActive ? "default" : "secondary"}>
-                            {company.isActive ? "Actief" : "Inactief"}
+                            {company.isActive ? "Active" : "Inactive"}
                           </Badge>
                         </div>
                       </div>
