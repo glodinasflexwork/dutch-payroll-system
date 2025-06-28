@@ -170,6 +170,12 @@ export default function CompaniesPage() {
         return <Crown className="h-4 w-4 text-yellow-500" />
       case 'admin':
         return <Users className="h-4 w-4 text-blue-500" />
+      case 'manager':
+        return <Users className="h-4 w-4 text-green-500" />
+      case 'hr':
+        return <Users className="h-4 w-4 text-purple-500" />
+      case 'accountant':
+        return <Users className="h-4 w-4 text-orange-500" />
       default:
         return <Users className="h-4 w-4 text-gray-500" />
     }
@@ -187,6 +193,8 @@ export default function CompaniesPage() {
         return 'bg-purple-100 text-purple-800 border-purple-200'
       case 'accountant':
         return 'bg-orange-100 text-orange-800 border-orange-200'
+      case 'employee':
+        return 'bg-gray-100 text-gray-800 border-gray-200'
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200'
     }
@@ -264,11 +272,12 @@ export default function CompaniesPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="owner">Owner</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="employee">Medewerker</SelectItem>
                         <SelectItem value="hr">HR</SelectItem>
                         <SelectItem value="accountant">Boekhouder</SelectItem>
                         <SelectItem value="manager">Manager</SelectItem>
-                        <SelectItem value="admin">Beheerder</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

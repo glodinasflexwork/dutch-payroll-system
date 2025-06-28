@@ -46,13 +46,12 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      // Create user (not verified yet)
+      // Create user (not verified yet) - no global role, only company-specific roles
       const user = await tx.user.create({
         data: {
           name,
           email,
           password: hashedPassword,
-          role: "admin",
           companyId: company.id, // Legacy field for backward compatibility
           emailVerified: null // Not verified yet
         }

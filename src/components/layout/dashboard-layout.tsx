@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSession, signOut } from "next-auth/react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -112,8 +112,31 @@ const navigation = [
 
 function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [companyRole, setCompanyRole] = useState<string>("")
   const { data: session } = useSession()
   const pathname = usePathname()
+
+  // Fetch user's role in the current company
+  useEffect(() => {
+    const fetchCompanyRole = async () => {
+      if (session?.user?.id) {
+        try {
+          const response = await fetch('/api/user/companies')
+          if (response.ok) {
+            const data = await response.json()
+            const currentCompany = data.currentCompany
+            if (currentCompany) {
+              setCompanyRole(currentCompany.role)
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch company role:', error)
+        }
+      }
+    }
+
+    fetchCompanyRole()
+  }, [session?.user?.id])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -201,7 +224,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                   {session?.user?.company?.name}
                 </p>
                 <Badge variant="secondary" className="mt-1 text-xs">
-                  {session?.user?.role}
+                  {companyRole || session?.user?.role || 'User'}
                 </Badge>
               </div>
             </div>

@@ -23,7 +23,23 @@ export const authOptions: NextAuthOptions = {
             email: credentials.email
           },
           include: {
-            company: true
+            company: true,
+            userCompanies: {
+              where: {
+                isActive: true
+              },
+              include: {
+                company: {
+                  select: {
+                    id: true,
+                    name: true
+                  }
+                }
+              },
+              orderBy: {
+                createdAt: 'asc'
+              }
+            }
           }
         })
 
@@ -40,13 +56,17 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
+        // Get the user's primary company (first one they joined)
+        const primaryUserCompany = user.userCompanies[0]
+        const currentCompany = primaryUserCompany?.company || user.company
+
         return {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role,
-          companyId: user.companyId,
-          company: user.company
+          role: primaryUserCompany?.role || 'owner', // Use company-specific role
+          companyId: currentCompany?.id || user.companyId,
+          company: currentCompany
         }
       }
     })
