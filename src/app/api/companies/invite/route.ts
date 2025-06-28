@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { sendEmail } from '@/lib/email-service'
+import { EmailService } from '@/lib/email-service'
 import crypto from 'crypto'
 
 export async function POST(request: NextRequest) {
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     // Send invitation email
     const inviteUrl = `${process.env.NEXTAUTH_URL}/auth/invite?token=${token}`
     
-    await sendEmail({
+    await EmailService.sendEmail({
       to: email,
       subject: `Invitation to join ${userCompany.company.name} on SalarySync`,
       html: `
