@@ -49,17 +49,23 @@ export default function Dashboard() {
 
   const fetchDashboardStats = async () => {
     try {
+      console.log('=== DASHBOARD DEBUG ===')
+      console.log('Session object:', session)
+      console.log('Session user:', session?.user)
+      console.log('Session companyId:', session?.user?.companyId)
       console.log('Fetching dashboard stats for company:', session?.user?.companyId)
       
       // Fetch company info with employee counts
       const companyResponse = await fetch("/api/companies")
       const companyData = await companyResponse.json()
+      console.log('Company API response:', companyData)
 
       // Fetch employees to get detailed counts
       const employeesResponse = await fetch("/api/employees")
       const employeesResult = await employeesResponse.json()
       const employeesData = employeesResult.success ? employeesResult.employees : []
       
+      console.log('Employees API response:', employeesResult)
       console.log('Dashboard employees data:', employeesData)
 
       // Fetch payroll records
