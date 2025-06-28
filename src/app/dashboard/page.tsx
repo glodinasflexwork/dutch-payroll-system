@@ -42,12 +42,15 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (session?.user?.companyId) {
+      setLoading(true)
       fetchDashboardStats()
     }
-  }, [session])
+  }, [session?.user?.companyId]) // Fix: trigger on companyId changes, not just session
 
   const fetchDashboardStats = async () => {
     try {
+      console.log('Fetching dashboard stats for company:', session?.user?.companyId)
+      
       // Fetch company info with employee counts
       const companyResponse = await fetch("/api/companies")
       const companyData = await companyResponse.json()
@@ -56,6 +59,8 @@ export default function Dashboard() {
       const employeesResponse = await fetch("/api/employees")
       const employeesResult = await employeesResponse.json()
       const employeesData = employeesResult.success ? employeesResult.employees : []
+      
+      console.log('Dashboard employees data:', employeesData)
 
       // Fetch payroll records
       const payrollResponse = await fetch("/api/payroll")
@@ -65,13 +70,16 @@ export default function Dashboard() {
       const monthlyEmployees = employeesData.filter((emp: any) => emp.employmentType === "monthly").length
       const hourlyEmployees = employeesData.filter((emp: any) => emp.employmentType === "hourly").length
 
-      setStats({
+      const dashboardStats = {
         totalEmployees: employeesData.length,
         monthlyEmployees,
         hourlyEmployees,
         totalPayrollRecords: payrollData.length,
         companyName: companyData.name || "Your Company"
-      })
+      }
+      
+      console.log('Setting dashboard stats:', dashboardStats)
+      setStats(dashboardStats)
     } catch (error) {
       console.error("Error fetching dashboard stats:", error)
       // Set default stats on error
