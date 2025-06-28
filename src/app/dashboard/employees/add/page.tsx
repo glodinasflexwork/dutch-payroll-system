@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import DashboardLayout from "@/components/layout/dashboard-layout"
@@ -42,11 +42,18 @@ interface EmployeeFormData {
   emergencyPhone: string
 }
 
+interface FieldValidation {
+  isValid: boolean
+  message: string
+  isRequired: boolean
+}
+
 export default function AddEmployeePage() {
   const { data: session } = useSession()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [validations, setValidations] = useState<Record<string, FieldValidation>>({})
   const [formData, setFormData] = useState<EmployeeFormData>({
     firstName: '',
     lastName: '',
@@ -80,67 +87,200 @@ export default function AddEmployeePage() {
     'Legal'
   ]
 
+  // Real-time validation functions
+  const validateField = (field: keyof EmployeeFormData, value: string): FieldValidation => {
+    switch (field) {
+      case 'firstName':
+        return {
+          isValid: value.trim().length >= 2,
+          message: value.trim().length === 0 ? 'First name is required' : 
+                   value.trim().length < 2 ? 'First name must be at least 2 characters' : 'Valid first name',
+          isRequired: true
+        }
+      
+      case 'lastName':
+        return {
+          isValid: value.trim().length >= 2,
+          message: value.trim().length === 0 ? 'Last name is required' : 
+                   value.trim().length < 2 ? 'Last name must be at least 2 characters' : 'Valid last name',
+          isRequired: true
+        }
+      
+      case 'email':
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        return {
+          isValid: emailRegex.test(value),
+          message: value.trim().length === 0 ? 'Email address is required' : 
+                   !emailRegex.test(value) ? 'Please enter a valid email address' : 'Valid email address',
+          isRequired: true
+        }
+      
+      case 'bsn':
+        return {
+          isValid: validateBSN(value),
+          message: value.trim().length === 0 ? 'BSN is required' : 
+                   value.length !== 9 ? 'BSN must be exactly 9 digits' :
+                   !validateBSN(value) ? 'Invalid BSN number' : 'Valid BSN number',
+          isRequired: true
+        }
+      
+      case 'phoneNumber':
+        const phoneRegex = /^(\+31|0)[0-9]{9}$/
+        return {
+          isValid: value.length === 0 || phoneRegex.test(value.replace(/\s/g, '')),
+          message: value.length === 0 ? 'Phone number is optional' :
+                   !phoneRegex.test(value.replace(/\s/g, '')) ? 'Please enter a valid Dutch phone number' : 'Valid phone number',
+          isRequired: false
+        }
+      
+      case 'postalCode':
+        const postalRegex = /^\d{4}\s?[A-Z]{2}$/i
+        return {
+          isValid: value.length === 0 || postalRegex.test(value),
+          message: value.length === 0 ? 'Postal code is optional' :
+                   !postalRegex.test(value) ? 'Please enter a valid postal code (e.g., 1234 AB)' : 'Valid postal code',
+          isRequired: false
+        }
+      
+      case 'bankAccount':
+        const ibanRegex = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{4}[0-9]{7}([A-Z0-9]?){0,16}$/
+        const cleanIban = value.replace(/\s/g, '').toUpperCase()
+        return {
+          isValid: value.length === 0 || (ibanRegex.test(cleanIban) && cleanIban.startsWith('NL')),
+          message: value.length === 0 ? 'Bank account is optional' :
+                   !cleanIban.startsWith('NL') ? 'Please enter a Dutch IBAN (starting with NL)' :
+                   !ibanRegex.test(cleanIban) ? 'Please enter a valid IBAN' : 'Valid IBAN',
+          isRequired: false
+        }
+      
+      case 'department':
+        return {
+          isValid: value.trim().length > 0,
+          message: value.trim().length === 0 ? 'Department is required' : 'Valid department selected',
+          isRequired: true
+        }
+      
+      case 'position':
+        return {
+          isValid: value.trim().length >= 2,
+          message: value.trim().length === 0 ? 'Position is required' : 
+                   value.trim().length < 2 ? 'Position must be at least 2 characters' : 'Valid position',
+          isRequired: true
+        }
+      
+      case 'salary':
+        if (formData.employmentType === 'monthly') {
+          const salaryNum = Number(value)
+          return {
+            isValid: !isNaN(salaryNum) && salaryNum > 0,
+            message: value.trim().length === 0 ? 'Monthly salary is required' :
+                     isNaN(salaryNum) ? 'Please enter a valid number' :
+                     salaryNum <= 0 ? 'Salary must be greater than 0' : 'Valid salary amount',
+            isRequired: true
+          }
+        }
+        return { isValid: true, message: 'Not required for hourly employees', isRequired: false }
+      
+      case 'hourlyRate':
+        if (formData.employmentType === 'hourly') {
+          const rateNum = Number(value)
+          return {
+            isValid: !isNaN(rateNum) && rateNum > 0,
+            message: value.trim().length === 0 ? 'Hourly rate is required' :
+                     isNaN(rateNum) ? 'Please enter a valid number' :
+                     rateNum <= 0 ? 'Hourly rate must be greater than 0' : 'Valid hourly rate',
+            isRequired: true
+          }
+        }
+        return { isValid: true, message: 'Not required for monthly employees', isRequired: false }
+      
+      case 'startDate':
+        const today = new Date()
+        const selectedDate = new Date(value)
+        return {
+          isValid: value.length > 0 && selectedDate <= today,
+          message: value.length === 0 ? 'Start date is required' :
+                   selectedDate > today ? 'Start date cannot be in the future' : 'Valid start date',
+          isRequired: true
+        }
+      
+      case 'city':
+        return {
+          isValid: value.length === 0 || value.trim().length >= 2,
+          message: value.length === 0 ? 'City is optional' :
+                   value.trim().length < 2 ? 'City name must be at least 2 characters' : 'Valid city name',
+          isRequired: false
+        }
+      
+      case 'address':
+        return {
+          isValid: value.length === 0 || value.trim().length >= 5,
+          message: value.length === 0 ? 'Address is optional' :
+                   value.trim().length < 5 ? 'Please enter a complete address' : 'Valid address',
+          isRequired: false
+        }
+      
+      case 'emergencyContact':
+        return {
+          isValid: value.length === 0 || value.trim().length >= 2,
+          message: value.length === 0 ? 'Emergency contact is optional' :
+                   value.trim().length < 2 ? 'Contact name must be at least 2 characters' : 'Valid emergency contact',
+          isRequired: false
+        }
+      
+      case 'emergencyPhone':
+        const emergencyPhoneRegex = /^(\+31|0)[0-9]{9}$/
+        return {
+          isValid: value.length === 0 || emergencyPhoneRegex.test(value.replace(/\s/g, '')),
+          message: value.length === 0 ? 'Emergency phone is optional' :
+                   !emergencyPhoneRegex.test(value.replace(/\s/g, '')) ? 'Please enter a valid phone number' : 'Valid emergency phone',
+          isRequired: false
+        }
+      
+      default:
+        return { isValid: true, message: '', isRequired: false }
+    }
+  }
+
   const handleInputChange = (field: keyof EmployeeFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+    
+    // Real-time validation
+    const validation = validateField(field, value)
+    setValidations(prev => ({ ...prev, [field]: validation }))
     
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
     }
-
-    // Real-time BSN validation
-    if (field === 'bsn' && value) {
-      const isValid = validateBSN(value)
-      if (!isValid && value.length === 9) {
-        setErrors(prev => ({ ...prev, bsn: 'Invalid BSN number' }))
-      }
-    }
   }
+
+  // Validate all fields on mount and when employment type changes
+  useEffect(() => {
+    const newValidations: Record<string, FieldValidation> = {}
+    Object.keys(formData).forEach(key => {
+      const field = key as keyof EmployeeFormData
+      newValidations[field] = validateField(field, formData[field])
+    })
+    setValidations(newValidations)
+  }, [formData.employmentType])
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
+    let isValid = true
 
-    // Required fields
-    if (!formData.firstName.trim()) newErrors.firstName = 'First name is required'
-    if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required'
-    if (!formData.email.trim()) newErrors.email = 'Email is required'
-    if (!formData.bsn.trim()) newErrors.bsn = 'BSN is required'
-    if (!formData.department.trim()) newErrors.department = 'Department is required'
-    if (!formData.position.trim()) newErrors.position = 'Position is required'
-    if (!formData.startDate) newErrors.startDate = 'Start date is required'
-
-    // Email validation
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Invalid email format'
-    }
-
-    // BSN validation
-    if (formData.bsn && !validateBSN(formData.bsn)) {
-      newErrors.bsn = 'Invalid BSN number'
-    }
-
-    // Salary validation
-    if (formData.employmentType === 'monthly') {
-      if (!formData.salary.trim()) {
-        newErrors.salary = 'Monthly salary is required'
-      } else if (isNaN(Number(formData.salary)) || Number(formData.salary) <= 0) {
-        newErrors.salary = 'Invalid salary amount'
+    Object.keys(formData).forEach(key => {
+      const field = key as keyof EmployeeFormData
+      const validation = validateField(field, formData[field])
+      
+      if (validation.isRequired && !validation.isValid) {
+        newErrors[field] = validation.message
+        isValid = false
       }
-    } else {
-      if (!formData.hourlyRate.trim()) {
-        newErrors.hourlyRate = 'Hourly rate is required'
-      } else if (isNaN(Number(formData.hourlyRate)) || Number(formData.hourlyRate) <= 0) {
-        newErrors.hourlyRate = 'Invalid hourly rate'
-      }
-    }
-
-    // Postal code validation (Dutch format)
-    if (formData.postalCode && !/^\d{4}\s?[A-Z]{2}$/i.test(formData.postalCode)) {
-      newErrors.postalCode = 'Invalid postal code format (e.g., 1234 AB)'
-    }
+    })
 
     setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    return isValid
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -176,6 +316,49 @@ export default function AddEmployeePage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const getFieldClassName = (field: keyof EmployeeFormData) => {
+    const validation = validations[field]
+    if (!validation) return ''
+    
+    if (errors[field]) return 'border-red-500 focus:border-red-500 focus:ring-red-500'
+    if (validation.isValid && formData[field].length > 0) return 'border-green-500 focus:border-green-500 focus:ring-green-500'
+    return ''
+  }
+
+  const renderFieldFeedback = (field: keyof EmployeeFormData) => {
+    const validation = validations[field]
+    const error = errors[field]
+    
+    if (error) {
+      return (
+        <p className="text-red-500 text-sm mt-1 flex items-center">
+          <AlertCircle className="w-4 h-4 mr-1" />
+          {error}
+        </p>
+      )
+    }
+    
+    if (validation && formData[field].length > 0) {
+      if (validation.isValid) {
+        return (
+          <p className="text-green-500 text-sm mt-1 flex items-center">
+            <CheckCircle className="w-4 h-4 mr-1" />
+            {validation.message}
+          </p>
+        )
+      } else if (validation.isRequired) {
+        return (
+          <p className="text-red-500 text-sm mt-1 flex items-center">
+            <AlertCircle className="w-4 h-4 mr-1" />
+            {validation.message}
+          </p>
+        )
+      }
+    }
+    
+    return null
   }
 
   const formatCurrency = (value: string) => {
@@ -225,14 +408,9 @@ export default function AddEmployeePage() {
                     value={formData.firstName}
                     onChange={(e) => handleInputChange('firstName', e.target.value)}
                     placeholder="Enter first name"
-                    className={errors.firstName ? 'border-red-500' : ''}
+                    className={getFieldClassName('firstName')}
                   />
-                  {errors.firstName && (
-                    <p className="text-red-500 text-sm mt-1 flex items-center">
-                      <AlertCircle className="w-4 h-4 mr-1" />
-                      {errors.firstName}
-                    </p>
-                  )}
+                  {renderFieldFeedback('firstName')}
                 </div>
 
                 <div>
@@ -243,14 +421,9 @@ export default function AddEmployeePage() {
                     value={formData.lastName}
                     onChange={(e) => handleInputChange('lastName', e.target.value)}
                     placeholder="Enter last name"
-                    className={errors.lastName ? 'border-red-500' : ''}
+                    className={getFieldClassName('lastName')}
                   />
-                  {errors.lastName && (
-                    <p className="text-red-500 text-sm mt-1 flex items-center">
-                      <AlertCircle className="w-4 h-4 mr-1" />
-                      {errors.lastName}
-                    </p>
-                  )}
+                  {renderFieldFeedback('lastName')}
                 </div>
 
                 <div>
@@ -262,14 +435,9 @@ export default function AddEmployeePage() {
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
                     placeholder="employee@company.nl"
-                    className={errors.email ? 'border-red-500' : ''}
+                    className={getFieldClassName('email')}
                   />
-                  {errors.email && (
-                    <p className="text-red-500 text-sm mt-1 flex items-center">
-                      <AlertCircle className="w-4 h-4 mr-1" />
-                      {errors.email}
-                    </p>
-                  )}
+                  {renderFieldFeedback('email')}
                 </div>
 
                 <div>
@@ -281,19 +449,9 @@ export default function AddEmployeePage() {
                     onChange={(e) => handleInputChange('bsn', e.target.value.replace(/\D/g, '').slice(0, 9))}
                     placeholder="123456789"
                     maxLength={9}
-                    className={errors.bsn ? 'border-red-500' : formData.bsn && validateBSN(formData.bsn) ? 'border-green-500' : ''}
+                    className={getFieldClassName('bsn')}
                   />
-                  {errors.bsn ? (
-                    <p className="text-red-500 text-sm mt-1 flex items-center">
-                      <AlertCircle className="w-4 h-4 mr-1" />
-                      {errors.bsn}
-                    </p>
-                  ) : formData.bsn && validateBSN(formData.bsn) ? (
-                    <p className="text-green-500 text-sm mt-1 flex items-center">
-                      <CheckCircle className="w-4 h-4 mr-1" />
-                      Valid BSN number
-                    </p>
-                  ) : null}
+                  {renderFieldFeedback('bsn')}
                 </div>
 
                 <div>
@@ -304,7 +462,9 @@ export default function AddEmployeePage() {
                     value={formData.phoneNumber}
                     onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
                     placeholder="+31 6 12345678"
+                    className={getFieldClassName('phoneNumber')}
                   />
+                  {renderFieldFeedback('phoneNumber')}
                 </div>
 
                 <div>
@@ -315,7 +475,9 @@ export default function AddEmployeePage() {
                     value={formData.bankAccount}
                     onChange={(e) => handleInputChange('bankAccount', e.target.value.toUpperCase())}
                     placeholder="NL91 ABNA 0417 1643 00"
+                    className={getFieldClassName('bankAccount')}
                   />
+                  {renderFieldFeedback('bankAccount')}
                 </div>
               </div>
 
@@ -327,7 +489,9 @@ export default function AddEmployeePage() {
                   value={formData.address}
                   onChange={(e) => handleInputChange('address', e.target.value)}
                   placeholder="Straatnaam 123"
+                  className={getFieldClassName('address')}
                 />
+                {renderFieldFeedback('address')}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -339,14 +503,9 @@ export default function AddEmployeePage() {
                     value={formData.postalCode}
                     onChange={(e) => handleInputChange('postalCode', e.target.value.toUpperCase())}
                     placeholder="1234 AB"
-                    className={errors.postalCode ? 'border-red-500' : ''}
+                    className={getFieldClassName('postalCode')}
                   />
-                  {errors.postalCode && (
-                    <p className="text-red-500 text-sm mt-1 flex items-center">
-                      <AlertCircle className="w-4 h-4 mr-1" />
-                      {errors.postalCode}
-                    </p>
-                  )}
+                  {renderFieldFeedback('postalCode')}
                 </div>
 
                 <div>
@@ -357,7 +516,9 @@ export default function AddEmployeePage() {
                     value={formData.city}
                     onChange={(e) => handleInputChange('city', e.target.value)}
                     placeholder="Amsterdam"
+                    className={getFieldClassName('city')}
                   />
+                  {renderFieldFeedback('city')}
                 </div>
               </div>
             </CardContent>
@@ -383,19 +544,14 @@ export default function AddEmployeePage() {
                   <select
                     value={formData.department}
                     onChange={(e) => handleInputChange('department', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-md text-sm ${errors.department ? 'border-red-500' : 'border-gray-300'}`}
+                    className={`w-full px-3 py-2 border rounded-md text-sm ${getFieldClassName('department')}`}
                   >
                     <option value="">Select department</option>
                     {departments.map(dept => (
                       <option key={dept} value={dept}>{dept}</option>
                     ))}
                   </select>
-                  {errors.department && (
-                    <p className="text-red-500 text-sm mt-1 flex items-center">
-                      <AlertCircle className="w-4 h-4 mr-1" />
-                      {errors.department}
-                    </p>
-                  )}
+                  {renderFieldFeedback('department')}
                 </div>
 
                 <div>
@@ -406,14 +562,9 @@ export default function AddEmployeePage() {
                     value={formData.position}
                     onChange={(e) => handleInputChange('position', e.target.value)}
                     placeholder="Software Engineer"
-                    className={errors.position ? 'border-red-500' : ''}
+                    className={getFieldClassName('position')}
                   />
-                  {errors.position && (
-                    <p className="text-red-500 text-sm mt-1 flex items-center">
-                      <AlertCircle className="w-4 h-4 mr-1" />
-                      {errors.position}
-                    </p>
-                  )}
+                  {renderFieldFeedback('position')}
                 </div>
 
                 <div>
@@ -439,8 +590,8 @@ export default function AddEmployeePage() {
                     onChange={(e) => handleInputChange('contractType', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                   >
-                    <option value="permanent">Permanent Contract</option>
-                    <option value="temporary">Temporary Contract</option>
+                    <option value="permanent">Permanent</option>
+                    <option value="temporary">Temporary</option>
                     <option value="freelance">Freelance</option>
                     <option value="internship">Internship</option>
                   </select>
@@ -454,100 +605,73 @@ export default function AddEmployeePage() {
                     type="date"
                     value={formData.startDate}
                     onChange={(e) => handleInputChange('startDate', e.target.value)}
-                    className={errors.startDate ? 'border-red-500' : ''}
+                    className={getFieldClassName('startDate')}
                   />
-                  {errors.startDate && (
-                    <p className="text-red-500 text-sm mt-1 flex items-center">
-                      <AlertCircle className="w-4 h-4 mr-1" />
-                      {errors.startDate}
-                    </p>
-                  )}
+                  {renderFieldFeedback('startDate')}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Compensation & Tax */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Euro className="w-5 h-5" />
-                <span>Compensation & Tax Information</span>
-              </CardTitle>
-              <CardDescription>
-                Salary details and Dutch tax settings
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {formData.employmentType === 'monthly' ? (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Monthly Salary (EUR) *
-                    </label>
-                    <Input
-                      value={formData.salary}
-                      onChange={(e) => handleInputChange('salary', e.target.value.replace(/[^0-9]/g, ''))}
-                      placeholder="4000"
-                      className={errors.salary ? 'border-red-500' : ''}
-                    />
-                    {formData.salary && (
-                      <p className="text-sm text-gray-500 mt-1">
-                        €{formatCurrency(formData.salary)} per month
-                      </p>
-                    )}
-                    {errors.salary && (
-                      <p className="text-red-500 text-sm mt-1 flex items-center">
-                        <AlertCircle className="w-4 h-4 mr-1" />
-                        {errors.salary}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Hourly Rate (EUR) *
-                    </label>
-                    <Input
-                      value={formData.hourlyRate}
-                      onChange={(e) => handleInputChange('hourlyRate', e.target.value.replace(/[^0-9.]/g, ''))}
-                      placeholder="25.00"
-                      className={errors.hourlyRate ? 'border-red-500' : ''}
-                    />
-                    {formData.hourlyRate && (
-                      <p className="text-sm text-gray-500 mt-1">
-                        €{formData.hourlyRate} per hour
-                      </p>
-                    )}
-                    {errors.hourlyRate && (
-                      <p className="text-red-500 text-sm mt-1 flex items-center">
-                        <AlertCircle className="w-4 h-4 mr-1" />
-                        {errors.hourlyRate}
-                      </p>
-                    )}
-                  </div>
-                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tax Table *
+                    Tax Table
                   </label>
                   <select
                     value={formData.taxTable}
                     onChange={(e) => handleInputChange('taxTable', e.target.value as 'wit' | 'groen')}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                   >
-                    <option value="wit">Wit (Standard Tax Table)</option>
-                    <option value="groen">Groen (Reduced Tax Table)</option>
+                    <option value="wit">Wit (Standard)</option>
+                    <option value="groen">Groen (Reduced)</option>
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {formData.taxTable === 'wit' 
-                      ? 'Standard tax table for most employees'
-                      : 'Reduced tax table for employees with tax benefits'
-                    }
-                  </p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Salary Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Euro className="w-5 h-5" />
+                <span>Salary Information</span>
+              </CardTitle>
+              <CardDescription>
+                Compensation details
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {formData.employmentType === 'monthly' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Monthly Salary (€) *
+                  </label>
+                  <Input
+                    type="number"
+                    value={formData.salary}
+                    onChange={(e) => handleInputChange('salary', e.target.value)}
+                    placeholder="3500"
+                    min="0"
+                    step="0.01"
+                    className={getFieldClassName('salary')}
+                  />
+                  {renderFieldFeedback('salary')}
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Hourly Rate (€) *
+                  </label>
+                  <Input
+                    type="number"
+                    value={formData.hourlyRate}
+                    onChange={(e) => handleInputChange('hourlyRate', e.target.value)}
+                    placeholder="25.00"
+                    min="0"
+                    step="0.01"
+                    className={getFieldClassName('hourlyRate')}
+                  />
+                  {renderFieldFeedback('hourlyRate')}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -555,7 +679,7 @@ export default function AddEmployeePage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <AlertCircle className="w-5 h-5" />
+                <User className="w-5 h-5" />
                 <span>Emergency Contact</span>
               </CardTitle>
               <CardDescription>
@@ -572,55 +696,61 @@ export default function AddEmployeePage() {
                     value={formData.emergencyContact}
                     onChange={(e) => handleInputChange('emergencyContact', e.target.value)}
                     placeholder="Contact person name"
+                    className={getFieldClassName('emergencyContact')}
                   />
+                  {renderFieldFeedback('emergencyContact')}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Emergency Contact Phone
+                    Emergency Phone Number
                   </label>
                   <Input
                     value={formData.emergencyPhone}
                     onChange={(e) => handleInputChange('emergencyPhone', e.target.value)}
                     placeholder="+31 6 12345678"
+                    className={getFieldClassName('emergencyPhone')}
                   />
+                  {renderFieldFeedback('emergencyPhone')}
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Submit Buttons */}
-          <div className="flex items-center justify-between pt-6 border-t">
-            <Button 
-              type="button" 
-              variant="outline" 
+          {/* Submit Button */}
+          <div className="flex justify-end space-x-4">
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => router.back()}
             >
               Cancel
             </Button>
-            
-            <div className="flex items-center space-x-3">
-              {errors.submit && (
-                <p className="text-red-500 text-sm flex items-center">
-                  <AlertCircle className="w-4 h-4 mr-1" />
-                  {errors.submit}
-                </p>
-              )}
-              <Button type="submit" disabled={loading}>
-                {loading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Creating...</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-2">
-                    <Save className="w-4 h-4" />
-                    <span>Create Employee</span>
-                  </div>
-                )}
-              </Button>
-            </div>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="flex items-center space-x-2"
+            >
+              <Save className="w-4 h-4" />
+              <span>{loading ? 'Creating...' : 'Create Employee'}</span>
+            </Button>
           </div>
+
+          {errors.submit && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4">
+              <div className="flex">
+                <AlertCircle className="w-5 h-5 text-red-400" />
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">
+                    Error creating employee
+                  </h3>
+                  <div className="mt-2 text-sm text-red-700">
+                    {errors.submit}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </form>
       </div>
     </DashboardLayout>
