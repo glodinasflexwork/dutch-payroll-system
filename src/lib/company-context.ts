@@ -26,37 +26,52 @@ export async function getCompanyContext(
       return null
     }
 
-    // Get company ID from request headers (set by company switcher) or URL params
     let companyId = requiredCompanyId || 
                    request.headers.get('x-company-id') ||
-                   request.nextUrl.searchParams.get('companyId') ||
-                   session.user.companyId // Fallback to session company
+                   request.nextUrl.searchParams.get('companyId')
 
     if (!companyId) {
-      // If no company specified, get user's first company
-      const firstUserCompany = await prisma.userCompany.findFirst({
-        where: {
-          userId: session.user.id,
-          isActive: true
-        },
-        include: {
-          company: {
-            select: {
-              id: true,
-              name: true
-            }
-          }
-        },
-        orderBy: {
-          createdAt: 'asc'
-        }
+      // Always fetch current company from database, not from session
+      // This ensures we get the latest company selection after switching
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { companyId: true }
       })
 
-      if (!firstUserCompany) {
-        return null
-      }
+      companyId = user?.companyId
 
-      companyId = firstUserCompany.company.id
+      if (!companyId) {
+        // If no company in user record, get user's first company
+        const firstUserCompany = await prisma.userCompany.findFirst({
+          where: {
+            userId: session.user.id,
+            isActive: true
+          },
+          include: {
+            company: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'asc'
+          }
+        })
+
+        if (!firstUserCompany) {
+          return null
+        }
+
+        companyId = firstUserCompany.company.id
+        
+        // Update user's companyId if it was null
+        await prisma.user.update({
+          where: { id: session.user.id },
+          data: { companyId: companyId }
+        })
+      }
     }
 
     // Verify user has access to this company
