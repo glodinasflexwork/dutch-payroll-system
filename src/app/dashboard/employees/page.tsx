@@ -56,20 +56,28 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     if (session?.user?.companyId) {
+      setLoading(true)
       fetchEmployees()
     }
-  }, [session])
+  }, [session?.user?.companyId]) // Add companyId as dependency to trigger on company switch
 
   const fetchEmployees = async () => {
     try {
+      console.log('Fetching employees for company:', session?.user?.companyId)
       const response = await fetch("/api/employees")
       if (response.ok) {
         const result = await response.json()
+        console.log('Employee API response:', result)
         const employeesData = result.success ? result.employees : []
+        console.log('Setting employees:', employeesData)
         setEmployees(employeesData)
+      } else {
+        console.error('Failed to fetch employees:', response.status, response.statusText)
+        setEmployees([])
       }
     } catch (error) {
       console.error("Error fetching employees:", error)
+      setEmployees([])
     } finally {
       setLoading(false)
     }
