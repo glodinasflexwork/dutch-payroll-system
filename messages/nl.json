@@ -1,0 +1,75 @@
+{
+  "navigation": {
+    "dashboard": "Dashboard",
+    "analytics": "Analytics",
+    "employees": "Medewerkers", 
+    "leaveManagement": "Verlofbeheer",
+    "payroll": "Salarisadministratie",
+    "payrollManagement": "Salaris Beheer",
+    "reports": "Rapporten",
+    "subscription": "Abonnement",
+    "billing": "Facturering",
+    "taxSettings": "Belasting Instellingen",
+    "company": "Bedrijf",
+    "companyManagement": "Bedrijfsbeheer"
+  },
+  "descriptions": {
+    "dashboard": "Overzicht en statistieken",
+    "analytics": "Grafieken en inzichten",
+    "employees": "Beheer medewerkersgegevens",
+    "leaveManagement": "Verlofaanvragen en saldi",
+    "payroll": "Verwerk salarisberekeningen",
+    "payrollManagement": "Batch verwerking en goedkeuringen",
+    "reports": "Bekijk salarisrapporten",
+    "subscription": "Beheer uw abonnement",
+    "billing": "Facturen en betalingen",
+    "taxSettings": "Configureer belastingtarieven",
+    "company": "Bedrijfsinformatie",
+    "companyManagement": "Beheer meerdere bedrijven"
+  },
+  "settings": {
+    "title": "Instellingen",
+    "language": "Taal",
+    "languageDescription": "Kies uw voorkeurstaal",
+    "english": "Engels",
+    "dutch": "Nederlands",
+    "save": "Wijzigingen Opslaan",
+    "saved": "Instellingen succesvol opgeslagen"
+  },
+  "leaveManagement": {
+    "title": "Verlofbeheer",
+    "requests": "Verlofaanvragen",
+    "balances": "Verlofsaldi",
+    "types": "Verloftypen",
+    "newRequest": "Nieuwe Aanvraag",
+    "newType": "Nieuw Verloftype",
+    "status": {
+      "pending": "In behandeling",
+      "approved": "Goedgekeurd", 
+      "rejected": "Afgewezen"
+    }
+  },
+  "companyManagement": {
+    "title": "Bedrijfsbeheer",
+    "myCompanies": "Mijn Bedrijven",
+    "invitations": "Uitnodigingen",
+    "addCompany": "Nieuw Bedrijf Toevoegen",
+    "createCompany": "Bedrijf Aanmaken",
+    "inviteUser": "Gebruiker Uitnodigen"
+  },
+  "common": {
+    "loading": "Laden...",
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "delete": "Verwijderen",
+    "edit": "Bewerken",
+    "view": "Bekijken",
+    "actions": "Acties",
+    "status": "Status",
+    "date": "Datum",
+    "name": "Naam",
+    "email": "E-mail",
+    "role": "Rol"
+  }
+}
+

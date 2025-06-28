@@ -53,8 +53,18 @@ export async function POST(request: NextRequest) {
           email,
           password: hashedPassword,
           role: "admin",
-          companyId: company.id,
+          companyId: company.id, // Legacy field for backward compatibility
           emailVerified: null // Not verified yet
+        }
+      })
+
+      // Create UserCompany relationship for multi-company support
+      await tx.userCompany.create({
+        data: {
+          userId: user.id,
+          companyId: company.id,
+          role: "owner", // First user is always the owner
+          joinedAt: new Date()
         }
       })
 
