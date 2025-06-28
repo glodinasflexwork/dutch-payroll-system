@@ -1,0 +1,75 @@
+{
+  "navigation": {
+    "dashboard": "Dashboard",
+    "analytics": "Analytics", 
+    "employees": "Employees",
+    "leaveManagement": "Leave Management",
+    "payroll": "Payroll",
+    "payrollManagement": "Payroll Management",
+    "reports": "Reports",
+    "subscription": "Subscription",
+    "billing": "Billing",
+    "taxSettings": "Tax Settings",
+    "company": "Company",
+    "companyManagement": "Company Management"
+  },
+  "descriptions": {
+    "dashboard": "Overview and analytics",
+    "analytics": "Charts and insights",
+    "employees": "Manage employee records",
+    "leaveManagement": "Leave requests and balances",
+    "payroll": "Process payroll calculations",
+    "payrollManagement": "Batch processing and approvals",
+    "reports": "View payroll reports",
+    "subscription": "Manage your plan",
+    "billing": "Invoices and payments",
+    "taxSettings": "Configure tax rates",
+    "company": "Company information",
+    "companyManagement": "Manage multiple companies"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "languageDescription": "Choose your preferred language",
+    "english": "English",
+    "dutch": "Dutch",
+    "save": "Save Changes",
+    "saved": "Settings saved successfully"
+  },
+  "leaveManagement": {
+    "title": "Leave Management",
+    "requests": "Leave Requests",
+    "balances": "Leave Balances", 
+    "types": "Leave Types",
+    "newRequest": "New Request",
+    "newType": "New Leave Type",
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    }
+  },
+  "companyManagement": {
+    "title": "Company Management",
+    "myCompanies": "My Companies",
+    "invitations": "Invitations",
+    "addCompany": "Add New Company",
+    "createCompany": "Create Company",
+    "inviteUser": "Invite User"
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "actions": "Actions",
+    "status": "Status",
+    "date": "Date",
+    "name": "Name",
+    "email": "Email",
+    "role": "Role"
+  }
+}
+

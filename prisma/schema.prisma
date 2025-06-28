@@ -46,6 +46,7 @@ model User {
   password      String?
   role          String    @default("admin") // Global role, will be deprecated in favor of UserCompany roles
   companyId     String?   // Legacy field - keeping for backward compatibility during migration
+  language      String    @default("en") // User's preferred language (en, nl, etc.)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

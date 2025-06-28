@@ -49,7 +49,7 @@ const navigation = [
     description: "Manage employee records"
   },
   {
-    name: "Verlofbeheer",
+    name: "Leave Management",
     href: "/dashboard/leave-management",
     icon: Calendar,
     description: "Leave requests and balances"
@@ -97,10 +97,16 @@ const navigation = [
     description: "Company information"
   },
   {
-    name: "Bedrijfsbeheer",
+    name: "Company Management",
     href: "/dashboard/companies",
     icon: Building2,
     description: "Manage multiple companies"
+  },
+  {
+    name: "Settings",
+    href: "/dashboard/settings",
+    icon: Settings,
+    description: "Account and language settings"
   }
 ]
 
