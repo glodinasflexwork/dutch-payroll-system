@@ -45,6 +45,8 @@ export default function EmployeesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [filterDepartment, setFilterDepartment] = useState("all")
   const [filterEmploymentType, setFilterEmploymentType] = useState("all")
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -106,6 +108,51 @@ export default function EmployeesPage() {
   })
 
   const departments = [...new Set(employees.map(emp => emp.department).filter(Boolean))]
+
+  const handleEmployeeMenu = (employee: Employee) => {
+    setSelectedEmployee(employee)
+    // For now, just show a simple alert with options
+    // In a real app, you'd show a dropdown menu
+    const action = window.confirm(
+      `Actions for ${employee.firstName} ${employee.lastName}:\n\n` +
+      `Click OK to delete employee, or Cancel to close.`
+    )
+    
+    if (action) {
+      setShowDeleteDialog(true)
+    }
+  }
+
+  const handleDeleteEmployee = async () => {
+    if (!selectedEmployee) return
+    
+    try {
+      const response = await fetch(`/api/employees/${selectedEmployee.id}`, {
+        method: 'DELETE'
+      })
+      
+      if (response.ok) {
+        // Refresh the employee list
+        await fetchEmployees()
+        setShowDeleteDialog(false)
+        setSelectedEmployee(null)
+        alert('Employee deleted successfully')
+      } else {
+        alert('Failed to delete employee')
+      }
+    } catch (error) {
+      console.error('Error deleting employee:', error)
+      alert('Error deleting employee')
+    }
+  }
+
+  const handleViewEmployee = (employeeId: string) => {
+    router.push(`/dashboard/employees/${employeeId}`)
+  }
+
+  const handleEditEmployee = (employeeId: string) => {
+    router.push(`/dashboard/employees/${employeeId}/edit`)
+  }
 
   if (status === "loading" || loading) {
     return (
@@ -335,13 +382,28 @@ export default function EmployeesPage() {
                         </td>
                         <td className="py-3 px-4">
                           <div className="flex items-center space-x-2">
-                            <Button variant="ghost" size="sm">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleViewEmployee(employee.id)}
+                              title="View employee details"
+                            >
                               <Eye className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="sm">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleEditEmployee(employee.id)}
+                              title="Edit employee"
+                            >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="sm">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleEmployeeMenu(employee)}
+                              title="More actions"
+                            >
                               <MoreHorizontal className="w-4 h-4" />
                             </Button>
                           </div>
