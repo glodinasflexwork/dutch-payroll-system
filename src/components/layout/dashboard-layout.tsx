@@ -132,7 +132,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
       )}>
         <div className="flex flex-col h-full">
           {/* Logo and close button */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center space-x-3">
               <img src="/logo-icon-only.png" alt="SalarySync" className="w-8 h-8" />
               <div>
@@ -151,7 +151,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-2">
+          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
             {navigation.map((item) => {
               const isActive = pathname === item.href
               return (
@@ -188,7 +188,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
           </nav>
 
           {/* User info and logout */}
-          <div className="p-4 border-t border-gray-200">
+          <div className="p-4 border-t border-gray-200 flex-shrink-0">
             <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50">
               <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
                 <User className="w-5 h-5 text-white" />
@@ -207,7 +207,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
             <Button
               variant="ghost"
-              className="w-full mt-3 justify-start text-gray-600 hover:text-gray-900"
+              className="w-full mt-3 justify-start text-gray-600 hover:text-gray-900 hover:bg-gray-100"
               onClick={() => signOut({ callbackUrl: "/auth/signin" })}
             >
               <LogOut className="w-4 h-4 mr-2" />
