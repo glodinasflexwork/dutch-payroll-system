@@ -41,9 +41,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Access denied to this company' }, { status: 403 })
     }
 
-    // Update user's current company in session
-    // Note: In a real implementation, you might want to store this in a session store
-    // For now, we'll return the company info and let the frontend handle the switch
+    // Update user's current company in the database
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { companyId: companyId }
+    })
     
     const company = {
       id: userCompany.company.id,
