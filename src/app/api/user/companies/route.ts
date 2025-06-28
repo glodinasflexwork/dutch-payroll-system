@@ -42,8 +42,14 @@ export async function GET(request: NextRequest) {
       employeeCount: uc.company.employeeCount
     }))
 
-    // Get current company from session or default to first company
-    const currentCompanyId = session.user.companyId || companies[0]?.id
+    // Always fetch current company from database, not from session
+    // This ensures we get the latest company selection after switching
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { companyId: true }
+    })
+
+    const currentCompanyId = user?.companyId || companies[0]?.id
     const currentCompany = companies.find(c => c.id === currentCompanyId) || companies[0]
 
     return NextResponse.json({

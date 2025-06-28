@@ -69,6 +69,18 @@ export function CompanySwitcher({ className }: CompanySwitcherProps) {
       if (response.ok) {
         const data = await response.json()
         setCurrentCompany(data.company)
+        
+        // Update the session with new company data
+        if (data.updateSession && data.sessionData) {
+          // Use NextAuth's update function to refresh the session
+          const { update } = await import('next-auth/react')
+          await update({
+            companyId: data.sessionData.companyId,
+            role: data.sessionData.role,
+            company: data.sessionData.company
+          })
+        }
+        
         // Refresh the page to update all company-specific data
         window.location.reload()
       }

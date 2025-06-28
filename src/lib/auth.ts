@@ -75,12 +75,44 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt"
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.role = user.role
         token.companyId = user.companyId
         token.company = user.company
       }
+      
+      // Handle company switching by refreshing user data from database
+      if (trigger === "update" && session?.companyId) {
+        // Fetch fresh user data with new company context
+        const freshUser = await prisma.user.findUnique({
+          where: { id: token.sub! },
+          include: {
+            companies: {
+              where: {
+                companyId: session.companyId,
+                isActive: true
+              },
+              include: {
+                company: {
+                  select: {
+                    id: true,
+                    name: true
+                  }
+                }
+              }
+            }
+          }
+        })
+
+        if (freshUser && freshUser.companies[0]) {
+          const userCompany = freshUser.companies[0]
+          token.role = userCompany.role
+          token.companyId = userCompany.company.id
+          token.company = userCompany.company
+        }
+      }
+      
       return token
     },
     async session({ session, token }) {

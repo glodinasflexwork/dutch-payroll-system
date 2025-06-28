@@ -59,7 +59,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       company,
-      message: `Switched to ${company.name}`
+      message: `Switched to ${company.name}`,
+      // Signal to client to update session
+      updateSession: true,
+      sessionData: {
+        companyId: companyId,
+        role: userCompany.role,
+        company: {
+          id: userCompany.company.id,
+          name: userCompany.company.name
+        }
+      }
     })
 
   } catch (error) {
