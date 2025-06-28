@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { ChevronDown, Building2, Plus, Check, Crown, Users, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -28,6 +29,7 @@ interface CompanySwitcherProps {
 
 export function CompanySwitcher({ className }: CompanySwitcherProps) {
   const { data: session } = useSession()
+  const router = useRouter()
   const [companies, setCompanies] = useState<Company[]>([])
   const [currentCompany, setCurrentCompany] = useState<Company | null>(null)
   const [loading, setLoading] = useState(true)
@@ -75,6 +77,10 @@ export function CompanySwitcher({ className }: CompanySwitcherProps) {
     }
   }
 
+  const handleAddNewCompany = () => {
+    router.push('/dashboard/companies')
+  }
+
   const getRoleIcon = (role: string) => {
     switch (role.toLowerCase()) {
       case 'owner':
@@ -120,7 +126,7 @@ export function CompanySwitcher({ className }: CompanySwitcherProps) {
   if (!currentCompany) {
     return (
       <div className={cn('flex items-center space-x-2', className)}>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" onClick={handleAddNewCompany}>
           <Plus className="h-4 w-4 mr-2" />
           Add Company
         </Button>
@@ -201,7 +207,10 @@ export function CompanySwitcher({ className }: CompanySwitcherProps) {
         ))}
         
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="p-3 cursor-pointer hover:bg-gray-50">
+        <DropdownMenuItem 
+          onClick={handleAddNewCompany}
+          className="p-3 cursor-pointer hover:bg-gray-50"
+        >
           <div className="flex items-center space-x-3 w-full">
             <Plus className="h-4 w-4 text-gray-400" />
             <span className="font-medium text-sm">Add New Company</span>
