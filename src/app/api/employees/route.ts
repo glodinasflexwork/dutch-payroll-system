@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error }, { status })
     }
 
-    // Validate subscription
+    // Validate subscription - allow basic access even if expired
     const subscriptionValidation = await validateSubscription(context.companyId)
     if (!subscriptionValidation.isValid) {
       return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
@@ -69,14 +69,17 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // Check subscription - allow employee creation even if expired
     const subscriptionValidation = await validateSubscription(context.companyId)
-    if (!subscriptionValidation.isValid) {
+    
+    // Only block if subscription validation completely fails (not just expired)
+    if (!subscriptionValidation.isValid && !subscriptionValidation.isExpired) {
       return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
     }
 
-    // Check employee limit
+    // Check employee limit only for active subscriptions
     const maxEmployees = subscriptionValidation.limits?.maxEmployees
-    if (maxEmployees && currentEmployeeCount >= maxEmployees) {
+    if (!subscriptionValidation.isExpired && maxEmployees && currentEmployeeCount >= maxEmployees) {
       return NextResponse.json({ 
         error: `Employee limit reached. Your plan allows up to ${maxEmployees} employees.` 
       }, { status: 403 })
@@ -108,7 +111,7 @@ export async function POST(request: NextRequest) {
     const existingBSN = await prisma.employee.findFirst({
       where: { 
         bsn: data.bsn,
-        companyId: session.user.companyId
+        companyId: context.companyId
       }
     })
     
@@ -123,7 +126,7 @@ export async function POST(request: NextRequest) {
     const existingEmail = await prisma.employee.findFirst({
       where: { 
         email: data.email,
-        companyId: session.user.companyId
+        companyId: context.companyId
       }
     })
     
@@ -138,7 +141,7 @@ export async function POST(request: NextRequest) {
     let employeeNumber = data.employeeNumber
     if (!employeeNumber) {
       const lastEmployee = await prisma.employee.findFirst({
-        where: { companyId: session.user.companyId },
+        where: { companyId: context.companyId },
         orderBy: { employeeNumber: 'desc' }
       })
       
@@ -157,7 +160,7 @@ export async function POST(request: NextRequest) {
     const existingEmployeeNumber = await prisma.employee.findFirst({
       where: { 
         employeeNumber: employeeNumber,
-        companyId: session.user.companyId
+        companyId: context.companyId
       }
     })
     
@@ -266,8 +269,8 @@ export async function POST(request: NextRequest) {
         isDGA: data.isDGA || false,
         
         // System fields
-        companyId: session.user.companyId,
-        createdBy: session.user.id
+        companyId: context.companyId,
+        createdBy: context.userId
       }
     })
     
@@ -293,10 +296,10 @@ export async function POST(request: NextRequest) {
 // PUT /api/employees/[id] - Update employee information
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const { context, error, status } = await validateCompanyAccess(request, ['admin', 'hr', 'manager'])
     
-    if (!session?.user?.companyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!context || error) {
+      return NextResponse.json({ error }, { status })
     }
 
     const url = new URL(request.url)
@@ -312,7 +315,7 @@ export async function PUT(request: NextRequest) {
     const existingEmployee = await prisma.employee.findFirst({
       where: {
         id: employeeId,
-        companyId: session.user.companyId
+        companyId: context.companyId
       }
     })
     
@@ -332,7 +335,7 @@ export async function PUT(request: NextRequest) {
       const existingBSN = await prisma.employee.findFirst({
         where: { 
           bsn: data.bsn,
-          companyId: session.user.companyId,
+          companyId: context.companyId,
           id: { not: employeeId }
         }
       })
@@ -384,10 +387,10 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/employees/[id] - Soft delete employee
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const { context, error, status } = await validateCompanyAccess(request, ['admin', 'hr', 'manager'])
     
-    if (!session?.user?.companyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!context || error) {
+      return NextResponse.json({ error }, { status })
     }
 
     const url = new URL(request.url)
@@ -401,7 +404,7 @@ export async function DELETE(request: NextRequest) {
     const existingEmployee = await prisma.employee.findFirst({
       where: {
         id: employeeId,
-        companyId: session.user.companyId
+        companyId: context.companyId
       }
     })
     

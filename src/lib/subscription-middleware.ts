@@ -57,21 +57,26 @@ export async function validateSubscription(companyId: string): Promise<Subscript
     const subscription = company.subscription
     const plan = subscription.plan
 
-    // Check if subscription is active
-    if (subscription.status !== 'active') {
-      return {
-        isValid: false,
-        error: 'Subscription is not active',
-        upgradeRequired: true
-      }
-    }
+    // Check if subscription is active or in trial
+    const isActive = subscription.status === 'active'
+    const isTrialing = subscription.status === 'trialing' || subscription.isTrialActive
+    const now = new Date()
+    const trialValid = subscription.trialEnd ? now <= subscription.trialEnd : true
+    const isExpired = !isActive && (!isTrialing || !trialValid)
 
-    // Check if subscription has expired
-    if (subscription.currentPeriodEnd && new Date() > subscription.currentPeriodEnd) {
+    // If subscription is expired, provide basic access with core features only
+    if (isExpired) {
       return {
-        isValid: false,
-        error: 'Subscription has expired',
-        upgradeRequired: true
+        isValid: true, // Still valid for basic features
+        subscription,
+        limits: {
+          maxEmployees: 999, // Always allow employee management
+          maxPayrolls: 0, // No payroll processing when expired
+          maxCompanies: 1, // Basic company access
+          features: ['employees'] // Only core features
+        },
+        upgradeRequired: true,
+        isExpired: true
       }
     }
 
@@ -226,9 +231,6 @@ export async function validateFeatureAccess(
   }
 }
 
-/**
- * Check if operation would exceed subscription limits
- */
 export async function checkOperationLimits(
   companyId: string,
   operation: 'employee' | 'payroll' | 'company',
@@ -237,6 +239,43 @@ export async function checkOperationLimits(
   try {
     const validation = await validateSubscription(companyId)
     
+    // For employee operations, always allow if subscription validation passes (even if expired)
+    if (operation === 'employee' && validation.isValid) {
+      const limits = validation.limits
+      if (!limits) {
+        return { allowed: true } // Fallback to allow
+      }
+      
+      const limit = limits.maxEmployees
+      let count = currentCount
+      
+      if (count === undefined) {
+        count = await prisma.employee.count({
+          where: { companyId, isActive: true }
+        })
+      }
+      
+      // For expired subscriptions, still allow employee management
+      if (validation.isExpired || validation.upgradeRequired) {
+        return { 
+          allowed: true, 
+          limit,
+          warning: 'Subscription expired - upgrade to access premium features'
+        }
+      }
+      
+      if (count >= limit) {
+        return {
+          allowed: false,
+          error: `Employee limit reached. Your plan allows up to ${limit} employees.`,
+          limit
+        }
+      }
+      
+      return { allowed: true, limit }
+    }
+    
+    // For other operations, be more strict
     if (!validation.isValid || !validation.limits) {
       return {
         allowed: false,
@@ -249,20 +288,21 @@ export async function checkOperationLimits(
     let count = currentCount
 
     switch (operation) {
-      case 'employee':
-        limit = limits.maxEmployees
-        if (count === undefined) {
-          count = await prisma.employee.count({
-            where: { companyId, isActive: true }
-          })
-        }
-        break
       case 'payroll':
         limit = limits.maxPayrolls
         if (count === undefined) {
           count = await prisma.payroll.count({
             where: { companyId }
           })
+        }
+        
+        // Block payroll for expired subscriptions
+        if (validation.isExpired || validation.upgradeRequired) {
+          return {
+            allowed: false,
+            error: 'Subscription expired - upgrade to process payroll',
+            limit
+          }
         }
         break
       case 'company':
