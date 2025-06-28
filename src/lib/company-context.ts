@@ -22,7 +22,13 @@ export async function getCompanyContext(
   try {
     const session = await getServerSession(authOptions)
     
+    console.log('=== COMPANY CONTEXT DEBUG ===')
+    console.log('Session in API:', session)
+    console.log('Session user ID:', session?.user?.id)
+    console.log('Session user companyId:', session?.user?.companyId)
+    
     if (!session?.user?.id) {
+      console.log('No session user ID, returning null')
       return null
     }
 
@@ -30,14 +36,18 @@ export async function getCompanyContext(
                    request.headers.get('x-company-id') ||
                    request.nextUrl.searchParams.get('companyId')
 
+    console.log('CompanyId from headers/params:', companyId)
+
     if (!companyId) {
       // Always fetch current company from database, not from session
       // This ensures we get the latest company selection after switching
+      console.log('Fetching companyId from database for user:', session.user.id)
       const user = await prisma.user.findUnique({
         where: { id: session.user.id },
         select: { companyId: true }
       })
 
+      console.log('User from database:', user)
       companyId = user?.companyId
 
       if (!companyId) {
@@ -74,6 +84,8 @@ export async function getCompanyContext(
       }
     }
 
+    console.log('Final companyId to use:', companyId)
+
     // Verify user has access to this company
     const userCompany = await prisma.userCompany.findUnique({
       where: {
@@ -91,7 +103,10 @@ export async function getCompanyContext(
       }
     })
 
+    console.log('UserCompany from database:', userCompany)
+
     if (!userCompany || !userCompany.isActive) {
+      console.log('User does not have access to company or company is inactive')
       return {
         userId: session.user.id,
         companyId: companyId,
@@ -101,13 +116,16 @@ export async function getCompanyContext(
       }
     }
 
-    return {
+    const context = {
       userId: session.user.id,
       companyId: companyId,
       userRole: userCompany.role,
       companyName: userCompany.company.name,
       hasAccess: true
     }
+
+    console.log('Final company context:', context)
+    return context
 
   } catch (error) {
     console.error('Error getting company context:', error)
