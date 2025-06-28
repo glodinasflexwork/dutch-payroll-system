@@ -245,8 +245,8 @@ export default function CompaniesPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Bedrijfsbeheer</h1>
-            <p className="text-gray-600">Beheer uw bedrijven en teamleden</p>
+            <h1 className="text-2xl font-bold text-gray-900">Company Management</h1>
+            <p className="text-gray-600">Manage your companies and team members</p>
           </div>
           <div className="flex items-center space-x-3">
             <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
@@ -265,7 +265,7 @@ export default function CompaniesPage() {
                 </DialogHeader>
                 <form onSubmit={sendInvitation} className="space-y-4">
                   <div>
-                    <Label htmlFor="company">Bedrijf</Label>
+                    <Label htmlFor="company">Company</Label>
                     <Select value={selectedCompany} onValueChange={setSelectedCompany}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select company" />
@@ -319,7 +319,7 @@ export default function CompaniesPage() {
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
-                  Nieuw Bedrijf
+                  New Company
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl">
@@ -332,7 +332,7 @@ export default function CompaniesPage() {
                 <form onSubmit={createCompany} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="name">Bedrijfsnaam *</Label>
+                      <Label htmlFor="name">Company Name *</Label>
                       <Input
                         id="name"
                         value={companyForm.name}
@@ -423,9 +423,9 @@ export default function CompaniesPage() {
                   </div>
                   <div className="flex justify-end space-x-2">
                     <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
-                      Annuleren
+                      Cancel
                     </Button>
-                    <Button type="submit">Bedrijf aanmaken</Button>
+                    <Button type="submit">Create Company</Button>
                   </div>
                 </form>
               </DialogContent>
@@ -436,8 +436,8 @@ export default function CompaniesPage() {
         {/* Content */}
         <Tabs defaultValue="companies" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="companies">Mijn Bedrijven ({companies.length})</TabsTrigger>
-            <TabsTrigger value="invitations">Uitnodigingen ({invitations.length})</TabsTrigger>
+            <TabsTrigger value="companies">My Companies ({companies.length})</TabsTrigger>
+            <TabsTrigger value="invitations">Invitations ({invitations.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="companies" className="space-y-6">
@@ -445,13 +445,13 @@ export default function CompaniesPage() {
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <Building2 className="h-12 w-12 text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Geen bedrijven gevonden</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No companies found</h3>
                   <p className="text-gray-500 text-center mb-6">
-                    Maak uw eerste bedrijf aan om te beginnen met SalarySync.
+                    Create your first company to get started with SalarySync.
                   </p>
                   <Button onClick={() => setShowCreateDialog(true)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Eerste bedrijf aanmaken
+                    Create First Company
                   </Button>
                 </CardContent>
               </Card>
@@ -527,9 +527,9 @@ export default function CompaniesPage() {
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <Mail className="h-12 w-12 text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Geen uitnodigingen</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No invitations</h3>
                   <p className="text-gray-500 text-center">
-                    Verstuurde uitnodigingen verschijnen hier.
+                    Sent invitations will appear here.
                   </p>
                 </CardContent>
               </Card>
