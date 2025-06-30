@@ -262,16 +262,16 @@ export async function POST(request: NextRequest) {
                 overtimeRate: 1.5,
                 regularPay: employee.salary,
                 overtimePay: 0,
-                holidayAllowance: payrollResult.holidayAllowanceGross / 12,
-                grossPay: employee.salary,
-                incomeTax: payrollResult.incomeTaxAfterCredits / 12,
-                aowContribution: payrollResult.aowContribution / 12,
-                wlzContribution: payrollResult.wlzContribution / 12,
-                wwContribution: payrollResult.wwContribution / 12,
-                wiaContribution: payrollResult.wiaContribution / 12,
-                totalDeductions: payrollResult.totalTaxAndInsurance / 12,
-                netPay: payrollResult.netMonthlySalary,
-                employerCosts: payrollResult.totalEmployerCosts / 12,
+                holidayAllowance: payrollResult.holidayAllowanceGross / 12, // Annual to monthly
+                grossPay: payrollResult.grossMonthlySalary, // Already monthly
+                incomeTax: payrollResult.incomeTaxAfterCredits / 12, // Annual to monthly
+                aowContribution: payrollResult.aowContribution / 12, // Annual to monthly
+                wlzContribution: payrollResult.wlzContribution / 12, // Annual to monthly
+                wwContribution: payrollResult.wwContribution / 12, // Annual to monthly
+                wiaContribution: payrollResult.wiaContribution / 12, // Annual to monthly
+                totalDeductions: payrollResult.totalTaxAndInsurance / 12, // Annual to monthly
+                netPay: payrollResult.netMonthlySalary, // Already monthly
+                employerCosts: payrollResult.totalEmployerCosts / 12, // Annual to monthly
                 processedDate: new Date()
               }
             })
@@ -300,16 +300,16 @@ export async function POST(request: NextRequest) {
                 overtimeRate: 1.5,
                 regularPay: employee.salary,
                 overtimePay: 0,
-                holidayAllowance: payrollResult.holidayAllowanceGross / 12,
-                grossPay: employee.salary,
-                incomeTax: payrollResult.incomeTaxAfterCredits / 12,
-                aowContribution: payrollResult.aowContribution / 12,
-                wlzContribution: payrollResult.wlzContribution / 12,
-                wwContribution: payrollResult.wwContribution / 12,
-                wiaContribution: payrollResult.wiaContribution / 12,
-                totalDeductions: payrollResult.totalTaxAndInsurance / 12,
-                netPay: payrollResult.netMonthlySalary,
-                employerCosts: payrollResult.totalEmployerCosts / 12,
+                holidayAllowance: payrollResult.holidayAllowanceGross / 12, // Annual to monthly
+                grossPay: payrollResult.grossMonthlySalary, // Already monthly
+                incomeTax: payrollResult.incomeTaxAfterCredits / 12, // Annual to monthly
+                aowContribution: payrollResult.aowContribution / 12, // Annual to monthly
+                wlzContribution: payrollResult.wlzContribution / 12, // Annual to monthly
+                wwContribution: payrollResult.wwContribution / 12, // Annual to monthly
+                wiaContribution: payrollResult.wiaContribution / 12, // Annual to monthly
+                totalDeductions: payrollResult.totalTaxAndInsurance / 12, // Annual to monthly
+                netPay: payrollResult.netMonthlySalary, // Already monthly
+                employerCosts: payrollResult.totalEmployerCosts / 12, // Annual to monthly
                 processedDate: new Date()
               }
             })
