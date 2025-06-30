@@ -69,7 +69,7 @@ export default function PayrollPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [payrollRecords, setPayrollRecords] = useState<PayrollRecord[]>([]);
   const [company, setCompany] = useState<{ createdAt: string } | null>(null);
-  const [selectedEmployee, setSelectedEmployee] = useState<string>('');
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [payPeriodStart, setPayPeriodStart] = useState('');
   const [payPeriodEnd, setPayPeriodEnd] = useState('');
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -78,11 +78,12 @@ export default function PayrollPage() {
   const [hoursWorked, setHoursWorked] = useState<number>(0);
   const [overtimeHours, setOvertimeHours] = useState<number>(0);
   const [bonuses, setBonuses] = useState<number>(0);
-  const [calculation, setCalculation] = useState<PayrollCalculation | null>(null);
+  const [calculations, setCalculations] = useState<{[key: string]: PayrollCalculation}>({});
+  const [batchResults, setBatchResults] = useState<any[]>([]);
   const [breakdown, setBreakdown] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [activeTab, setActiveTab] = useState('calculate');
+  const [isDryRun, setIsDryRun] = useState(false);
 
   useEffect(() => {
     if (session) {
@@ -144,6 +145,23 @@ export default function PayrollPage() {
     { value: 12, label: 'December' }
   ];
 
+  // Employee selection helpers
+  const toggleEmployeeSelection = (employeeId: string) => {
+    setSelectedEmployees(prev => 
+      prev.includes(employeeId) 
+        ? prev.filter(id => id !== employeeId)
+        : [...prev, employeeId]
+    );
+  };
+
+  const selectAllEmployees = () => {
+    setSelectedEmployees(employees.map(emp => emp.id));
+  };
+
+  const deselectAllEmployees = () => {
+    setSelectedEmployees([]);
+  };
+
   const fetchEmployees = async () => {
     try {
       const response = await fetch('/api/employees');
@@ -181,32 +199,74 @@ export default function PayrollPage() {
   };
 
   const calculatePayroll = async () => {
-    if (!selectedEmployee || !payPeriodStart || !payPeriodEnd) {
-      alert('Please select an employee and pay period');
+    if (selectedEmployees.length === 0 || !payPeriodStart || !payPeriodEnd) {
+      alert('Please select at least one employee and pay period');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await fetch('/api/payroll', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          employeeId: selectedEmployee,
-          payPeriodStart,
-          payPeriodEnd
-        }),
-      });
+      if (selectedEmployees.length === 1) {
+        // Single employee calculation
+        const response = await fetch('/api/payroll', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            employeeId: selectedEmployees[0],
+            payPeriodStart,
+            payPeriodEnd
+          }),
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        setCalculation(data.calculation);
-        setBreakdown(data.breakdown);
+        if (response.ok) {
+          const data = await response.json();
+          setCalculations({ [selectedEmployees[0]]: data.calculation });
+          setBreakdown(data.breakdown);
+        } else {
+          const error = await response.json();
+          alert(`Error: ${error.error}`);
+        }
       } else {
-        const error = await response.json();
-        alert(`Error: ${error.error}`);
+        // Batch calculation
+        const response = await fetch('/api/payroll/management', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Calculate for each selected employee
+          const newCalculations: {[key: string]: PayrollCalculation} = {};
+          
+          for (const employeeId of selectedEmployees) {
+            const employee = employees.find(emp => emp.id === employeeId);
+            if (employee) {
+              // Use the same calculation logic as the management API
+              const calcResponse = await fetch('/api/payroll', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  employeeId: employeeId,
+                  payPeriodStart,
+                  payPeriodEnd
+                }),
+              });
+              
+              if (calcResponse.ok) {
+                const calcData = await calcResponse.json();
+                newCalculations[employeeId] = calcData.calculation;
+              }
+            }
+          }
+          
+          setCalculations(newCalculations);
+        }
       }
     } catch (error) {
       console.error('Error calculating payroll:', error);
@@ -217,34 +277,38 @@ export default function PayrollPage() {
   };
 
   const processPayroll = async () => {
-    if (!selectedEmployee || !payPeriodStart || !payPeriodEnd) {
-      alert('Please select an employee and pay period');
+    if (selectedEmployees.length === 0 || !payPeriodStart || !payPeriodEnd) {
+      alert('Please select at least one employee and pay period');
       return;
     }
 
     setProcessing(true);
     try {
-      const response = await fetch('/api/payroll', {
-        method: 'PUT',
+      // Use the batch processing API
+      const response = await fetch('/api/payroll/management', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          employeeId: selectedEmployee,
+          employeeIds: selectedEmployees,
           payPeriodStart,
           payPeriodEnd,
-          hoursWorked,
-          overtimeHours,
-          bonuses
+          dryRun: isDryRun
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        alert('Payroll processed successfully!');
-        fetchPayrollRecords(); // Refresh the records
-        setCalculation(null); // Clear calculation
-        setBreakdown('');
+        setBatchResults(data.results || []);
+        
+        if (!isDryRun) {
+          alert(`Payroll processed successfully for ${selectedEmployees.length} employee(s)!`);
+          // Refresh payroll records
+          fetchPayrollRecords();
+        } else {
+          alert(`Payroll calculated for ${selectedEmployees.length} employee(s) (dry run - not saved)`);
+        }
       } else {
         const error = await response.json();
         alert(`Error: ${error.error}`);
@@ -256,8 +320,6 @@ export default function PayrollPage() {
       setProcessing(false);
     }
   };
-
-  const selectedEmployeeData = employees.find(emp => emp.id === selectedEmployee);
 
   const tabs = [
     { id: 'calculate', name: 'Calculate Payroll', icon: Calculator },
@@ -311,37 +373,59 @@ export default function PayrollPage() {
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Select Employee
-                  </label>
-                  <select
-                    value={selectedEmployee}
-                    onChange={(e) => setSelectedEmployee(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Choose an employee...</option>
-                    {employees.map((employee) => (
-                      <option key={employee.id} value={employee.id}>
-                        {employee.firstName} {employee.lastName} (#{employee.employeeNumber})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {selectedEmployeeData && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900">Employee Details</h4>
-                    <div className="mt-2 text-sm text-gray-600">
-                      <p><strong>Position:</strong> {selectedEmployeeData.position}</p>
-                      <p><strong>Department:</strong> {selectedEmployeeData.department || 'Not assigned'}</p>
-                      <p><strong>Monthly Salary:</strong> €{selectedEmployeeData.salary.toLocaleString()}</p>
-                      {selectedEmployeeData.isDGA && (
-                        <p><strong>Status:</strong> <span className="text-purple-600">DGA</span></p>
-                      )}
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Select Employees
+                    </label>
+                    <div className="flex space-x-2">
+                      <button
+                        type="button"
+                        onClick={selectAllEmployees}
+                        className="text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={deselectAllEmployees}
+                        className="text-xs text-gray-600 hover:text-gray-800"
+                      >
+                        Clear All
+                      </button>
                     </div>
                   </div>
-                )}
-
+                  
+                  <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg">
+                    {employees.map((employee) => (
+                      <label
+                        key={employee.id}
+                        className="flex items-center p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedEmployees.includes(employee.id)}
+                          onChange={() => toggleEmployeeSelection(employee.id)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <div className="ml-3 flex-1">
+                          <div className="text-sm font-medium text-gray-900">
+                            {employee.firstName} {employee.lastName}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            #{employee.employeeNumber} • {employee.position} • €{employee.salary.toLocaleString()}/month
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  
+                  {selectedEmployees.length > 0 && (
+                    <div className="text-xs text-blue-600 mt-2">
+                      {selectedEmployees.length} employee(s) selected
+                    </div>
+                  )}
+                </div>
+                
                 {/* Pay Period Selection */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -500,121 +584,125 @@ export default function PayrollPage() {
                   </div>
                 </div>
 
+                {/* Dry Run Option */}
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="dryRun"
+                    checked={isDryRun}
+                    onChange={(e) => setIsDryRun(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="dryRun" className="ml-2 text-sm text-gray-700">
+                    Dry Run (calculate only, don't save)
+                  </label>
+                </div>
+
                 <div className="flex space-x-3">
                   <button
                     onClick={calculatePayroll}
-                    disabled={loading || !selectedEmployee}
+                    disabled={loading || selectedEmployees.length === 0}
                     className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                   >
                     <Calculator className="w-4 h-4 mr-2" />
                     {loading ? 'Calculating...' : 'Calculate Payroll'}
                   </button>
                   
-                  {calculation && (
-                    <button
-                      onClick={processPayroll}
-                      disabled={processing}
-                      className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                    >
-                      <Play className="w-4 h-4 mr-2" />
-                      {processing ? 'Processing...' : 'Process Payroll'}
-                    </button>
-                  )}
+                  <button
+                    onClick={processPayroll}
+                    disabled={processing || selectedEmployees.length === 0}
+                    className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    {processing ? 'Processing...' : isDryRun ? 'Test Process' : 'Process Payroll'}
+                  </button>
+                </div>
                 </div>
               </div>
             </div>
 
-            {/* Calculation Results */}
+                      {/* Calculation Results */}
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Calculation Results</h3>
               
-              {calculation ? (
-                <div className="space-y-4">
-                  {/* Summary Cards */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-green-50 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <Euro className="w-5 h-5 text-green-600 mr-2" />
+              {Object.keys(calculations).length > 0 ? (
+                <div className="space-y-6">
+                  {/* Summary for multiple employees */}
+                  {selectedEmployees.length > 1 && (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h4 className="font-medium text-gray-900 mb-3">Batch Summary</h4>
+                      <div className="grid grid-cols-3 gap-4 text-center">
                         <div>
-                          <p className="text-sm font-medium text-green-600">Gross Monthly</p>
-                          <p className="text-lg font-bold text-green-900">
-                            €{calculation.grossMonthlySalary.toLocaleString()}
+                          <p className="text-sm text-gray-600">Total Employees</p>
+                          <p className="text-lg font-bold text-gray-900">{selectedEmployees.length}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600">Total Gross</p>
+                          <p className="text-lg font-bold text-green-600">
+                            €{Object.values(calculations).reduce((sum, calc) => sum + calc.grossMonthlySalary, 0).toLocaleString()}
                           </p>
                         </div>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-blue-50 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <CheckCircle className="w-5 h-5 text-blue-600 mr-2" />
                         <div>
-                          <p className="text-sm font-medium text-blue-600">Net Monthly</p>
-                          <p className="text-lg font-bold text-blue-900">
-                            €{calculation.netMonthlySalary.toLocaleString()}
+                          <p className="text-sm text-gray-600">Total Net</p>
+                          <p className="text-lg font-bold text-blue-600">
+                            €{Object.values(calculations).reduce((sum, calc) => sum + calc.netMonthlySalary, 0).toLocaleString()}
                           </p>
                         </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Tax Breakdown */}
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Tax Breakdown</h4>
-                    <div className="space-y-2">
-                      {calculation.taxBracketBreakdown.map((bracket, index) => (
-                        <div key={index} className="flex justify-between items-center text-sm">
-                          <span className="text-gray-600">
-                            Band {bracket.bracket}: €{bracket.incomeInBracket.toLocaleString()} × {(bracket.rate * 100).toFixed(2)}%
-                          </span>
-                          <span className="font-medium">€{bracket.taxAmount.toLocaleString()}</span>
-                        </div>
-                      ))}
-                      <div className="border-t pt-2 flex justify-between items-center font-medium">
-                        <span>Total Tax (after credits)</span>
-                        <span>€{(calculation.incomeTaxAfterCredits / 12).toLocaleString()}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Additional Information */}
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-600">Tax Credits</p>
-                      <p className="font-medium">€{(calculation.totalTaxCredits / 12).toLocaleString()}/month</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Holiday Allowance</p>
-                      <p className="font-medium">€{(calculation.holidayAllowanceGross / 12).toLocaleString()}/month</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Employer Costs</p>
-                      <p className="font-medium">€{(calculation.totalEmployerCosts / 12).toLocaleString()}/month</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Annual Net</p>
-                      <p className="font-medium">€{calculation.netAnnualSalary.toLocaleString()}</p>
-                    </div>
-                  </div>
-
-                  {/* Detailed Breakdown */}
-                  {breakdown && (
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-2">Detailed Breakdown</h4>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono">
-                          {breakdown}
-                        </pre>
                       </div>
                     </div>
                   )}
+
+                  {/* Individual Results */}
+                  <div className="space-y-4">
+                    {selectedEmployees.map(employeeId => {
+                      const calculation = calculations[employeeId];
+                      const employee = employees.find(emp => emp.id === employeeId);
+                      
+                      if (!calculation || !employee) return null;
+                      
+                      return (
+                        <div key={employeeId} className="border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium text-gray-900">
+                              {employee.firstName} {employee.lastName}
+                            </h4>
+                            <span className="text-xs text-gray-500">#{employee.employeeNumber}</span>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4 mb-3">
+                            <div className="bg-green-50 rounded p-3">
+                              <p className="text-xs text-green-600">Gross Monthly</p>
+                              <p className="text-lg font-bold text-green-900">
+                                €{calculation.grossMonthlySalary.toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="bg-blue-50 rounded p-3">
+                              <p className="text-xs text-blue-600">Net Monthly</p>
+                              <p className="text-lg font-bold text-blue-900">
+                                €{calculation.netMonthlySalary.toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="text-xs text-gray-600 space-y-1">
+                            <div className="flex justify-between">
+                              <span>Tax (after credits):</span>
+                              <span>€{(calculation.incomeTaxAfterCredits / 12).toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Employer costs:</span>
+                              <span>€{(calculation.totalEmployerCosts / 12).toLocaleString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <Calculator className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No calculation yet</h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Select an employee and calculate payroll to see results here.
-                  </p>
+                  <Calculator className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">Select employees and calculate payroll to see results here.</p>
                 </div>
               )}
             </div>
