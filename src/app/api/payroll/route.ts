@@ -118,7 +118,11 @@ export async function POST(request: NextRequest) {
 // POST /api/payroll/process - Process and save payroll for employee
 export async function PUT(request: NextRequest) {
   try {
+    console.log("=== PAYROLL PROCESSING START ===")
+    
     const session = await getServerSession(authOptions)
+    console.log("Session user ID:", session?.user?.id)
+    console.log("Session company ID:", session?.user?.companyId)
     
     if (!session?.user?.companyId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -126,10 +130,14 @@ export async function PUT(request: NextRequest) {
 
     // Validate subscription
     const subscriptionValidation = await validateSubscription(session.user.companyId)
+    console.log("Subscription validation:", subscriptionValidation)
     if (!subscriptionValidation.isValid) {
       return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
     }
 
+    const requestBody = await request.json()
+    console.log("Request body:", requestBody)
+    
     const { 
       employeeId, 
       payPeriodStart, 
@@ -138,7 +146,16 @@ export async function PUT(request: NextRequest) {
       overtimeHours,
       bonuses,
       deductions 
-    } = await request.json()
+    } = requestBody
+
+    console.log("Extracted data:", {
+      employeeId,
+      payPeriodStart,
+      payPeriodEnd,
+      hoursWorked,
+      overtimeHours,
+      bonuses
+    })
 
     if (!employeeId || !payPeriodStart || !payPeriodEnd) {
       return NextResponse.json({
@@ -279,10 +296,15 @@ export async function PUT(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error("Error processing payroll:", error)
+    console.error("=== PAYROLL PROCESSING ERROR ===")
+    console.error("Error details:", error)
+    console.error("Error message:", error instanceof Error ? error.message : 'Unknown error')
+    console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace')
+    
     return NextResponse.json({
       success: false,
-      error: "Failed to process payroll"
+      error: "Failed to process payroll",
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }
