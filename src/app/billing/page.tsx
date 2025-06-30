@@ -74,7 +74,10 @@ export default function BillingPage() {
       const subscriptionResponse = await fetch('/api/subscription');
       if (subscriptionResponse.ok) {
         const subscriptionData = await subscriptionResponse.json();
-        setSubscription(subscriptionData);
+        console.log('=== BILLING PAGE DEBUG ===');
+        console.log('Raw subscription response:', subscriptionData);
+        // Handle the nested response structure
+        setSubscription(subscriptionData.subscription || null);
       }
 
       // Fetch invoices
@@ -223,13 +226,13 @@ export default function BillingPage() {
             </h2>
           </div>
           
-          {subscription ? (
+          {subscription && subscription.plan ? (
             <div className="p-6">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center mb-4">
                     <h3 className="text-xl font-semibold text-gray-900 mr-3">
-                      {subscription.plan.name} Plan
+                      {subscription.plan.name || 'Unknown'} Plan
                     </h3>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(subscription.status)}`}>
                       {getStatusIcon(subscription.status)}

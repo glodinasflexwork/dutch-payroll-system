@@ -5,7 +5,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
@@ -13,70 +13,63 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    console.log('=== TRIAL STATUS API DEBUG ===');
+    console.log('=== TRIAL START API DEBUG ===');
     console.log('User ID:', session.user.id);
     console.log('Company ID:', session.user.companyId);
 
-    // Get company with subscriptions
+    // Get company
     const company = await prisma.company.findUnique({
       where: { id: session.user.companyId },
       include: {
-        subscriptions: {
-          include: { plan: true }
-        }
+        subscriptions: true
       }
     });
 
-    console.log('Company found:', company?.name);
-    console.log('Subscriptions:', company?.subscriptions);
-
     if (!company) {
-      return NextResponse.json({ 
-        trial: { isActive: false, daysRemaining: 0, isExpired: true },
-        hasSubscription: false
-      });
+      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    // Check if company has active subscription
+    // Check if company already has an active subscription
     const activeSubscription = company.subscriptions.find(sub => sub.status === 'active');
     
     if (activeSubscription) {
-      console.log('Active subscription found:', activeSubscription.plan?.name);
-      return NextResponse.json({
-        trial: { isActive: false, daysRemaining: 0, isExpired: false },
-        hasSubscription: true,
-        subscription: activeSubscription
-      });
+      return NextResponse.json({ 
+        error: 'Company already has an active subscription',
+        hasSubscription: true
+      }, { status: 400 });
     }
 
-    // Check trial status based on company creation date
+    // Check if trial is still valid (within 14 days of company creation)
     const trialDays = 14;
     const createdAt = new Date(company.createdAt);
     const now = new Date();
     const daysSinceCreation = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
     const daysRemaining = Math.max(0, trialDays - daysSinceCreation);
-    const isActive = daysRemaining > 0;
-    const isExpired = daysSinceCreation >= trialDays;
+    
+    if (daysRemaining <= 0) {
+      return NextResponse.json({ 
+        error: 'Trial period has expired',
+        trialExpired: true
+      }, { status: 400 });
+    }
 
-    console.log('Trial calculation:', {
-      createdAt: createdAt.toISOString(),
-      daysSinceCreation,
-      daysRemaining,
-      isActive,
-      isExpired
-    });
+    // Trial is automatically active based on company creation date
+    // No need to create a separate trial record
+    console.log('Trial activated for company:', company.name);
+    console.log('Days remaining:', daysRemaining);
 
     return NextResponse.json({
+      success: true,
       trial: {
-        isActive,
+        isActive: true,
         daysRemaining,
-        isExpired
+        isExpired: false
       },
-      hasSubscription: false
+      message: `Trial activated! You have ${daysRemaining} days remaining.`
     });
 
   } catch (error) {
-    console.error('Error fetching trial status:', error);
+    console.error('Error starting trial:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

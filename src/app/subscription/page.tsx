@@ -57,7 +57,10 @@ export default function SubscriptionPage() {
       const subscriptionResponse = await fetch('/api/subscription');
       if (subscriptionResponse.ok) {
         const subscriptionData = await subscriptionResponse.json();
-        setCurrentSubscription(subscriptionData);
+        console.log('=== SUBSCRIPTION PAGE DEBUG ===');
+        console.log('Raw subscription response:', subscriptionData);
+        // Handle the nested response structure
+        setCurrentSubscription(subscriptionData.subscription || null);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -159,13 +162,13 @@ export default function SubscriptionPage() {
         </div>
 
         {/* Current Subscription Status */}
-        {currentSubscription && (
+        {currentSubscription && currentSubscription.plan && (
           <div className="mt-8 max-w-md mx-auto">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-center">
                 <Check className="h-5 w-5 text-green-600 mr-2" />
                 <span className="text-green-800 font-medium">
-                  Current Plan: {currentSubscription.plan.name} (€{currentSubscription.plan.price}/month)
+                  Current Plan: {currentSubscription.plan.name || 'Unknown'} (€{currentSubscription.plan.price || 0}/month)
                 </span>
               </div>
             </div>
