@@ -40,6 +40,18 @@ export async function GET(request: NextRequest) {
     // Check if company has active subscription
     const activeSubscription = company.subscriptions.find(sub => sub.status === 'active');
     
+    console.log('Looking for active subscription...');
+    console.log('All subscriptions:', company.subscriptions.map(sub => ({
+      id: sub.id,
+      status: sub.status,
+      planName: sub.plan?.name
+    })));
+    console.log('Active subscription found:', activeSubscription ? {
+      id: activeSubscription.id,
+      status: activeSubscription.status,
+      planName: activeSubscription.plan?.name
+    } : null);
+    
     if (activeSubscription) {
       console.log('Active subscription found:', activeSubscription.plan?.name);
       return NextResponse.json({

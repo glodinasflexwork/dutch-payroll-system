@@ -39,9 +39,14 @@ export function TrialGuard({
 
       // First check trial status
       const trialResponse = await fetch('/api/trial/status');
+      console.log('Trial response status:', trialResponse.status);
+      
       if (trialResponse.ok) {
         const trialData = await trialResponse.json();
-        console.log('Trial data:', trialData);
+        console.log('Trial data received:', trialData);
+        console.log('Has subscription:', trialData.hasSubscription);
+        console.log('Trial status:', trialData.trial);
+        
         setTrialStatus(trialData.trial);
         
         // If user has active subscription, grant access
@@ -69,7 +74,9 @@ export function TrialGuard({
           setHasAccess(false);
         }
       } else {
-        console.log('Failed to fetch trial status');
+        console.log('Failed to fetch trial status, response:', trialResponse.status);
+        const errorText = await trialResponse.text();
+        console.log('Error response:', errorText);
         setHasAccess(false);
       }
     } catch (error) {
