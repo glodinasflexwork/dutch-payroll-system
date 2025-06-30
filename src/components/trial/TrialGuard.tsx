@@ -33,29 +33,72 @@ export function TrialGuard({
 
   const checkAccess = async () => {
     try {
-      const response = await fetch('/api/trial/status');
-      if (response.ok) {
-        const data = await response.json();
-        const trial = data.trial;
-        setTrialStatus(trial);
+      console.log('=== TRIAL GUARD DEBUG ===');
+      console.log('Checking access for feature:', feature);
+      console.log('Requires paid subscription:', requiresPaid);
+
+      // First check trial status
+      const trialResponse = await fetch('/api/trial/status');
+      if (trialResponse.ok) {
+        const trialData = await trialResponse.json();
+        console.log('Trial data:', trialData);
+        setTrialStatus(trialData.trial);
         
-        if (requiresPaid) {
-          // Check if user has paid subscription
-          const subResponse = await fetch('/api/subscription');
-          if (subResponse.ok) {
-            const subData = await subResponse.json();
-            setHasAccess(subData.subscription?.status === 'active');
-          }
-        } else {
-          // Allow access during trial or with paid subscription
-          setHasAccess(trial?.isActive || data.hasTrialAccess);
+        // If user has active subscription, grant access
+        if (trialData.hasSubscription) {
+          console.log('User has active subscription - granting access');
+          setHasAccess(true);
+          setLoading(false);
+          return;
         }
+        
+        // If requires paid subscription but no subscription, deny access
+        if (requiresPaid && !trialData.hasSubscription) {
+          console.log('Requires paid subscription but none found - denying access');
+          setHasAccess(false);
+          setLoading(false);
+          return;
+        }
+        
+        // Check if trial is active
+        if (trialData.trial.isActive) {
+          console.log('Trial is active - granting access');
+          setHasAccess(true);
+        } else {
+          console.log('Trial is not active - denying access');
+          setHasAccess(false);
+        }
+      } else {
+        console.log('Failed to fetch trial status');
+        setHasAccess(false);
       }
     } catch (error) {
-      console.error('Error checking trial access:', error);
+      console.error('Error checking access:', error);
       setHasAccess(false);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStartTrial = async () => {
+    try {
+      const response = await fetch('/api/trial/start', {
+        method: 'POST',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Trial started:', data);
+        // Refresh access check
+        checkAccess();
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to start trial:', errorData);
+        alert(errorData.error || 'Failed to start trial');
+      }
+    } catch (error) {
+      console.error('Error starting trial:', error);
+      alert('Failed to start trial. Please try again.');
     }
   };
 
@@ -71,71 +114,54 @@ export function TrialGuard({
     return <>{children}</>;
   }
 
-  // Show custom fallback if provided
   if (fallback) {
     return <>{fallback}</>;
   }
 
-  // Default blocked access UI
+  // Default access denied UI
   return (
-    <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-      <div className="flex items-center justify-center mb-4">
-        {requiresPaid ? (
-          <Crown className="w-12 h-12 text-yellow-500" />
-        ) : trialStatus?.isExpired ? (
-          <AlertTriangle className="w-12 h-12 text-red-500" />
-        ) : (
-          <Lock className="w-12 h-12 text-gray-400" />
-        )}
+    <div className="flex flex-col items-center justify-center p-8 text-center">
+      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+        <Lock className="w-8 h-8 text-gray-400" />
       </div>
       
       <h3 className="text-lg font-semibold text-gray-900 mb-2">
-        {requiresPaid ? 'Premium Feature' : 
-         trialStatus?.isExpired ? 'Trial Expired' : 
-         'Access Required'}
+        Access Required
       </h3>
       
-      <p className="text-gray-600 mb-4">
+      <p className="text-gray-600 mb-6 max-w-md">
         {requiresPaid 
-          ? `${feature} is available with a paid subscription.`
-          : trialStatus?.isExpired 
-            ? `Your trial has expired. Upgrade to continue using ${feature}.`
-            : `Access to ${feature} requires an active trial or subscription.`
+          ? `Access to ${feature} requires an active trial or subscription.`
+          : `Access to ${feature} requires an active trial or subscription.`
         }
       </p>
-
-      <div className="flex flex-col sm:flex-row gap-3 justify-center">
-        <Link
-          href="/subscription"
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+      
+      <div className="flex gap-3">
+        <button
+          onClick={handleStartTrial}
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
-          {requiresPaid ? (
-            <>
-              <Crown className="w-4 h-4 mr-2" />
-              Upgrade to Premium
-            </>
-          ) : (
-            <>
-              <Lock className="w-4 h-4 mr-2" />
-              {trialStatus?.isExpired ? 'Upgrade Now' : 'Start Trial'}
-            </>
-          )}
-        </Link>
+          <Crown className="w-4 h-4 mr-2" />
+          Start Trial
+        </button>
         
-        {!requiresPaid && (
-          <Link
-            href="/billing"
-            className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
-          >
-            View Billing
-          </Link>
-        )}
+        <Link
+          href="/billing"
+          className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          View Billing
+        </Link>
       </div>
-
-      {trialStatus && !trialStatus.isExpired && (
-        <p className="text-sm text-gray-500 mt-3">
-          Trial expires in {trialStatus.daysRemaining} days
-        </p>
+      
+      {trialStatus && trialStatus.isExpired && (
+        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+          <div className="flex items-center">
+            <AlertTriangle className="w-4 h-4 text-yellow-600 mr-2" />
+            <span className="text-sm text-yellow-800">
+              Your trial period has expired. Please subscribe to continue using {feature}.
+            </span>
+          </div>
+        </div>
       )}
     </div>
   );
