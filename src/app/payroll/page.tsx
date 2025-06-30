@@ -68,6 +68,7 @@ export default function PayrollPage() {
   const { data: session } = useSession();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [payrollRecords, setPayrollRecords] = useState<PayrollRecord[]>([]);
+  const [company, setCompany] = useState<{ createdAt: string } | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
   const [payPeriodStart, setPayPeriodStart] = useState('');
   const [payPeriodEnd, setPayPeriodEnd] = useState('');
@@ -87,6 +88,7 @@ export default function PayrollPage() {
     if (session) {
       fetchEmployees();
       fetchPayrollRecords();
+      fetchCompany();
     }
   }, [session]);
 
@@ -111,11 +113,16 @@ export default function PayrollPage() {
     }
   }, [selectedYear, selectedMonth, useAdvancedDates]);
 
-  // Generate year options (current year ± 2 years)
+  // Generate year options based on company creation date
   const getYearOptions = () => {
     const currentYear = new Date().getFullYear();
+    const companyStartYear = company 
+      ? new Date(company.createdAt).getFullYear()
+      : currentYear; // Fallback to current year if company data not loaded
+    
     const years = [];
-    for (let year = currentYear - 2; year <= currentYear + 2; year++) {
+    // Start from company creation year, go to next year (for planning)
+    for (let year = companyStartYear; year <= currentYear + 1; year++) {
       years.push(year);
     }
     return years;
@@ -146,6 +153,18 @@ export default function PayrollPage() {
       }
     } catch (error) {
       console.error('Error fetching employees:', error);
+    }
+  };
+
+  const fetchCompany = async () => {
+    try {
+      const response = await fetch('/api/company');
+      if (response.ok) {
+        const data = await response.json();
+        setCompany(data.company);
+      }
+    } catch (error) {
+      console.error('Error fetching company:', error);
     }
   };
 
