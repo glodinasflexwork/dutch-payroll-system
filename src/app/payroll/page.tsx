@@ -71,6 +71,9 @@ export default function PayrollPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
   const [payPeriodStart, setPayPeriodStart] = useState('');
   const [payPeriodEnd, setPayPeriodEnd] = useState('');
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
+  const [useAdvancedDates, setUseAdvancedDates] = useState(false);
   const [hoursWorked, setHoursWorked] = useState<number>(0);
   const [overtimeHours, setOvertimeHours] = useState<number>(0);
   const [bonuses, setBonuses] = useState<number>(0);
@@ -96,6 +99,43 @@ export default function PayrollPage() {
     setPayPeriodStart(firstDay.toISOString().split('T')[0]);
     setPayPeriodEnd(lastDay.toISOString().split('T')[0]);
   }, []);
+
+  // Update pay period dates when month/year selection changes
+  useEffect(() => {
+    if (!useAdvancedDates) {
+      const firstDay = new Date(selectedYear, selectedMonth - 1, 1);
+      const lastDay = new Date(selectedYear, selectedMonth, 0);
+      
+      setPayPeriodStart(firstDay.toISOString().split('T')[0]);
+      setPayPeriodEnd(lastDay.toISOString().split('T')[0]);
+    }
+  }, [selectedYear, selectedMonth, useAdvancedDates]);
+
+  // Generate year options (current year ± 2 years)
+  const getYearOptions = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let year = currentYear - 2; year <= currentYear + 2; year++) {
+      years.push(year);
+    }
+    return years;
+  };
+
+  // Month options
+  const monthOptions = [
+    { value: 1, label: 'January' },
+    { value: 2, label: 'February' },
+    { value: 3, label: 'March' },
+    { value: 4, label: 'April' },
+    { value: 5, label: 'May' },
+    { value: 6, label: 'June' },
+    { value: 7, label: 'July' },
+    { value: 8, label: 'August' },
+    { value: 9, label: 'September' },
+    { value: 10, label: 'October' },
+    { value: 11, label: 'November' },
+    { value: 12, label: 'December' }
+  ];
 
   const fetchEmployees = async () => {
     try {
@@ -283,28 +323,116 @@ export default function PayrollPage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Pay Period Start
-                    </label>
-                    <input
-                      type="date"
-                      value={payPeriodStart}
-                      onChange={(e) => setPayPeriodStart(e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                {/* Pay Period Selection */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-gray-700">Pay Period</h4>
+                    <button
+                      type="button"
+                      onClick={() => setUseAdvancedDates(!useAdvancedDates)}
+                      className="text-xs text-blue-600 hover:text-blue-800"
+                    >
+                      {useAdvancedDates ? 'Use Month Selector' : 'Advanced Dates'}
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Pay Period End
-                    </label>
-                    <input
-                      type="date"
-                      value={payPeriodEnd}
-                      onChange={(e) => setPayPeriodEnd(e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+
+                  {!useAdvancedDates ? (
+                    // Visual Month/Year Selector
+                    <div className="space-y-4">
+                      {/* Year Tabs */}
+                      <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+                        {getYearOptions().map(year => (
+                          <button
+                            key={year}
+                            type="button"
+                            onClick={() => setSelectedYear(year)}
+                            className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                              selectedYear === year
+                                ? 'bg-white text-blue-600 shadow-sm'
+                                : 'text-gray-600 hover:text-gray-900'
+                            }`}
+                          >
+                            {year}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Month Grid */}
+                      <div className="grid grid-cols-3 gap-3">
+                        {monthOptions.map(month => {
+                          const isSelected = selectedMonth === month.value;
+                          const monthDate = new Date(selectedYear, month.value - 1, 1);
+                          const isCurrentMonth = new Date().getMonth() + 1 === month.value && 
+                                               new Date().getFullYear() === selectedYear;
+                          
+                          return (
+                            <button
+                              key={month.value}
+                              type="button"
+                              onClick={() => setSelectedMonth(month.value)}
+                              className={`p-3 rounded-lg border text-left transition-all ${
+                                isSelected
+                                  ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                                  : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className={`text-sm font-medium ${
+                                  isSelected ? 'text-blue-900' : 'text-gray-900'
+                                }`}>
+                                  {month.label}
+                                </span>
+                                {isCurrentMonth && (
+                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                )}
+                              </div>
+                              <div className={`text-xs ${
+                                isSelected ? 'text-blue-600' : 'text-gray-500'
+                              }`}>
+                                {monthDate.toLocaleDateString('en-GB', { 
+                                  day: 'numeric',
+                                  month: 'short'
+                                })} - {new Date(selectedYear, month.value, 0).toLocaleDateString('en-GB', { 
+                                  day: 'numeric',
+                                  month: 'short'
+                                })}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    // Advanced Date Inputs
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Pay Period Start
+                        </label>
+                        <input
+                          type="date"
+                          value={payPeriodStart}
+                          onChange={(e) => setPayPeriodStart(e.target.value)}
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Pay Period End
+                        </label>
+                        <input
+                          type="date"
+                          value={payPeriodEnd}
+                          onChange={(e) => setPayPeriodEnd(e.target.value)}
+                          className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Display calculated period */}
+                  <div className="text-xs text-gray-500 bg-gray-50 rounded p-2 text-center">
+                    <span className="font-medium">Selected Period:</span> {new Date(payPeriodStart).toLocaleDateString()} - {new Date(payPeriodEnd).toLocaleDateString()}
                   </div>
                 </div>
 
