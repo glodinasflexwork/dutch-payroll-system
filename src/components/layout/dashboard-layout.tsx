@@ -58,13 +58,7 @@ const navigation = [
     name: "Payroll",
     href: "/payroll",
     icon: Calculator,
-    description: "Process payroll calculations"
-  },
-  {
-    name: "Payroll Management",
-    href: "/payroll-management",
-    icon: Users,
-    description: "Batch processing and approvals"
+    description: "Process payroll calculations and batch processing"
   },
   {
     name: "Reports",
