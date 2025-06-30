@@ -8,18 +8,77 @@ export interface SubscriptionLimits {
   features: Record<string, boolean>
 }
 
+// Helper function to convert feature array to boolean object
+function convertFeaturesToObject(features: any): Record<string, boolean> {
+  if (Array.isArray(features)) {
+    // Convert array of feature strings to boolean object
+    const featureMap: Record<string, boolean> = {
+      employees: false,
+      payroll: false,
+      leave_management: false,
+      time_tracking: false,
+      reporting: false,
+      multi_company: false
+    }
+    
+    features.forEach((feature: string) => {
+      const lowerFeature = feature.toLowerCase()
+      if (lowerFeature.includes('employee')) {
+        featureMap.employees = true
+      }
+      if (lowerFeature.includes('payroll')) {
+        featureMap.payroll = true
+      }
+      if (lowerFeature.includes('report') || lowerFeature.includes('analytic')) {
+        featureMap.reporting = true
+      }
+      if (lowerFeature.includes('tax')) {
+        featureMap.payroll = true // Tax calculations are part of payroll
+      }
+      if (lowerFeature.includes('leave') || lowerFeature.includes('time')) {
+        featureMap.leave_management = true
+        featureMap.time_tracking = true
+      }
+      if (lowerFeature.includes('support') || lowerFeature.includes('priority')) {
+        // Support features don't map to specific functionality
+      }
+      if (lowerFeature.includes('self-service') || lowerFeature.includes('portal')) {
+        featureMap.employees = true // Employee portal is part of employee management
+      }
+      if (lowerFeature.includes('schedule')) {
+        featureMap.payroll = true // Custom schedules are part of payroll
+      }
+    })
+    
+    return featureMap
+  } else if (typeof features === 'object' && features !== null) {
+    // Already in correct format
+    return features as Record<string, boolean>
+  } else {
+    // Fallback to basic features
+    return {
+      employees: true,
+      payroll: false,
+      leave_management: false,
+      time_tracking: false,
+      reporting: false,
+      multi_company: false
+    }
+  }
+}
+
 export async function validateSubscription(companyId: string) {
   try {
     const company = await prisma.company.findUnique({
       where: { id: companyId },
       include: {
-        subscription: {
+        subscriptions: {
           include: { plan: true }
         }
       }
     })
 
-    if (!company?.subscription) {
+    if (!company?.subscriptions || company.subscriptions.length === 0) {
       // No subscription found - provide basic access with core features
       return { 
         isValid: true, 
@@ -41,7 +100,7 @@ export async function validateSubscription(companyId: string) {
       }
     }
 
-    const subscription = company.subscription
+    const subscription = company.subscriptions[0] // Get the first (active) subscription
     
     // Check if subscription is active or in trial
     const isActive = subscription.status === 'active'
@@ -101,14 +160,7 @@ export async function validateSubscription(companyId: string) {
     const limits: SubscriptionLimits = {
       maxEmployees: subscription.plan?.maxEmployees || 999,
       maxPayrolls: subscription.plan?.maxPayrolls || 999,
-      features: subscription.plan?.features as Record<string, boolean> || {
-        employees: true,
-        payroll: true,
-        leave_management: true,
-        time_tracking: true,
-        reporting: true,
-        multi_company: true
-      }
+      features: convertFeaturesToObject(subscription.plan?.features) // Convert features properly
     }
 
     return { 
