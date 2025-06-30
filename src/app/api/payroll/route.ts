@@ -417,3 +417,93 @@ export async function GET(request: NextRequest) {
   }
 }
 
+
+// DELETE /api/payroll - Delete payroll records
+export async function DELETE(request: NextRequest) {
+  try {
+    console.log("=== PAYROLL DELETE START ===")
+    
+    const session = await getServerSession(authOptions)
+    console.log("Session user ID:", session?.user?.id)
+    console.log("Session company ID:", session?.user?.companyId)
+    
+    if (!session?.user?.companyId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Validate subscription
+    const subscriptionValidation = await validateSubscription(session.user.companyId)
+    console.log("Subscription validation:", subscriptionValidation)
+    if (!subscriptionValidation.isValid) {
+      return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const payrollRecordId = searchParams.get('id')
+    const payPeriodStart = searchParams.get('payPeriodStart')
+    const payPeriodEnd = searchParams.get('payPeriodEnd')
+    const deleteAll = searchParams.get('deleteAll') === 'true'
+
+    console.log("Delete params:", { payrollRecordId, payPeriodStart, payPeriodEnd, deleteAll })
+
+    if (deleteAll && payPeriodStart && payPeriodEnd) {
+      // Delete all payroll records for a specific pay period
+      const deleteResult = await prisma.payrollRecord.deleteMany({
+        where: {
+          companyId: session.user.companyId,
+          payPeriodStart: new Date(payPeriodStart),
+          payPeriodEnd: new Date(payPeriodEnd)
+        }
+      })
+
+      console.log("Deleted records count:", deleteResult.count)
+
+      return NextResponse.json({
+        success: true,
+        message: `Deleted ${deleteResult.count} payroll records for pay period`,
+        deletedCount: deleteResult.count
+      })
+    } else if (payrollRecordId) {
+      // Delete specific payroll record
+      const payrollRecord = await prisma.payrollRecord.findFirst({
+        where: {
+          id: payrollRecordId,
+          companyId: session.user.companyId
+        }
+      })
+
+      if (!payrollRecord) {
+        return NextResponse.json({ error: "Payroll record not found" }, { status: 404 })
+      }
+
+      await prisma.payrollRecord.delete({
+        where: { id: payrollRecordId }
+      })
+
+      console.log("Deleted payroll record:", payrollRecordId)
+
+      return NextResponse.json({
+        success: true,
+        message: "Payroll record deleted successfully",
+        deletedRecord: payrollRecord
+      })
+    } else {
+      return NextResponse.json({
+        error: "Missing required parameters: either 'id' or 'payPeriodStart' and 'payPeriodEnd' with 'deleteAll=true'"
+      }, { status: 400 })
+    }
+
+  } catch (error) {
+    console.error("=== PAYROLL DELETE ERROR ===")
+    console.error("Error details:", error)
+    console.error("Error message:", error instanceof Error ? error.message : 'Unknown error')
+    console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace')
+    
+    return NextResponse.json({
+      success: false,
+      error: "Failed to delete payroll records",
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
+  }
+}
+
