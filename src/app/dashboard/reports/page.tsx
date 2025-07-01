@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import DashboardLayout from "@/components/layout/dashboard-layout"
+import { useToast } from "@/components/ui/toast"
 import { 
   FileText, 
   Download, 
@@ -44,6 +45,7 @@ interface EmployeeReport {
 
 export default function ReportsPage() {
   const { data: session } = useSession()
+  const toast = useToast()
   const [activeTab, setActiveTab] = useState('employee-reports')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedPeriod, setSelectedPeriod] = useState('all')
@@ -155,16 +157,18 @@ export default function ReportsPage() {
   }
 
   const handleExportPDF = (type: string, id?: string) => {
-    setLoading(true)
+    const loadingToastId = toast.loading('Exporting report', `Generating ${type} export...`)
+    
     // Simulate export process
     setTimeout(() => {
-      setLoading(false)
-      alert(`${type} exported successfully!`)
+      toast.removeToast(loadingToastId)
+      toast.success('Export completed successfully!', `${type} has been downloaded to your device`)
     }, 2000)
   }
 
   const handleGeneratePayslip = async (employeeId: string) => {
-    setLoading(true)
+    const loadingToastId = toast.loading('Generating payslip', 'Creating payslip document...')
+    
     try {
       // Get current month and year
       const now = new Date()
@@ -197,19 +201,26 @@ export default function ReportsPage() {
             setTimeout(() => {
               newWindow.print()
             }, 1000)
+            
+            toast.removeToast(loadingToastId)
+            toast.success('Payslip generated successfully!', 'Payslip opened in new window and ready to print')
+          } else {
+            toast.removeToast(loadingToastId)
+            toast.error('Popup blocked', 'Please allow popups for this site to view payslips')
           }
         } else {
-          alert('Failed to generate payslip: ' + result.error)
+          toast.removeToast(loadingToastId)
+          toast.error('Failed to generate payslip', result.error || 'Unknown error occurred')
         }
       } else {
         const errorData = await response.json()
-        alert('Error generating payslip: ' + (errorData.error || 'Unknown error'))
+        toast.removeToast(loadingToastId)
+        toast.error('Error generating payslip', errorData.error || 'Server error occurred')
       }
     } catch (error) {
       console.error('Error generating payslip:', error)
-      alert('Network error. Please try again.')
-    } finally {
-      setLoading(false)
+      toast.removeToast(loadingToastId)
+      toast.error('Network error', 'Please check your connection and try again')
     }
   }
 
