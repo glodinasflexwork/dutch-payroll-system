@@ -382,6 +382,8 @@ export default function ReportsPage() {
             {!selectedPeriodData && [
               { id: 'payroll-history', label: 'Payroll History', icon: Calendar },
               { id: 'tax-summary', label: 'Tax Summary', icon: Euro },
+              { id: 'loon-journal', label: 'Loon Journal', icon: FileText },
+              { id: 'loonaangifte', label: 'Loonaangifte', icon: Printer },
               { id: 'analytics', label: 'Analytics', icon: TrendingUp }
             ].map((tab) => (
               <button
@@ -728,6 +730,14 @@ export default function ReportsPage() {
           </div>
         )}
 
+        {activeTab === 'loon-journal' && (
+          <LoonJournalTab />
+        )}
+
+        {activeTab === 'loonaangifte' && (
+          <LoonaangifteTab />
+        )}
+
         {activeTab === 'analytics' && (
           <div className="space-y-6">
             <h2 className="text-xl font-semibold text-gray-900">Payroll Analytics</h2>
@@ -759,6 +769,410 @@ export default function ReportsPage() {
         )}
       </div>
     </DashboardLayout>
+  )
+}
+
+// Loon Journal Tab Component
+function LoonJournalTab() {
+  const { data: session } = useSession()
+  const toast = useToast()
+  const [loading, setLoading] = useState(false)
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [journalData, setJournalData] = useState<any>(null)
+
+  const generateLoonJournal = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/reports/loon-journal?month=${selectedMonth}&year=${selectedYear}`)
+      
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success) {
+          setJournalData(result.data)
+          toast.success('Loon Journal generated successfully!', 'Journal entries are ready for review')
+        } else {
+          toast.error('Failed to generate Loon Journal', result.error || 'Unknown error occurred')
+        }
+      } else {
+        toast.error('Failed to generate Loon Journal', 'Server error occurred')
+      }
+    } catch (error) {
+      console.error('Error generating Loon Journal:', error)
+      toast.error('Failed to generate Loon Journal', 'Network error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const downloadJournal = () => {
+    if (!journalData) return
+    
+    // Create downloadable content
+    const content = `Journaalpost - ${journalData.period}\n\n` +
+      `${journalData.company.name}\n` +
+      `${journalData.company.address}\n` +
+      `${journalData.company.postalCode} ${journalData.company.city}\n\n` +
+      `Periode: ${journalData.period}\n` +
+      `Aanmaakdatum: ${journalData.creationDate}\n\n` +
+      `Grootboekrekening\t\tDebet\t\tCredit\n` +
+      journalData.journalEntries.map((entry: any) => 
+        `${entry.accountCode} ${entry.accountName}\t\t${entry.debit.toFixed(2)}\t\t${entry.credit.toFixed(2)}`
+      ).join('\n') +
+      `\n\nTotaal\t\t${journalData.totals.debit.toFixed(2)}\t\t${journalData.totals.credit.toFixed(2)}`
+
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `loon-journal-${selectedMonth}-${selectedYear}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    
+    toast.success('Download started', 'Loon Journal file has been downloaded')
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold text-gray-900">Loon Journal</h2>
+        <div className="flex items-center gap-4">
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {Array.from({ length: 12 }, (_, i) => (
+              <option key={i + 1} value={i + 1}>
+                {new Date(0, i).toLocaleString('nl-NL', { month: 'long' })}
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {Array.from({ length: 5 }, (_, i) => (
+              <option key={i} value={new Date().getFullYear() - 2 + i}>
+                {new Date().getFullYear() - 2 + i}
+              </option>
+            ))}
+          </select>
+          <Button onClick={generateLoonJournal} disabled={loading}>
+            {loading ? 'Generating...' : 'Generate Journal'}
+          </Button>
+        </div>
+      </div>
+
+      {journalData && (
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>Journaalpost - {journalData.period}</CardTitle>
+                <CardDescription>
+                  Versie 1.1 • Aangemaakt: {journalData.creationDate}
+                </CardDescription>
+              </div>
+              <Button onClick={downloadJournal} variant="outline">
+                <Download className="w-4 h-4 mr-2" />
+                Download
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-medium text-gray-900">{journalData.company.name}</h3>
+                <p className="text-gray-600">{journalData.company.address}</p>
+                <p className="text-gray-600">{journalData.company.postalCode} {journalData.company.city}</p>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-gray-300">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="border border-gray-300 px-4 py-2 text-left">Grootboekrekening</th>
+                      <th className="border border-gray-300 px-4 py-2 text-right">Debet</th>
+                      <th className="border border-gray-300 px-4 py-2 text-right">Credit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {journalData.journalEntries.map((entry: any, index: number) => (
+                      <tr key={index}>
+                        <td className="border border-gray-300 px-4 py-2">
+                          {entry.accountCode} {entry.accountName}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2 text-right">
+                          {entry.debit > 0 ? `€ ${entry.debit.toFixed(2)}` : ''}
+                        </td>
+                        <td className="border border-gray-300 px-4 py-2 text-right">
+                          {entry.credit > 0 ? `€ ${entry.credit.toFixed(2)}` : ''}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="bg-gray-50 font-medium">
+                      <td className="border border-gray-300 px-4 py-2">Totaal</td>
+                      <td className="border border-gray-300 px-4 py-2 text-right">
+                        € {journalData.totals.debit.toFixed(2)}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-2 text-right">
+                        € {journalData.totals.credit.toFixed(2)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!journalData && (
+        <Card>
+          <CardContent className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">Select a period and click "Generate Journal" to create the Loon Journal</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+// Loonaangifte Tab Component
+function LoonaangifteTab() {
+  const { data: session } = useSession()
+  const toast = useToast()
+  const [loading, setLoading] = useState(false)
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [loonaangifteData, setLoonaangifteData] = useState<any>(null)
+
+  const generateLoonaangifte = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/reports/loonaangifte?month=${selectedMonth}&year=${selectedYear}`)
+      
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success) {
+          setLoonaangifteData(result.data)
+          toast.success('Loonaangifte generated successfully!', 'Declaration is ready for review')
+        } else {
+          toast.error('Failed to generate Loonaangifte', result.error || 'Unknown error occurred')
+        }
+      } else {
+        toast.error('Failed to generate Loonaangifte', 'Server error occurred')
+      }
+    } catch (error) {
+      console.error('Error generating Loonaangifte:', error)
+      toast.error('Failed to generate Loonaangifte', 'Network error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const downloadLoonaangifte = () => {
+    if (!loonaangifteData) return
+    
+    // Create downloadable content
+    const content = `Loonaangifte\n\n` +
+      `${loonaangifteData.company.name}\n` +
+      `${loonaangifteData.company.address}\n` +
+      `${loonaangifteData.company.postalCode} ${loonaangifteData.company.city}\n\n` +
+      `Loonheffingennummer: ${loonaangifteData.company.loonheffingsnummer}\n` +
+      `Periode: ${loonaangifteData.period}\n` +
+      `Berichtkenmerk: ${loonaangifteData.messageReference}\n` +
+      `Betalingskenmerk: ${loonaangifteData.paymentReference}\n` +
+      `Uiterste betaaldatum: ${loonaangifteData.paymentDeadline}\n\n` +
+      `Loon:\n` +
+      `Loon loonbelasting/premie volksverzekeringen: € ${loonaangifteData.wageInformation.loonLoonbelasting.toFixed(2)}\n` +
+      `Loon werknemersverzekeringen: € ${loonaangifteData.wageInformation.loonWerknemersverzekeringen.toFixed(2)}\n\n` +
+      `Loonbelasting/premie volksverzekeringen:\n` +
+      `Ingehouden loonbelasting/premie volksverzekeringen: € ${loonaangifteData.taxWithholdings.ingehoudenloonbelasting.toFixed(2)}\n` +
+      `Totaal: € ${loonaangifteData.taxWithholdings.total.toFixed(2)}\n\n` +
+      `Betaalspecificatie:\n` +
+      `Saldo aangifte: € ${loonaangifteData.paymentSpecification.saldoAangifte.toFixed(2)}\n` +
+      `Totaal: € ${loonaangifteData.paymentSpecification.total.toFixed(2)}\n\n` +
+      `Kengetallen:\n` +
+      `Aantal werknemers initieel: ${loonaangifteData.keyFigures.aantalWerknemersInitieel}\n` +
+      `Aantal werknemers intrekking: ${loonaangifteData.keyFigures.aantalWerknemersIntrekking}\n` +
+      `Aantal werknemers correctie: ${loonaangifteData.keyFigures.aantalWerknemersCorrectie}`
+
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `loonaangifte-${selectedMonth}-${selectedYear}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    
+    toast.success('Download started', 'Loonaangifte file has been downloaded')
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold text-gray-900">Loonaangifte</h2>
+        <div className="flex items-center gap-4">
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {Array.from({ length: 12 }, (_, i) => (
+              <option key={i + 1} value={i + 1}>
+                {new Date(0, i).toLocaleString('nl-NL', { month: 'long' })}
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {Array.from({ length: 5 }, (_, i) => (
+              <option key={i} value={new Date().getFullYear() - 2 + i}>
+                {new Date().getFullYear() - 2 + i}
+              </option>
+            ))}
+          </select>
+          <Button onClick={generateLoonaangifte} disabled={loading}>
+            {loading ? 'Generating...' : 'Generate Declaration'}
+          </Button>
+        </div>
+      </div>
+
+      {loonaangifteData && (
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>Loonaangifte - {loonaangifteData.period}</CardTitle>
+                <CardDescription>
+                  Loonheffingennummer: {loonaangifteData.company.loonheffingsnummer}
+                </CardDescription>
+              </div>
+              <Button onClick={downloadLoonaangifte} variant="outline">
+                <Download className="w-4 h-4 mr-2" />
+                Download
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-medium text-gray-900">{loonaangifteData.company.name}</h3>
+                <p className="text-gray-600">{loonaangifteData.company.address}</p>
+                <p className="text-gray-600">{loonaangifteData.company.postalCode} {loonaangifteData.company.city}</p>
+                <div className="mt-2 space-y-1">
+                  <p className="text-sm text-gray-600">Berichtkenmerk: {loonaangifteData.messageReference}</p>
+                  <p className="text-sm text-gray-600">Betalingskenmerk: {loonaangifteData.paymentReference}</p>
+                  <p className="text-sm text-gray-600">Uiterste betaaldatum: {loonaangifteData.paymentDeadline}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Loon</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Loon loonbelasting/premie volksverzekeringen</span>
+                        <span className="font-medium">€ {loonaangifteData.wageInformation.loonLoonbelasting.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Loon werknemersverzekeringen</span>
+                        <span className="font-medium">€ {loonaangifteData.wageInformation.loonWerknemersverzekeringen.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Loonbelasting/premie volksverzekeringen</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Ingehouden loonbelasting/premie</span>
+                        <span className="font-medium">€ {loonaangifteData.taxWithholdings.ingehoudenloonbelasting.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="font-medium">Totaal</span>
+                        <span className="font-medium">€ {loonaangifteData.taxWithholdings.total.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Betaalspecificatie</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Saldo aangifte</span>
+                        <span className="font-medium">€ {loonaangifteData.paymentSpecification.saldoAangifte.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2">
+                        <span className="font-medium">Totaal</span>
+                        <span className="font-medium">€ {loonaangifteData.paymentSpecification.total.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Kengetallen</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Aantal werknemers initieel</span>
+                        <span className="font-medium">{loonaangifteData.keyFigures.aantalWerknemersInitieel}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Aantal werknemers intrekking</span>
+                        <span className="font-medium">{loonaangifteData.keyFigures.aantalWerknemersIntrekking}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Aantal werknemers correctie</span>
+                        <span className="font-medium">{loonaangifteData.keyFigures.aantalWerknemersCorrectie}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!loonaangifteData && (
+        <Card>
+          <CardContent className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <Printer className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">Select a period and click "Generate Declaration" to create the Loonaangifte</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   )
 }
 
