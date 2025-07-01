@@ -8,7 +8,6 @@ import { z } from "zod"
 const taxSettingsSchema = z.object({
   taxYear: z.number().int().min(2020).max(2030),
   aowRate: z.number().min(0).max(100, "AOW rate cannot exceed 100%"),
-  anwRate: z.number().min(0).max(100, "ANW rate cannot exceed 100%"),
   wlzRate: z.number().min(0).max(100, "WLZ rate cannot exceed 100%"),
   zvwRate: z.number().min(0).max(100, "ZVW rate cannot exceed 100%"),
   aowMaxBase: z.number().positive("AOW max base must be positive"),

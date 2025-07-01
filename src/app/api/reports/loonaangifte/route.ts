@@ -94,7 +94,6 @@ export async function GET(request: NextRequest) {
       acc.wlzContribution += record.wlzContribution || 0
       acc.wwContribution += record.wwContribution || 0
       acc.wiaContribution += record.wiaContribution || 0
-      acc.zvwContribution += (record.grossPay || 0) * 0.0565 // Calculate ZVW
       
       return acc
     }, {
@@ -104,8 +103,7 @@ export async function GET(request: NextRequest) {
       aowContribution: 0,
       wlzContribution: 0,
       wwContribution: 0,
-      wiaContribution: 0,
-      zvwContribution: 0
+      wiaContribution: 0
     })
 
     // Calculate payment deadline (28th of next month)

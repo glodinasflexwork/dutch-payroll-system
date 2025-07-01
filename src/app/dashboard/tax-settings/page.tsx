@@ -115,16 +115,16 @@ export default function TaxSettingsPage() {
       newErrors.taxYear = 'Tax year must be between 2020 and 2030'
     }
 
-    if (formData.incomeTaxRate1 < 0 || formData.incomeTaxRate1 > 100) {
-      newErrors.incomeTaxRate1 = 'Income tax rate 1 must be between 0 and 100%'
+    if (formData.aowRate < 0 || formData.aowRate > 100) {
+      newErrors.aowRate = 'AOW rate must be between 0 and 100%'
     }
 
-    if (formData.incomeTaxRate2 < 0 || formData.incomeTaxRate2 > 100) {
-      newErrors.incomeTaxRate2 = 'Income tax rate 2 must be between 0 and 100%'
+    if (formData.wlzRate < 0 || formData.wlzRate > 100) {
+      newErrors.wlzRate = 'WLZ rate must be between 0 and 100%'
     }
 
-    if (formData.incomeTaxBracket1Max <= 0) {
-      newErrors.incomeTaxBracket1Max = 'Tax bracket maximum must be positive'
+    if (formData.zvwRate < 0 || formData.zvwRate > 100) {
+      newErrors.zvwRate = 'ZVW rate must be between 0 and 100%'
     }
 
     if (formData.minimumWage <= 0) {
@@ -175,17 +175,11 @@ export default function TaxSettingsPage() {
   const resetForm = () => {
     setFormData({
       taxYear: new Date().getFullYear(),
-      incomeTaxRate1: 36.93,
-      incomeTaxRate2: 49.50,
-      incomeTaxBracket1Max: 75518,
       aowRate: 17.90,
       wlzRate: 9.65,
-      wwRate: 2.94,
-      wiaRate: 0.58,
+      zvwRate: 5.65,
       aowMaxBase: 40000,
       wlzMaxBase: 40000,
-      wwMaxBase: 70000,
-      wiaMaxBase: 70000,
       holidayAllowanceRate: 8.0,
       minimumWage: 1995,
       isActive: true
@@ -345,51 +339,11 @@ export default function TaxSettingsPage() {
                   </div>
                 </div>
 
-                {/* Income Tax */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-3 flex items-center">
-                    <Calculator className="w-5 h-5 mr-2" />
-                    Income Tax (Inkomstenbelasting)
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Rate 1 (%)</label>
-                      <Input
-                        type="number"
-                        value={formData.incomeTaxRate1}
-                        onChange={(e) => handleInputChange('incomeTaxRate1', parseFloat(e.target.value))}
-                        step="0.01"
-                      />
-                      {errors.incomeTaxRate1 && <p className="text-red-500 text-sm mt-1">{errors.incomeTaxRate1}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Rate 2 (%)</label>
-                      <Input
-                        type="number"
-                        value={formData.incomeTaxRate2}
-                        onChange={(e) => handleInputChange('incomeTaxRate2', parseFloat(e.target.value))}
-                        step="0.01"
-                      />
-                      {errors.incomeTaxRate2 && <p className="text-red-500 text-sm mt-1">{errors.incomeTaxRate2}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Bracket 1 Maximum (€)</label>
-                      <Input
-                        type="number"
-                        value={formData.incomeTaxBracket1Max}
-                        onChange={(e) => handleInputChange('incomeTaxBracket1Max', parseFloat(e.target.value))}
-                        step="1"
-                      />
-                      {errors.incomeTaxBracket1Max && <p className="text-red-500 text-sm mt-1">{errors.incomeTaxBracket1Max}</p>}
-                    </div>
-                  </div>
-                </div>
-
                 {/* Social Security */}
                 <div>
                   <h3 className="text-lg font-semibold mb-3 flex items-center">
                     <Euro className="w-5 h-5 mr-2" />
-                    Social Security Contributions
+                    Social Security Contributions (Loonheffing)
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
@@ -403,7 +357,7 @@ export default function TaxSettingsPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">WLZ Rate (%) - Healthcare</label>
+                        <label className="block text-sm font-medium mb-2">WLZ Rate (%) - Long-term Care</label>
                         <Input
                           type="number"
                           value={formData.wlzRate}
@@ -412,20 +366,11 @@ export default function TaxSettingsPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">WW Rate (%) - Unemployment</label>
+                        <label className="block text-sm font-medium mb-2">ZVW Rate (%) - Health Insurance</label>
                         <Input
                           type="number"
-                          value={formData.wwRate}
-                          onChange={(e) => handleInputChange('wwRate', parseFloat(e.target.value))}
-                          step="0.01"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">WIA Rate (%) - Disability</label>
-                        <Input
-                          type="number"
-                          value={formData.wiaRate}
-                          onChange={(e) => handleInputChange('wiaRate', parseFloat(e.target.value))}
+                          value={formData.zvwRate}
+                          onChange={(e) => handleInputChange('zvwRate', parseFloat(e.target.value))}
                           step="0.01"
                         />
                       </div>
@@ -446,24 +391,6 @@ export default function TaxSettingsPage() {
                           type="number"
                           value={formData.wlzMaxBase}
                           onChange={(e) => handleInputChange('wlzMaxBase', parseFloat(e.target.value))}
-                          step="1"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">WW Max Base (€)</label>
-                        <Input
-                          type="number"
-                          value={formData.wwMaxBase}
-                          onChange={(e) => handleInputChange('wwMaxBase', parseFloat(e.target.value))}
-                          step="1"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">WIA Max Base (€)</label>
-                        <Input
-                          type="number"
-                          value={formData.wiaMaxBase}
-                          onChange={(e) => handleInputChange('wiaMaxBase', parseFloat(e.target.value))}
                           step="1"
                         />
                       </div>
