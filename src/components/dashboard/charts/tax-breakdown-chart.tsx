@@ -7,11 +7,10 @@ import { Calculator, Euro } from "lucide-react"
 interface TaxBreakdownProps {
   monthlyTaxData?: Array<{
     month: string
-    incomeTax: number
     aow: number
+    anw: number
     wlz: number
-    ww: number
-    wia: number
+    zvw: number
   }>
   taxDistributionData?: Array<{
     name: string
@@ -20,22 +19,21 @@ interface TaxBreakdownProps {
   }>
 }
 
-// Sample data for demonstration
+// Sample data for demonstration - Dutch social insurance contributions only
 const sampleMonthlyTaxData = [
-  { month: 'Jan', incomeTax: 12000, aow: 3200, wlz: 800, ww: 600, wia: 400 },
-  { month: 'Feb', incomeTax: 12500, aow: 3300, wlz: 850, ww: 650, wia: 450 },
-  { month: 'Mar', incomeTax: 13000, aow: 3400, wlz: 900, ww: 700, wia: 500 },
-  { month: 'Apr', incomeTax: 13500, aow: 3600, wlz: 950, ww: 750, wia: 550 },
-  { month: 'May', incomeTax: 14000, aow: 3800, wlz: 1000, ww: 800, wia: 600 },
-  { month: 'Jun', incomeTax: 14500, aow: 4000, wlz: 1050, ww: 850, wia: 650 },
+  { month: 'Jan', aow: 3200, anw: 45, wlz: 1450, zvw: 850 },
+  { month: 'Feb', aow: 3300, anw: 47, wlz: 1500, zvw: 880 },
+  { month: 'Mar', aow: 3400, anw: 48, wlz: 1550, zvw: 910 },
+  { month: 'Apr', aow: 3600, anw: 52, wlz: 1640, zvw: 960 },
+  { month: 'May', aow: 3800, anw: 54, wlz: 1730, zvw: 1010 },
+  { month: 'Jun', aow: 4000, anw: 56, wlz: 1820, zvw: 1060 },
 ]
 
 const sampleTaxDistributionData = [
-  { name: 'Income Tax', value: 14500, color: '#3b82f6' },
-  { name: 'AOW (Pension)', value: 4000, color: '#10b981' },
-  { name: 'WLZ (Healthcare)', value: 1050, color: '#f59e0b' },
-  { name: 'WW (Unemployment)', value: 850, color: '#ef4444' },
-  { name: 'WIA (Disability)', value: 650, color: '#8b5cf6' },
+  { name: 'AOW (Pension)', value: 4000, color: '#3b82f6' },
+  { name: 'ANW (Surviving)', value: 56, color: '#10b981' },
+  { name: 'WLZ (Long-term Care)', value: 1820, color: '#f59e0b' },
+  { name: 'ZVW (Health Insurance)', value: 1060, color: '#8b5cf6' },
 ]
 
 export default function TaxBreakdownChart({ 
@@ -99,10 +97,10 @@ export default function TaxBreakdownChart({
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Calculator className="w-5 h-5 text-blue-600" />
-            <span>Monthly Tax Breakdown</span>
+            <span>Monthly Loonheffing Breakdown</span>
           </CardTitle>
           <CardDescription>
-            Breakdown of tax components over time
+            Breakdown of social insurance contributions over time
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -121,11 +119,10 @@ export default function TaxBreakdownChart({
                   tickFormatter={formatCurrency}
                 />
                 <Tooltip content={<CustomBarTooltip />} />
-                <Bar dataKey="incomeTax" stackId="a" fill="#3b82f6" />
-                <Bar dataKey="aow" stackId="a" fill="#10b981" />
+                <Bar dataKey="aow" stackId="a" fill="#3b82f6" />
+                <Bar dataKey="anw" stackId="a" fill="#10b981" />
                 <Bar dataKey="wlz" stackId="a" fill="#f59e0b" />
-                <Bar dataKey="ww" stackId="a" fill="#ef4444" />
-                <Bar dataKey="wia" stackId="a" fill="#8b5cf6" />
+                <Bar dataKey="zvw" stackId="a" fill="#8b5cf6" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -137,10 +134,10 @@ export default function TaxBreakdownChart({
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Euro className="w-5 h-5 text-green-600" />
-            <span>Current Tax Distribution</span>
+            <span>Current Loonheffing Distribution</span>
           </CardTitle>
           <CardDescription>
-            Breakdown of tax components for current month
+            Breakdown of social insurance contributions for current month
           </CardDescription>
         </CardHeader>
         <CardContent>

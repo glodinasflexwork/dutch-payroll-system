@@ -1,5 +1,7 @@
 "use client"
 
+import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import PayrollTrendsChart from "./charts/payroll-trends-chart"
@@ -16,8 +18,8 @@ import {
   CheckCircle
 } from "lucide-react"
 
-interface AnalyticsDashboardProps {
-  data?: {
+interface AnalyticsData {
+  kpis: {
     totalPayroll: number
     totalEmployees: number
     averageSalary: number
@@ -26,20 +28,77 @@ interface AnalyticsDashboardProps {
     employeeGrowth: number
     taxEfficiency: number
   }
+  trends: Array<{
+    month: string
+    totalPayroll: number
+    employees: number
+    averageSalary: number
+    aow: number
+    anw: number
+    wlz: number
+    zvw: number
+  }>
+  departmentDistribution: Array<{
+    department: string
+    employees: number
+    avgSalary: number
+  }>
+  employmentTypeDistribution: Array<{
+    name: string
+    value: number
+    color: string
+  }>
+  taxBreakdown: {
+    monthly: Array<{
+      month: string
+      aow: number
+      anw: number
+      wlz: number
+      zvw: number
+    }>
+    current: {
+      aow: number
+      anw: number
+      wlz: number
+      zvw: number
+    }
+  }
 }
 
-// Sample KPI data
-const sampleData = {
-  totalPayroll: 56000,
-  totalEmployees: 14,
-  averageSalary: 4000,
-  totalTaxes: 21050,
-  payrollGrowth: 12.5,
-  employeeGrowth: 8.3,
-  taxEfficiency: 37.6,
-}
+export default function AnalyticsDashboard() {
+  const { data: session } = useSession()
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-export default function AnalyticsDashboard({ data = sampleData }: AnalyticsDashboardProps) {
+  useEffect(() => {
+    if (session?.user?.companyId) {
+      fetchAnalyticsData()
+    }
+  }, [session?.user?.companyId])
+
+  const fetchAnalyticsData = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/analytics')
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success) {
+          setAnalyticsData(result.data)
+        } else {
+          setError(result.error || 'Failed to fetch analytics data')
+        }
+      } else {
+        setError('Failed to fetch analytics data')
+      }
+    } catch (error) {
+      console.error('Error fetching analytics:', error)
+      setError('Failed to fetch analytics data')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('nl-NL', {
       style: 'currency',
@@ -53,11 +112,46 @@ export default function AnalyticsDashboard({ data = sampleData }: AnalyticsDashb
     return `${value.toFixed(1)}%`
   }
 
-  const kpis = [
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading analytics...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <p className="text-gray-500">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!analyticsData) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-500">No analytics data available. Process payroll to see analytics.</p>
+        </div>
+      </div>
+    )
+  }
+
+  const { kpis } = analyticsData
+
+  const kpiCards = [
     {
       title: "Total Monthly Payroll",
-      value: formatCurrency(data.totalPayroll),
-      change: data.payrollGrowth,
+      value: formatCurrency(kpis.totalPayroll),
+      change: kpis.payrollGrowth,
       icon: Euro,
       color: "text-blue-600",
       bgColor: "bg-blue-50",
@@ -65,8 +159,8 @@ export default function AnalyticsDashboard({ data = sampleData }: AnalyticsDashb
     },
     {
       title: "Active Employees",
-      value: data.totalEmployees.toString(),
-      change: data.employeeGrowth,
+      value: kpis.totalEmployees.toString(),
+      change: kpis.employeeGrowth,
       icon: Users,
       color: "text-green-600",
       bgColor: "bg-green-50",
@@ -74,21 +168,21 @@ export default function AnalyticsDashboard({ data = sampleData }: AnalyticsDashb
     },
     {
       title: "Average Salary",
-      value: formatCurrency(data.averageSalary),
-      change: 3.2,
+      value: formatCurrency(kpis.averageSalary),
+      change: 3.2, // Could be calculated from historical data
       icon: Target,
       color: "text-purple-600",
       bgColor: "bg-purple-50",
       description: "Average monthly salary per employee"
     },
     {
-      title: "Tax Efficiency",
-      value: formatPercentage(data.taxEfficiency),
-      change: -1.2,
+      title: "Loonheffing Rate",
+      value: formatPercentage(kpis.taxEfficiency),
+      change: -1.2, // Could be calculated from historical data
       icon: Calculator,
       color: "text-orange-600",
       bgColor: "bg-orange-50",
-      description: "Percentage of gross pay deducted as taxes"
+      description: "Percentage of gross pay deducted as social insurance"
     }
   ]
 
@@ -97,14 +191,14 @@ export default function AnalyticsDashboard({ data = sampleData }: AnalyticsDashb
       type: "success",
       icon: CheckCircle,
       title: "Payroll Growth",
-      message: "Monthly payroll increased by 12.5% compared to last month, indicating business growth.",
+      message: `Monthly payroll ${kpis.payrollGrowth >= 0 ? 'increased' : 'decreased'} by ${Math.abs(kpis.payrollGrowth).toFixed(1)}% compared to last month.`,
       color: "text-green-600"
     },
     {
       type: "info",
       icon: AlertCircle,
-      title: "Tax Compliance",
-      message: "All tax calculations are up to date with 2025 Dutch tax regulations.",
+      title: "Social Insurance Compliance",
+      message: "All social insurance calculations are up to date with 2025 Dutch regulations.",
       color: "text-blue-600"
     },
     {
@@ -120,7 +214,7 @@ export default function AnalyticsDashboard({ data = sampleData }: AnalyticsDashb
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {kpis.map((kpi, index) => (
+        {kpiCards.map((kpi, index) => (
           <Card key={index} className="hover-lift">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{kpi.title}</CardTitle>
@@ -148,11 +242,22 @@ export default function AnalyticsDashboard({ data = sampleData }: AnalyticsDashb
       </div>
 
       {/* Payroll Trends Chart */}
-      <PayrollTrendsChart />
+      <PayrollTrendsChart data={analyticsData.trends} />
 
       {/* Employee and Tax Charts */}
-      <EmployeeDistributionChart />
-      <TaxBreakdownChart />
+      <EmployeeDistributionChart 
+        employmentTypeData={analyticsData.employmentTypeDistribution}
+        departmentData={analyticsData.departmentDistribution}
+      />
+      <TaxBreakdownChart 
+        monthlyTaxData={analyticsData.taxBreakdown.monthly}
+        taxDistributionData={[
+          { name: 'AOW (Pension)', value: analyticsData.taxBreakdown.current.aow, color: '#3b82f6' },
+          { name: 'ANW (Surviving)', value: analyticsData.taxBreakdown.current.anw, color: '#10b981' },
+          { name: 'WLZ (Long-term Care)', value: analyticsData.taxBreakdown.current.wlz, color: '#f59e0b' },
+          { name: 'ZVW (Health Insurance)', value: analyticsData.taxBreakdown.current.zvw, color: '#8b5cf6' },
+        ]}
+      />
 
       {/* Insights and Recommendations */}
       <Card>
@@ -190,17 +295,15 @@ export default function AnalyticsDashboard({ data = sampleData }: AnalyticsDashb
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-gray-600">Gross Payroll</span>
-                <span className="font-medium">{formatCurrency(data.totalPayroll)}</span>
+                <span className="font-medium">{formatCurrency(kpis.totalPayroll)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Total Deductions</span>
-                <span className="font-medium">{formatCurrency(data.totalTaxes)}</span>
+                <span className="font-medium">{formatCurrency(kpis.totalTaxes)}</span>
               </div>
               <div className="flex justify-between border-t pt-3">
                 <span className="font-medium">Net Payroll</span>
-                <span className="font-bold text-green-600">
-                  {formatCurrency(data.totalPayroll - data.totalTaxes)}
-                </span>
+                <span className="font-medium">{formatCurrency(kpis.totalPayroll - kpis.totalTaxes)}</span>
               </div>
             </div>
           </CardContent>
@@ -214,20 +317,16 @@ export default function AnalyticsDashboard({ data = sampleData }: AnalyticsDashb
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-gray-600">Total Employees</span>
-                <span className="font-medium">{data.totalEmployees}</span>
+                <span className="font-medium">{kpis.totalEmployees}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Monthly Employees</span>
-                <span className="font-medium">8</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Hourly Employees</span>
-                <span className="font-medium">6</span>
+                <span className="text-gray-600">Average Salary</span>
+                <span className="font-medium">{formatCurrency(kpis.averageSalary)}</span>
               </div>
               <div className="flex justify-between border-t pt-3">
-                <span className="font-medium">Avg. Salary</span>
-                <span className="font-bold text-blue-600">
-                  {formatCurrency(data.averageSalary)}
+                <span className="font-medium">Payroll Growth</span>
+                <span className={`font-medium ${kpis.payrollGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatPercentage(kpis.payrollGrowth)}
                 </span>
               </div>
             </div>
@@ -236,25 +335,21 @@ export default function AnalyticsDashboard({ data = sampleData }: AnalyticsDashb
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Tax Efficiency</CardTitle>
+            <CardTitle className="text-lg">Social Insurance</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-gray-600">Tax Rate</span>
-                <span className="font-medium">{formatPercentage(data.taxEfficiency)}</span>
+                <span className="text-gray-600">AOW Contributions</span>
+                <span className="font-medium">{formatCurrency(analyticsData.taxBreakdown.current.aow)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Social Security</span>
-                <span className="font-medium">18.2%</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Income Tax</span>
-                <span className="font-medium">19.4%</span>
+                <span className="text-gray-600">WLZ Contributions</span>
+                <span className="font-medium">{formatCurrency(analyticsData.taxBreakdown.current.wlz)}</span>
               </div>
               <div className="flex justify-between border-t pt-3">
-                <span className="font-medium">Compliance</span>
-                <Badge variant="success">2025 Rates</Badge>
+                <span className="font-medium">Total Loonheffing</span>
+                <span className="font-medium">{formatCurrency(kpis.totalTaxes)}</span>
               </div>
             </div>
           </CardContent>
