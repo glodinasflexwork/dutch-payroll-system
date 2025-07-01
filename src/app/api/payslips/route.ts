@@ -600,40 +600,13 @@ function generatePayslipHTML(payslip: any): string {
                     <thead>
                         <tr>
                             <th>Omschrijving</th>
-                            <th>Percentage</th>
                             <th>Bedrag</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td>Inkomstenbelasting</td>
-                            <td>${payslip.taxRates.incomeTaxRate1}% / ${payslip.taxRates.incomeTaxRate2}%</td>
-                            <td class="amount negative">-${formatCurrency(payslip.deductions.incomeTax)}</td>
-                        </tr>
-                        <tr>
-                            <td>AOW (Pensioen)</td>
-                            <td>${payslip.taxRates.aowRate}%</td>
-                            <td class="amount negative">-${formatCurrency(payslip.deductions.aowContribution)}</td>
-                        </tr>
-                        <tr>
-                            <td>WLZ (Zorgverzekering)</td>
-                            <td>${payslip.taxRates.wlzRate}%</td>
-                            <td class="amount negative">-${formatCurrency(payslip.deductions.wlzContribution)}</td>
-                        </tr>
-                        <tr>
-                            <td>WW (Werkloosheidsverzekering)</td>
-                            <td>${payslip.taxRates.wwRate}%</td>
-                            <td class="amount negative">-${formatCurrency(payslip.deductions.wwContribution)}</td>
-                        </tr>
-                        <tr>
-                            <td>WIA (Arbeidsongeschiktheidsverzekering)</td>
-                            <td>${payslip.taxRates.wiaRate}%</td>
-                            <td class="amount negative">-${formatCurrency(payslip.deductions.wiaContribution)}</td>
-                        </tr>
-                        <tr class="total-row">
-                            <td><strong>Totaal inhoudingen</strong></td>
-                            <td><strong>-</strong></td>
-                            <td class="amount negative"><strong>-${formatCurrency(payslip.deductions.totalDeductions)}</strong></td>
+                            <td>Loonheffing</td>
+                            <td class="amount negative">-${formatCurrency(payslip.deductions.totalDeductions)}</td>
                         </tr>
                     </tbody>
                 </table>
