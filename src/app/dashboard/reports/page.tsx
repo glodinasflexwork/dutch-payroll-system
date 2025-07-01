@@ -68,7 +68,8 @@ export default function ReportsPage() {
     try {
       const response = await fetch('/api/payroll')
       if (response.ok) {
-        const payrollRecords = await response.json()
+        const result = await response.json()
+        const payrollRecords = result.payrollRecords || [] // Fix: access payrollRecords property
         
         // Calculate totals from all payroll records
         const totals = payrollRecords.reduce((acc: any, record: any) => {
