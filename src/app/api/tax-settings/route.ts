@@ -7,17 +7,12 @@ import { z } from "zod"
 // Validation schema for tax settings
 const taxSettingsSchema = z.object({
   taxYear: z.number().int().min(2020).max(2030),
-  incomeTaxRate1: z.number().min(0).max(100, "Tax rate cannot exceed 100%"),
-  incomeTaxRate2: z.number().min(0).max(100, "Tax rate cannot exceed 100%"),
-  incomeTaxBracket1Max: z.number().positive("Tax bracket must be positive"),
   aowRate: z.number().min(0).max(100, "AOW rate cannot exceed 100%"),
+  anwRate: z.number().min(0).max(100, "ANW rate cannot exceed 100%"),
   wlzRate: z.number().min(0).max(100, "WLZ rate cannot exceed 100%"),
-  wwRate: z.number().min(0).max(100, "WW rate cannot exceed 100%"),
-  wiaRate: z.number().min(0).max(100, "WIA rate cannot exceed 100%"),
+  zvwRate: z.number().min(0).max(100, "ZVW rate cannot exceed 100%"),
   aowMaxBase: z.number().positive("AOW max base must be positive"),
   wlzMaxBase: z.number().positive("WLZ max base must be positive"),
-  wwMaxBase: z.number().positive("WW max base must be positive"),
-  wiaMaxBase: z.number().positive("WIA max base must be positive"),
   holidayAllowanceRate: z.number().min(0).max(100, "Holiday allowance rate cannot exceed 100%"),
   minimumWage: z.number().positive("Minimum wage must be positive"),
   isActive: z.boolean().default(true)
