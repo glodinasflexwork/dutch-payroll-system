@@ -108,21 +108,27 @@ export default function PayrollPage() {
   useEffect(() => {
     // Set default pay period to current month
     const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1; // getMonth() returns 0-11, we need 1-12
     
-    setPayPeriodStart(firstDay.toISOString().split('T')[0]);
-    setPayPeriodEnd(lastDay.toISOString().split('T')[0]);
+    // Create proper month boundaries without timezone issues
+    const firstDay = `${year}-${month.toString().padStart(2, '0')}-01`;
+    const lastDay = `${year}-${month.toString().padStart(2, '0')}-${new Date(year, month, 0).getDate().toString().padStart(2, '0')}`;
+    
+    setPayPeriodStart(firstDay);
+    setPayPeriodEnd(lastDay);
   }, []);
 
   // Update pay period dates when month/year selection changes
   useEffect(() => {
     if (!useAdvancedDates) {
-      const firstDay = new Date(selectedYear, selectedMonth - 1, 1);
-      const lastDay = new Date(selectedYear, selectedMonth, 0);
+      // Create proper month boundaries without timezone issues
+      const firstDay = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-01`;
+      const lastDayOfMonth = new Date(selectedYear, selectedMonth, 0).getDate(); // Get last day of the month
+      const lastDay = `${selectedYear}-${selectedMonth.toString().padStart(2, '0')}-${lastDayOfMonth.toString().padStart(2, '0')}`;
       
-      setPayPeriodStart(firstDay.toISOString().split('T')[0]);
-      setPayPeriodEnd(lastDay.toISOString().split('T')[0]);
+      setPayPeriodStart(firstDay);
+      setPayPeriodEnd(lastDay);
     }
   }, [selectedYear, selectedMonth, useAdvancedDates]);
 
