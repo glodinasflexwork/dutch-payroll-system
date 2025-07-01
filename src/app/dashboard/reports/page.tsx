@@ -246,13 +246,8 @@ export default function ReportsPage() {
             newWindow.document.write(result.html)
             newWindow.document.close()
             
-            // Optional: Trigger print dialog
-            setTimeout(() => {
-              newWindow.print()
-            }, 1000)
-            
             toast.removeToast(loadingToastId)
-            toast.success('Payslip generated successfully!', 'Payslip opened in new window and ready to print')
+            toast.success('Payslip generated successfully!', 'Payslip opened in new window')
           } else {
             toast.removeToast(loadingToastId)
             toast.error('Popup blocked', 'Please allow popups for this site to view payslips')
