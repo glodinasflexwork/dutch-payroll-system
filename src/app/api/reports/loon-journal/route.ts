@@ -76,7 +76,6 @@ export async function GET(request: NextRequest) {
       acc.wlzContribution += record.wlzContribution || 0
       acc.wwContribution += record.wwContribution || 0
       acc.wiaContribution += record.wiaContribution || 0
-      acc.zvwContribution += (record.grossPay || 0) * 0.0565 // Calculate ZVW (not stored in DB)
       return acc
     }, {
       grossWages: 0,
@@ -85,8 +84,7 @@ export async function GET(request: NextRequest) {
       aowContribution: 0,
       wlzContribution: 0,
       wwContribution: 0,
-      wiaContribution: 0,
-      zvwContribution: 0
+      wiaContribution: 0
     })
 
     // Generate journal entries
@@ -146,8 +144,7 @@ export async function GET(request: NextRequest) {
           aow: totals.aowContribution,
           wlz: totals.wlzContribution,
           ww: totals.wwContribution,
-          wia: totals.wiaContribution,
-          zvw: totals.zvwContribution
+          wia: totals.wiaContribution
         }
       }
     }

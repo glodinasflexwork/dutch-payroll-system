@@ -1,0 +1,896 @@
+[1mdiff --git a/src/app/api/reports/loon-journal/route.ts b/src/app/api/reports/loon-journal/route.ts[m
+[1mnew file mode 100644[m
+[1mindex 0000000..4c41155[m
+[1m--- /dev/null[m
+[1m+++ b/src/app/api/reports/loon-journal/route.ts[m
+[36m@@ -0,0 +1,209 @@[m
+[32m+[m[32mimport { getServerSession } from "next-auth/next"[m
+[32m+[m[32mimport { authOptions } from "@/lib/auth"[m
+[32m+[m[32mimport { prisma } from "@/lib/prisma"[m
+[32m+[m[32mimport { validateSubscription } from "@/lib/subscription"[m
+[32m+[m[32mimport { NextRequest, NextResponse } from "next/server"[m
+[32m+[m
+[32m+[m[32mexport async function GET(request: NextRequest) {[m
+[32m+[m[32m  try {[m
+[32m+[m[32m    const session = await getServerSession(authOptions)[m
+[32m+[m[41m    [m
+[32m+[m[32m    if (!session?.user?.companyId) {[m
+[32m+[m[32m      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    // Validate subscription[m
+[32m+[m[32m    const subscriptionValidation = await validateSubscription(session.user.companyId)[m
+[32m+[m[32m    if (!subscriptionValidation.isValid) {[m
+[32m+[m[32m      return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    // Get query parameters[m
+[32m+[m[32m    const { searchParams } = new URL(request.url)[m
+[32m+[m[32m    const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString())[m
+[32m+[m[32m    const month = parseInt(searchParams.get('month') || (new Date().getMonth() + 1).toString())[m
+[32m+[m
+[32m+[m[32m    // Validate month and year[m
+[32m+[m[32m    if (month < 1 || month > 12) {[m
+[32m+[m[32m      return NextResponse.json({ error: "Invalid month" }, { status: 400 })[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    // Get company information[m
+[32m+[m[32m    const company = await prisma.company.findUnique({[m
+[32m+[m[32m      where: { id: session.user.companyId },[m
+[32m+[m[32m      select: {[m
+[32m+[m[32m        name: true,[m
+[32m+[m[32m        address: true,[m
+[32m+[m[32m        city: true,[m
+[32m+[m[32m        postalCode: true,[m
+[32m+[m[32m        loonheffingsnummer: true[m
+[32m+[m[32m      }[m
+[32m+[m[32m    })[m
+[32m+[m
+[32m+[m[32m    if (!company) {[m
+[32m+[m[32m      return NextResponse.json({ error: "Company not found" }, { status: 404 })[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    // Calculate date range for the specified month[m
+[32m+[m[32m    const startDate = new Date(year, month - 1, 1)[m
+[32m+[m[32m    const endDate = new Date(year, month, 0, 23, 59, 59)[m
+[32m+[m
+[32m+[m[32m    // Fetch payroll records for the period[m
+[32m+[m[32m    const payrollRecords = await prisma.payrollRecord.findMany({[m
+[32m+[m[32m      where: {[m
+[32m+[m[32m        companyId: session.user.companyId,[m
+[32m+[m[32m        payPeriodStart: {[m
+[32m+[m[32m          gte: startDate,[m
+[32m+[m[32m          lte: endDate[m
+[32m+[m[32m        }[m
+[32m+[m[32m      },[m
+[32m+[m[32m      include: {[m
+[32m+[m[32m        employee: {[m
+[32m+[m[32m          select: {[m
+[32m+[m[32m            firstName: true,[m
+[32m+[m[32m            lastName: true[m
+[32m+[m[32m          }[m
+[32m+[m[32m        }[m
+[32m+[m[32m      }[m
+[32m+[m[32m    })[m
+[32m+[m
+[32m+[m[32m    // Calculate totals[m
+[32m+[m[32m    const totals = payrollRecords.reduce((acc, record) => {[m
+[32m+[m[32m      acc.grossWages += record.grossPay || 0[m
+[32m+[m[32m      acc.totalDeductions += record.totalDeductions || 0[m
+[32m+[m[32m      acc.netWages += record.netPay || 0[m
+[32m+[m[32m      acc.aowContribution += record.aowContribution || 0[m
+[32m+[m[32m      acc.anwContribution += record.anwContribution || 0[m
+[32m+[m[32m      acc.wlzContribution += record.wlzContribution || 0[m
+[32m+[m[32m      acc.zvwContribution += (record.grossPay || 0) * 0.0565 // Calculate ZVW[m
+[32m+[m[32m      return acc[m
+[32m+[m[32m    }, {[m
+[32m+[m[32m      grossWages: 0,[m
+[32m+[m[32m      totalDeductions: 0,[m
+[32m+[m[32m      netWages: 0,[m
+[32m+[m[32m      aowContribution: 0,[m
+[32m+[m[32m      anwContribution: 0,[m
+[32m+[m[32m      wlzContribution: 0,[m
+[32m+[m[32m      zvwContribution: 0[m
+[32m+[m[32m    })[m
+[32m+[m
+[32m+[m[32m    // Generate journal entries[m
+[32m+[m[32m    const journalEntries = [[m
+[32m+[m[32m      {[m
+[32m+[m[32m        accountCode: "4000",[m
+[32m+[m[32m        accountName: "Brutolonen",[m
+[32m+[m[32m        debit: totals.grossWages,[m
+[32m+[m[32m        credit: 0[m
+[32m+[m[32m      },[m
+[32m+[m[32m      {[m
+[32m+[m[32m        accountCode: "1810",[m
+[32m+[m[32m        accountName: "Te betalen loonheffingen",[m
+[32m+[m[32m        debit: 0,[m
+[32m+[m[32m        credit: totals.totalDeductions[m
+[32m+[m[32m      },[m
+[32m+[m[32m      {[m
+[32m+[m[32m        accountCode: "1820",[m
+[32m+[m[32m        accountName: "Te betalen nettolonen",[m
+[32m+[m[32m        debit: 0,[m
+[32m+[m[32m        credit: totals.netWages[m
+[32m+[m[32m      }[m
+[32m+[m[32m    ][m
+[32m+[m
+[32m+[m[32m    // Calculate totals for balancing[m
+[32m+[m[32m    const totalDebit = journalEntries.reduce((sum, entry) => sum + entry.debit, 0)[m
+[32m+[m[32m    const totalCredit = journalEntries.reduce((sum, entry) => sum + entry.credit, 0)[m
+[32m+[m
+[32m+[m[32m    // Format period name[m
+[32m+[m[32m    const monthNames = [[m
+[32m+[m[32m      "Januari", "Februari", "Maart", "April", "Mei", "Juni",[m
+[32m+[m[32m      "Juli", "Augustus", "September", "Oktober", "November", "December"[m
+[32m+[m[32m    ][m
+[32m+[m[32m    const periodName = `${monthNames[month - 1]} ${year}`[m
+[32m+[m
+[32m+[m[32m    // Prepare response data[m
+[32m+[m[32m    const loonJournalData = {[m
+[32m+[m[32m      company: {[m
+[32m+[m[32m        name: company.name,[m
+[32m+[m[32m        address: company.address,[m
+[32m+[m[32m        city: company.city,[m
+[32m+[m[32m        postalCode: company.postalCode[m
+[32m+[m[32m      },[m
+[32m+[m[32m      period: periodName,[m
+[32m+[m[32m      creationDate: new Date().toLocaleString('nl-NL'),[m
+[32m+[m[32m      journalEntries,[m
+[32m+[m[32m      totals: {[m
+[32m+[m[32m        debit: totalDebit,[m
+[32m+[m[32m        credit: totalCredit[m
+[32m+[m[32m      },[m
+[32m+[m[32m      payrollSummary: {[m
+[32m+[m[32m        numberOfEmployees: payrollRecords.length,[m
+[32m+[m[32m        grossWages: totals.grossWages,[m
+[32m+[m[32m        totalDeductions: totals.totalDeductions,[m
+[32m+[m[32m        netWages: totals.netWages,[m
+[32m+[m[32m        socialInsurance: {[m
+[32m+[m[32m          aow: totals.aowContribution,[m
+[32m+[m[32m          anw: totals.anwContribution,[m
+[32m+[m[32m          wlz: totals.wlzContribution,[m
+[32m+[m[32m          zvw: totals.zvwContribution[m
+[32m+[m[32m        }[m
+[32m+[m[32m      }[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    return NextResponse.json({[m
+[32m+[m[32m      success: true,[m
+[32m+[m[32m      data: loonJournalData[m
+[32m+[m[32m    })[m
+[32m+[m
+[32m+[m[32m  } catch (error) {[m
+[32m+[m[32m    console.error("Error generating Loon Journal:", error)[m
+[32m+[m[32m    return NextResponse.json({[m
+[32m+[m[32m      success: false,[m
+[32m+[m[32m      error: "Failed to generate Loon Journal"[m
+[32m+[m[32m    }, { status: 500 })[m
+[32m+[m[32m  }[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mexport async function POST(request: NextRequest) {[m
+[32m+[m[32m  try {[m
+[32m+[m[32m    const session = await getServerSession(authOptions)[m
+[32m+[m[41m    [m
+[32m+[m[32m    if (!session?.user?.companyId) {[m
+[32m+[m[32m      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    // Validate subscription[m
+[32m+[m[32m    const subscriptionValidation = await validateSubscription(session.user.companyId)[m
+[32m+[m[32m    if (!subscriptionValidation.isValid) {[m
+[32m+[m[32m      return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    const body = await request.json()[m
+[32m+[m[32m    const { year, month, format = 'json' } = body[m
+[32m+[m
+[32m+[m[32m    // Get the journal data[m
+[32m+[m[32m    const journalResponse = await GET(request)[m
+[32m+[m[32m    const journalData = await journalResponse.json()[m
+[32m+[m
+[32m+[m[32m    if (!journalData.success) {[m
+[32m+[m[32m      return journalData[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    if (format === 'pdf') {[m
+[32m+[m[32m      // TODO: Implement PDF generation[m
+[32m+[m[32m      return NextResponse.json({[m
+[32m+[m[32m        success: false,[m
+[32m+[m[32m        error: "PDF generation not yet implemented"[m
+[32m+[m[32m      }, { status: 501 })[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    return NextResponse.json(journalData)[m
+[32m+[m
+[32m+[m[32m  } catch (error) {[m
+[32m+[m[32m    console.error("Error processing Loon Journal request:", error)[m
+[32m+[m[32m    return NextResponse.json({[m
+[32m+[m[32m      success: false,[m
+[32m+[m[32m      error: "Failed to process request"[m
+[32m+[m[32m    }, { status: 500 })[m
+[32m+[m[32m  }[m
+[32m+[m[32m}[m
+[32m+[m
+[1mdiff --git a/src/app/api/reports/loonaangifte/route.ts b/src/app/api/reports/loonaangifte/route.ts[m
+[1mnew file mode 100644[m
+[1mindex 0000000..245e61b[m
+[1m--- /dev/null[m
+[1m+++ b/src/app/api/reports/loonaangifte/route.ts[m
+[36m@@ -0,0 +1,239 @@[m
+[32m+[m[32mimport { getServerSession } from "next-auth/next"[m
+[32m+[m[32mimport { authOptions } from "@/lib/auth"[m
+[32m+[m[32mimport { prisma } from "@/lib/prisma"[m
+[32m+[m[32mimport { validateSubscription } from "@/lib/subscription"[m
+[32m+[m[32mimport { NextRequest, NextResponse } from "next/server"[m
+[32m+[m
+[32m+[m[32mexport async function GET(request: NextRequest) {[m
+[32m+[m[32m  try {[m
+[32m+[m[32m    const session = await getServerSession(authOptions)[m
+[32m+[m[41m    [m
+[32m+[m[32m    if (!session?.user?.companyId) {[m
+[32m+[m[32m      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    // Validate subscription[m
+[32m+[m[32m    const subscriptionValidation = await validateSubscription(session.user.companyId)[m
+[32m+[m[32m    if (!subscriptionValidation.isValid) {[m
+[32m+[m[32m      return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    // Get query parameters[m
+[32m+[m[32m    const { searchParams } = new URL(request.url)[m
+[32m+[m[32m    const year = parseInt(searchParams.get('year') || new Date().getFullYear().toString())[m
+[32m+[m[32m    const month = parseInt(searchParams.get('month') || (new Date().getMonth() + 1).toString())[m
+[32m+[m
+[32m+[m[32m    // Validate month and year[m
+[32m+[m[32m    if (month < 1 || month > 12) {[m
+[32m+[m[32m      return NextResponse.json({ error: "Invalid month" }, { status: 400 })[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    // Get company information[m
+[32m+[m[32m    const company = await prisma.company.findUnique({[m
+[32m+[m[32m      where: { id: session.user.companyId },[m
+[32m+[m[32m      select: {[m
+[32m+[m[32m        name: true,[m
+[32m+[m[32m        address: true,[m
+[32m+[m[32m        city: true,[m
+[32m+[m[32m        postalCode: true,[m
+[32m+[m[32m        loonheffingsnummer: true,[m
+[32m+[m[32m        kvkNumber: true[m
+[32m+[m[32m      }[m
+[32m+[m[32m    })[m
+[32m+[m
+[32m+[m[32m    if (!company) {[m
+[32m+[m[32m      return NextResponse.json({ error: "Company not found" }, { status: 404 })[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    // Calculate date range for the specified month[m
+[32m+[m[32m    const startDate = new Date(year, month - 1, 1)[m
+[32m+[m[32m    const endDate = new Date(year, month, 0, 23, 59, 59)[m
+[32m+[m
+[32m+[m[32m    // Fetch payroll records for the period[m
+[32m+[m[32m    const payrollRecords = await prisma.payrollRecord.findMany({[m
+[32m+[m[32m      where: {[m
+[32m+[m[32m        companyId: session.user.companyId,[m
+[32m+[m[32m        payPeriodStart: {[m
+[32m+[m[32m          gte: startDate,[m
+[32m+[m[32m          lte: endDate[m
+[32m+[m[32m        }[m
+[32m+[m[32m      },[m
+[32m+[m[32m      include: {[m
+[32m+[m[32m        employee: {[m
+[32m+[m[32m          select: {[m
+[32m+[m[32m            id: true,[m
+[32m+[m[32m            firstName: true,[m
+[32m+[m[32m            lastName: true,[m
+[32m+[m[32m            isActive: true[m
+[32m+[m[32m          }[m
+[32m+[m[32m        }[m
+[32m+[m[32m      }[m
+[32m+[m[32m    })[m
+[32m+[m
+[32m+[m[32m    // Get employee counts[m
+[32m+[m[32m    const activeEmployees = await prisma.employee.count({[m
+[32m+[m[32m      where: {[m
+[32m+[m[32m        companyId: session.user.companyId,[m
+[32m+[m[32m        isActive: true[m
+[32m+[m[32m      }[m
+[32m+[m[32m    })[m
+[32m+[m
+[32m+[m[32m    // Calculate wage totals[m
+[32m+[m[32m    const wageTotals = payrollRecords.reduce((acc, record) => {[m
+[32m+[m[32m      // Wages subject to income tax and social insurance[m
+[32m+[m[32m      acc.loonLoonbelasting += record.grossPay || 0[m
+[32m+[m[41m      [m
+[32m+[m[32m      // Wages subject to employee insurance (WW, WIA, etc.)[m
+[32m+[m[32m      acc.loonWerknemersverzekeringen += record.grossPay || 0[m
+[32m+[m[41m      [m
+[32m+[m[32m      // Tax withholdings[m
+[32m+[m[32m      acc.ingehoudenloonbelasting += record.totalDeductions || 0[m
+[32m+[m[41m      [m
+[32m+[m[32m      // Social insurance contributions[m
+[32m+[m[32m      acc.aowContribution += record.aowContribution || 0[m
+[32m+[m[32m      acc.anwContribution += record.anwContribution || 0[m
+[32m+[m[32m      acc.wlzContribution += record.wlzContribution || 0[m
+[32m+[m[32m      acc.zvwContribution += (record.grossPay || 0) * 0.0565 // Calculate ZVW[m
+[32m+[m[41m      [m
+[32m+[m[32m      return acc[m
+[32m+[m[32m    }, {[m
+[32m+[m[32m      loonLoonbelasting: 0,[m
+[32m+[m[32m      loonWerknemersverzekeringen: 0,[m
+[32m+[m[32m      ingehoudenloonbelasting: 0,[m
+[32m+[m[32m      aowContribution: 0,[m
+[32m+[m[32m      anwContribution: 0,[m
+[32m+[m[32m      wlzContribution: 0,[m
+[32m+[m[32m      zvwContribution: 0[m
+[32m+[m[32m    })[m
+[32m+[m
+[32m+[m[32m    // Calculate payment deadline (28th of next month)[m
+[32m+[m[32m    const paymentDeadline = new Date(year, month, 28)[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Generate message reference (simplified version)[m
+[32m+[m[32m    const messageReference = `${company.loonheffingsnummer || 'UNKNOWN'}_${Date.now().toString().slice(-6)}`[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Generate payment reference (simplified version)[m
+[32m+[m[32m    const paymentReference = company.loonheffingsnummer[m[41m [m
+[32m+[m[32m      ? `${company.loonheffingsnummer.slice(0, 4)} ${company.loonheffingsnummer.slice(4, 8)} ${company.loonheffingsnummer.slice(8)} ${month.toString().padStart(2, '0')}${year.toString().slice(-2)}`[m
+[32m+[m[32m      : 'UNKNOWN'[m
+[32m+[m
+[32m+[m[32m    // Format period name[m
+[32m+[m[32m    const monthNames = [[m
+[32m+[m[32m      "Januari", "Februari", "Maart", "April", "Mei", "Juni",[m
+[32m+[m[32m      "Juli", "Augustus", "September", "Oktober", "November", "December"[m
+[32m+[m[32m    ][m
+[32m+[m[32m    const periodName = `${monthNames[month - 1]} ${year}`[m
+[32m+[m
+[32m+[m[32m    // Calculate total amount due[m
+[32m+[m[32m    const totalAmountDue = wageTotals.ingehoudenloonbelasting[m
+[32m+[m
+[32m+[m[32m    // Prepare response data[m
+[32m+[m[32m    const loonaangifteData = {[m
+[32m+[m[32m      company: {[m
+[32m+[m[32m        name: company.name,[m
+[32m+[m[32m        address: company.address,[m
+[32m+[m[32m        city: company.city,[m
+[32m+[m[32m        postalCode: company.postalCode,[m
+[32m+[m[32m        loonheffingsnummer: company.loonheffingsnummer || 'UNKNOWN'[m
+[32m+[m[32m      },[m
+[32m+[m[32m      period: periodName,[m
+[32m+[m[32m      messageReference,[m
+[32m+[m[32m      paymentReference,[m
+[32m+[m[32m      paymentDeadline: paymentDeadline.toLocaleDateString('nl-NL'),[m
+[32m+[m[32m      bankDetails: {[m
+[32m+[m[32m        account: "NL86INGB0002445588",[m
+[32m+[m[32m        bank: "ING"[m
+[32m+[m[32m      },[m
+[32m+[m[32m      wageInformation: {[m
+[32m+[m[32m        loonLoonbelasting: wageTotals.loonLoonbelasting,[m
+[32m+[m[32m        loonWerknemersverzekeringen: wageTotals.loonWerknemersverzekeringen[m
+[32m+[m[32m      },[m
+[32m+[m[32m      taxWithholdings: {[m
+[32m+[m[32m        ingehoudenloonbelasting: wageTotals.ingehoudenloonbelasting,[m
+[32m+[m[32m        total: wageTotals.ingehoudenloonbelasting[m
+[32m+[m[32m      },[m
+[32m+[m[32m      insurancePremiums: {[m
+[32m+[m[32m        gedifferentieerdePremieWhk: 0, // Simplified - would need sector-specific calculation[m
+[32m+[m[32m        total: 0[m
+[32m+[m[32m      },[m
+[32m+[m[32m      paymentSpecification: {[m
+[32m+[m[32m        saldoAangifte: totalAmountDue,[m
+[32m+[m[32m        total: totalAmountDue[m
+[32m+[m[32m      },[m
+[32m+[m[32m      keyFigures: {[m
+[32m+[m[32m        aantalWerknemersInitieel: activeEmployees,[m
+[32m+[m[32m        aantalWerknemersIntrekking: 0,[m
+[32m+[m[32m        aantalWerknemersCorrectie: 0[m
+[32m+[m[32m      },[m
+[32m+[m[32m      socialInsuranceBreakdown: {[m
+[32m+[m[32m        aow: wageTotals.aowContribution,[m
+[32m+[m[32m        anw: wageTotals.anwContribution,[m
+[32m+[m[32m        wlz: wageTotals.wlzContribution,[m
+[32m+[m[32m        zvw: wageTotals.zvwContribution[m
+[32m+[m[32m      },[m
+[32m+[m[32m      payrollSummary: {[m
+[32m+[m[32m        numberOfRecords: payrollRecords.length,[m
+[32m+[m[32m        totalGrossWages: wageTotals.loonLoonbelasting,[m
+[32m+[m[32m        totalDeductions: wageTotals.ingehoudenloonbelasting,[m
+[32m+[m[32m        netWages: wageTotals.loonLoonbelasting - wageTotals.ingehoudenloonbelasting[m
+[32m+[m[32m      }[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    return NextResponse.json({[m
+[32m+[m[32m      success: true,[m
+[32m+[m[32m      data: loonaangifteData[m
+[32m+[m[32m    })[m
+[32m+[m
+[32m+[m[32m  } catch (error) {[m
+[32m+[m[32m    console.error("Error generating Loonaangifte:", error)[m
+[32m+[m[32m    return NextResponse.json({[m
+[32m+[m[32m      success: false,[m
+[32m+[m[32m      error: "Failed to generate Loonaangifte"[m
+[32m+[m[32m    }, { status: 500 })[m
+[32m+[m[32m  }[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mexport async function POST(request: NextRequest) {[m
+[32m+[m[32m  try {[m
+[32m+[m[32m    const session = await getServerSession(authOptions)[m
+[32m+[m[41m    [m
+[32m+[m[32m    if (!session?.user?.companyId) {[m
+[32m+[m[32m      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    // Validate subscription[m
+[32m+[m[32m    const subscriptionValidation = await validateSubscription(session.user.companyId)[m
+[32m+[m[32m    if (!subscriptionValidation.isValid) {[m
+[32m+[m[32m      return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    const body = await request.json()[m
+[32m+[m[32m    const { year, month, format = 'json' } = body[m
+[32m+[m
+[32m+[m[32m    // Get the loonaangifte data[m
+[32m+[m[32m    const loonaangifteResponse = await GET(request)[m
+[32m+[m[32m    const loonaangifteData = await loonaangifteResponse.json()[m
+[32m+[m
+[32m+[m[32m    if (!loonaangifteData.success) {[m
+[32m+[m[32m      return loonaangifteData[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    if (format === 'pdf') {[m
+[32m+[m[32m      // TODO: Implement PDF generation[m
+[32m+[m[32m      return NextResponse.json({[m
+[32m+[m[32m        success: false,[m
+[32m+[m[32m        error: "PDF generation not yet implemented"[m
+[32m+[m[32m      }, { status: 501 })[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    return NextResponse.json(loonaangifteData)[m
+[32m+[m
+[32m+[m[32m  } catch (error) {[m
+[32m+[m[32m    console.error("Error processing Loonaangifte request:", error)[m
+[32m+[m[32m    return NextResponse.json({[m
+[32m+[m[32m      success: false,[m
+[32m+[m[32m      error: "Failed to process request"[m
+[32m+[m[32m    }, { status: 500 })[m
+[32m+[m[32m  }[m
+[32m+[m[32m}[m
+[32m+[m
+[1mdiff --git a/src/app/dashboard/reports/page.tsx b/src/app/dashboard/reports/page.tsx[m
+[1mindex 02a5322..0ea0693 100644[m
+[1m--- a/src/app/dashboard/reports/page.tsx[m
+[1m+++ b/src/app/dashboard/reports/page.tsx[m
+[36m@@ -382,6 +382,8 @@[m [mexport default function ReportsPage() {[m
+             {!selectedPeriodData && [[m
+               { id: 'payroll-history', label: 'Payroll History', icon: Calendar },[m
+               { id: 'tax-summary', label: 'Tax Summary', icon: Euro },[m
+[32m+[m[32m              { id: 'loon-journal', label: 'Loon Journal', icon: FileText },[m
+[32m+[m[32m              { id: 'loonaangifte', label: 'Loonaangifte', icon: Printer },[m
+               { id: 'analytics', label: 'Analytics', icon: TrendingUp }[m
+             ].map((tab) => ([m
+               <button[m
+[36m@@ -728,6 +730,14 @@[m [mexport default function ReportsPage() {[m
+           </div>[m
+         )}[m
+ [m
+[32m+[m[32m        {activeTab === 'loon-journal' && ([m
+[32m+[m[32m          <LoonJournalTab />[m
+[32m+[m[32m        )}[m
+[32m+[m
+[32m+[m[32m        {activeTab === 'loonaangifte' && ([m
+[32m+[m[32m          <LoonaangifteTab />[m
+[32m+[m[32m        )}[m
+[32m+[m
+         {activeTab === 'analytics' && ([m
+           <div className="space-y-6">[m
+             <h2 className="text-xl font-semibold text-gray-900">Payroll Analytics</h2>[m
+[36m@@ -762,3 +772,407 @@[m [mexport default function ReportsPage() {[m
+   )[m
+ }[m
+ [m
+[32m+[m[32m// Loon Journal Tab Component[m
+[32m+[m[32mfunction LoonJournalTab() {[m
+[32m+[m[32m  const { data: session } = useSession()[m
+[32m+[m[32m  const toast = useToast()[m
+[32m+[m[32m  const [loading, setLoading] = useState(false)[m
+[32m+[m[32m  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)[m
+[32m+[m[32m  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())[m
+[32m+[m[32m  const [journalData, setJournalData] = useState<any>(null)[m
+[32m+[m
+[32m+[m[32m  const generateLoonJournal = async () => {[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      setLoading(true)[m
+[32m+[m[32m      const response = await fetch(`/api/reports/loon-journal?month=${selectedMonth}&year=${selectedYear}`)[m
+[32m+[m[41m      [m
+[32m+[m[32m      if (response.ok) {[m
+[32m+[m[32m        const result = await response.json()[m
+[32m+[m[32m        if (result.success) {[m
+[32m+[m[32m          setJournalData(result.data)[m
+[32m+[m[32m          toast.success('Loon Journal generated successfully!', 'Journal entries are ready for review')[m
+[32m+[m[32m        } else {[m
+[32m+[m[32m          toast.error('Failed to generate Loon Journal', result.error || 'Unknown error occurred')[m
+[32m+[m[32m        }[m
+[32m+[m[32m      } else {[m
+[32m+[m[32m        toast.error('Failed to generate Loon Journal', 'Server error occurred')[m
+[32m+[m[32m      }[m
+[32m+[m[32m    } catch (error) {[m
+[32m+[m[32m      console.error('Error generating Loon Journal:', error)[m
+[32m+[m[32m      toast.error('Failed to generate Loon Journal', 'Network error occurred')[m
+[32m+[m[32m    } finally {[m
+[32m+[m[32m      setLoading(false)[m
+[32m+[m[32m    }[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  const downloadJournal = () => {[m
+[32m+[m[32m    if (!journalData) return[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Create downloadable content[m
+[32m+[m[32m    const content = `Journaalpost - ${journalData.period}\n\n` +[m
+[32m+[m[32m      `${journalData.company.name}\n` +[m
+[32m+[m[32m      `${journalData.company.address}\n` +[m
+[32m+[m[32m      `${journalData.company.postalCode} ${journalData.company.city}\n\n` +[m
+[32m+[m[32m      `Periode: ${journalData.period}\n` +[m
+[32m+[m[32m      `Aanmaakdatum: ${journalData.creationDate}\n\n` +[m
+[32m+[m[32m      `Grootboekrekening\t\tDebet\t\tCredit\n` +[m
+[32m+[m[32m      journalData.journalEntries.map((entry: any) =>[m[41m [m
+[32m+[m[32m        `${entry.accountCode} ${entry.accountName}\t\t${entry.debit.toFixed(2)}\t\t${entry.credit.toFixed(2)}`[m
+[32m+[m[32m      ).join('\n') +[m
+[32m+[m[32m      `\n\nTotaal\t\t${journalData.totals.debit.toFixed(2)}\t\t${journalData.totals.credit.toFixed(2)}`[m
+[32m+[m
+[32m+[m[32m    const blob = new Blob([content], { type: 'text/plain' })[m
+[32m+[m[32m    const url = URL.createObjectURL(blob)[m
+[32m+[m[32m    const a = document.createElement('a')[m
+[32m+[m[32m    a.href = url[m
+[32m+[m[32m    a.download = `loon-journal-${selectedMonth}-${selectedYear}.txt`[m
+[32m+[m[32m    document.body.appendChild(a)[m
+[32m+[m[32m    a.click()[m
+[32m+[m[32m    document.body.removeChild(a)[m
+[32m+[m[32m    URL.revokeObjectURL(url)[m
+[32m+[m[41m    [m
+[32m+[m[32m    toast.success('Download started', 'Loon Journal file has been downloaded')[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  return ([m
+[32m+[m[32m    <div className="space-y-6">[m
+[32m+[m[32m      <div className="flex justify-between items-center">[m
+[32m+[m[32m        <h2 className="text-xl font-semibold text-gray-900">Loon Journal</h2>[m
+[32m+[m[32m        <div className="flex items-center gap-4">[m
+[32m+[m[32m          <select[m
+[32m+[m[32m            value={selectedMonth}[m
+[32m+[m[32m            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}[m
+[32m+[m[32m            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"[m
+[32m+[m[32m          >[m
+[32m+[m[32m            {Array.from({ length: 12 }, (_, i) => ([m
+[32m+[m[32m              <option key={i + 1} value={i + 1}>[m
+[32m+[m[32m                {new Date(0, i).toLocaleString('nl-NL', { month: 'long' })}[m
+[32m+[m[32m              </option>[m
+[32m+[m[32m            ))}[m
+[32m+[m[32m          </select>[m
+[32m+[m[32m          <select[m
+[32m+[m[32m            value={selectedYear}[m
+[32m+[m[32m            onChange={(e) => setSelectedYear(parseInt(e.target.value))}[m
+[32m+[m[32m            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"[m
+[32m+[m[32m          >[m
+[32m+[m[32m            {Array.from({ length: 5 }, (_, i) => ([m
+[32m+[m[32m              <option key={i} value={new Date().getFullYear() - 2 + i}>[m
+[32m+[m[32m                {new Date().getFullYear() - 2 + i}[m
+[32m+[m[32m              </option>[m
+[32m+[m[32m            ))}[m
+[32m+[m[32m          </select>[m
+[32m+[m[32m          <Button onClick={generateLoonJournal} disabled={loading}>[m
+[32m+[m[32m            {loading ? 'Generating...' : 'Generate Journal'}[m
+[32m+[m[32m          </Button>[m
+[32m+[m[32m        </div>[m
+[32m+[m[32m      </div>[m
+[32m+[m
+[32m+[m[32m      {journalData && ([m
+[32m+[m[32m        <Card>[m
+[32m+[m[32m          <CardHeader>[m
+[32m+[m[32m            <div className="flex justify-between items-center">[m
+[32m+[m[32m              <div>[m
+[32m+[m[32m                <CardTitle>Journaalpost - {journalData.period}</CardTitle>[m
+[32m+[m[32m                <CardDescription>[m
+[32m+[m[32m                  Versie 1.1 • Aangemaakt: {journalData.creationDate}[m
+[32m+[m[32m                </CardDescription>[m
+[32m+[m[32m              </div>[m
+[32m+[m[32m              <Button onClick={downloadJournal} variant="outline">[m
+[32m+[m[32m                <Download className="w-4 h-4 mr-2" />[m
+[32m+[m[32m                Download[m
+[32m+[m[32m              </Button>[m
+[32m+[m[32m            </div>[m
+[32m+[m[32m          </CardHeader>[m
+[32m+[m[32m          <CardContent>[m
+[32m+[m[32m            <div className="space-y-4">[m
+[32m+[m[32m              <div className="bg-gray-50 p-4 rounded-lg">[m
+[32m+[m[32m                <h3 className="font-medium text-gray-900">{journalData.company.name}</h3>[m
+[32m+[m[32m                <p className="text-gray-600">{journalData.company.address}</p>[m
+[32m+[m[32m                <p className="text-gray-600">{journalData.company.postalCode} {journalData.company.city}</p>[m
+[32m+[m[32m              </div>[m
+[32m+[m
+[32m+[m[32m              <div className="overflow-x-auto">[m
+[32m+[m[32m                <table className="w-full border-collapse border border-gray-300">[m
+[32m+[m[32m                  <thead>[m
+[32m+[m[32m                    <tr className="bg-gray-50">[m
+[32m+[m[32m                      <th className="border border-gray-300 px-4 py-2 text-left">Grootboekrekening</th>[m
+[32m+[m[32m                      <th className="border border-gray-300 px-4 py-2 text-right">Debet</th>[m
+[32m+[m[32m                      <th className="border border-gray-300 px-4 py-2 text-right">Credit</th>[m
+[32m+[m[32m                    </tr>[m
+[32m+[m[32m                  </thead>[m
+[32m+[m[32m                  <tbody>[m
+[32m+[m[32m                    {journalData.journalEntries.map((entry: any, index: number) => ([m
+[32m+[m[32m                      <tr key={index}>[m
+[32m+[m[32m                        <td className="border border-gray-300 px-4 py-2">[m
+[32m+[m[32m                          {entry.accountCode} {entry.accountName}[m
+[32m+[m[32m                        </td>[m
+[32m+[m[32m                        <td className="border border-gray-300 px-4 py-2 text-right">[m
+[32m+[m[32m                          {entry.debit > 0 ? `€ ${entry.debit.toFixed(2)}` : ''}[m
+[32m+[m[32m                        </td>[m
+[32m+[m[32m                        <td className="border border-gray-300 px-4 py-2 text-right">[m
+[32m+[m[32m                          {entry.credit > 0 ? `€ ${entry.credit.toFixed(2)}` : ''}[m
+[32m+[m[32m                        </td>[m
+[32m+[m[32m                      </tr>[m
+[32m+[m[32m                    ))}[m
+[32m+[m[32m                    <tr className="bg-gray-50 font-medium">[m
+[32m+[m[32m                      <td className="border border-gray-300 px-4 py-2">Totaal</td>[m
+[32m+[m[32m                      <td className="border border-gray-300 px-4 py-2 text-right">[m
+[32m+[m[32m                        € {journalData.totals.debit.toFixed(2)}[m
+[32m+[m[32m                      </td>[m
+[32m+[m[32m                      <td className="border border-gray-300 px-4 py-2 text-right">[m
+[32m+[m[32m                        € {journalData.totals.credit.toFixed(2)}[m
+[32m+[m[32m                      </td>[m
+[32m+[m[32m                    </tr>[m
+[32m+[m[32m                  </tbody>[m
+[32m+[m[32m                </table>[m
+[32m+[m[32m              </div>[m
+[32m+[m[32m            </div>[m
+[32m+[m[32m          </CardContent>[m
+[32m+[m[32m        </Card>[m
+[32m+[m[32m      )}[m
+[32m+[m
+[32m+[m[32m      {!journalData && ([m
+[32m+[m[32m        <Card>[m
+[32m+[m[32m          <CardContent className="flex items-center justify-center py-12">[m
+[32m+[m[32m            <div className="text-center">[m
+[32m+[m[32m              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />[m
+[32m+[m[32m              <p className="text-gray-500">Select a period and click "Generate Journal" to create the Loon Journal</p>[m
+[32m+[m[32m            </div>[m
+[32m+[m[32m          </CardContent>[m
+[32m+[m[32m        </Card>[m
+[32m+[m[32m      )}[m
+[32m+[m[32m    </div>[m
+[32m+[m[32m  )[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m// Loonaangifte Tab Component[m
+[32m+[m[32mfunction LoonaangifteTab() {[m
+[32m+[m[32m  const { data: session } = useSession()[m
+[32m+[m[32m  const toast = useToast()[m
+[32m+[m[32m  const [loading, setLoading] = useState(false)[m
+[32m+[m[32m  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)[m
+[32m+[m[32m  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())[m
+[32m+[m[32m  const [loonaangifteData, setLoonaangifteData] = useState<any>(null)[m
+[32m+[m
+[32m+[m[32m  const generateLoonaangifte = async () => {[m
+[32m+[m[32m    try {[m
+[32m+[m[32m      setLoading(true)[m
+[32m+[m[32m      const response = await fetch(`/api/reports/loonaangifte?month=${selectedMonth}&year=${selectedYear}`)[m
+[32m+[m[41m      [m
+[32m+[m[32m      if (response.ok) {[m
+[32m+[m[32m        const result = await response.json()[m
+[32m+[m[32m        if (result.success) {[m
+[32m+[m[32m          setLoonaangifteData(result.data)[m
+[32m+[m[32m          toast.success('Loonaangifte generated successfully!', 'Declaration is ready for review')[m
+[32m+[m[32m        } else {[m
+[32m+[m[32m          toast.error('Failed to generate Loonaangifte', result.error || 'Unknown error occurred')[m
+[32m+[m[32m        }[m
+[32m+[m[32m      } else {[m
+[32m+[m[32m        toast.error('Failed to generate Loonaangifte', 'Server error occurred')[m
+[32m+[m[32m      }[m
+[32m+[m[32m    } catch (error) {[m
+[32m+[m[32m      console.error('Error generating Loonaangifte:', error)[m
+[32m+[m[32m      toast.error('Failed to generate Loonaangifte', 'Network error occurred')[m
+[32m+[m[32m    } finally {[m
+[32m+[m[32m      setLoading(false)[m
+[32m+[m[32m    }[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  const downloadLoonaangifte = () => {[m
+[32m+[m[32m    if (!loonaangifteData) return[m
+[32m+[m[41m    [m
+[32m+[m[32m    // Create downloadable content[m
+[32m+[m[32m    const content = `Loonaangifte\n\n` +[m
+[32m+[m[32m      `${loonaangifteData.company.name}\n` +[m
+[32m+[m[32m      `${loonaangifteData.company.address}\n` +[m
+[32m+[m[32m      `${loonaangifteData.company.postalCode} ${loonaangifteData.company.city}\n\n` +[m
+[32m+[m[32m      `Loonheffingennummer: ${loonaangifteData.company.loonheffingsnummer}\n` +[m
+[32m+[m[32m      `Periode: ${loonaangifteData.period}\n` +[m
+[32m+[m[32m      `Berichtkenmerk: ${loonaangifteData.messageReference}\n` +[m
+[32m+[m[32m      `Betalingskenmerk: ${loonaangifteData.paymentReference}\n` +[m
+[32m+[m[32m      `Uiterste betaaldatum: ${loonaangifteData.paymentDeadline}\n\n` +[m
+[32m+[m[32m      `Loon:\n` +[m
+[32m+[m[32m      `Loon loonbelasting/premie volksverzekeringen: € ${loonaangifteData.wageInformation.loonLoonbelasting.toFixed(2)}\n` +[m
+[32m+[m[32m      `Loon werknemersverzekeringen: € ${loonaangifteData.wageInformation.loonWerknemersverzekeringen.toFixed(2)}\n\n` +[m
+[32m+[m[32m      `Loonbelasting/premie volksverzekeringen:\n` +[m
+[32m+[m[32m      `Ingehouden loonbelasting/premie volksverzekeringen: € ${loonaangifteData.taxWithholdings.ingehoudenloonbelasting.toFixed(2)}\n` +[m
+[32m+[m[32m      `Totaal: € ${loonaangifteData.taxWithholdings.total.toFixed(2)}\n\n` +[m
+[32m+[m[32m      `Betaalspecificatie:\n` +[m
+[32m+[m[32m      `Saldo aangifte: € ${loonaangifteData.paymentSpecification.saldoAangifte.toFixed(2)}\n` +[m
+[32m+[m[32m      `Totaal: € ${loonaangifteData.paymentSpecification.total.toFixed(2)}\n\n` +[m
+[32m+[m[32m      `Kengetallen:\n` +[m
+[32m+[m[32m      `Aantal werknemers initieel: ${loonaangifteData.keyFigures.aantalWerknemersInitieel}\n` +[m
+[32m+[m[32m      `Aantal werknemers intrekking: ${loonaangifteData.keyFigures.aantalWerknemersIntrekking}\n` +[m
+[32m+[m[32m      `Aantal werknemers correctie: ${loonaangifteData.keyFigures.aantalWerknemersCorrectie}`[m
+[32m+[m
+[32m+[m[32m    const blob = new Blob([content], { type: 'text/plain' })[m
+[32m+[m[32m    const url = URL.createObjectURL(blob)[m
+[32m+[m[32m    const a = document.createElement('a')[m
+[32m+[m[32m    a.href = url[m
+[32m+[m[32m    a.download = `loonaangifte-${selectedMonth}-${selectedYear}.txt`[m
+[32m+[m[32m    document.body.appendChild(a)[m
+[32m+[m[32m    a.click()[m
+[32m+[m[32m    document.body.removeChild(a)[m
+[32m+[m[32m    URL.revokeObjectURL(url)[m
+[32m+[m[41m    [m
+[32m+[m[32m    toast.success('Download started', 'Loonaangifte file has been downloaded')[m
+[32m+[m[32m  }[m
+[32m+[m
+[32m+[m[32m  return ([m
+[32m+[m[32m    <div className="space-y-6">[m
+[32m+[m[32m      <div className="flex justify-between items-center">[m
+[32m+[m[32m        <h2 className="text-xl font-semibold text-gray-900">Loonaangifte</h2>[m
+[32m+[m[32m        <div className="flex items-center gap-4">[m
+[32m+[m[32m          <select[m
+[32m+[m[32m            value={selectedMonth}[m
+[32m+[m[32m            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}[m
+[32m+[m[32m            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"[m
+[32m+[m[32m          >[m
+[32m+[m[32m            {Array.from({ length: 12 }, (_, i) => ([m
+[32m+[m[32m              <option key={i + 1} value={i + 1}>[m
+[32m+[m[32m                {new Date(0, i).toLocaleString('nl-NL', { month: 'long' })}[m
+[32m+[m[32m              </option>[m
+[32m+[m[32m            ))}[m
+[32m+[m[32m          </select>[m
+[32m+[m[32m          <select[m
+[32m+[m[32m            value={selectedYear}[m
+[32m+[m[32m            onChange={(e) => setSelectedYear(parseInt(e.target.value))}[m
+[32m+[m[32m            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"[m
+[32m+[m[32m          >[m
+[32m+[m[32m            {Array.from({ length: 5 }, (_, i) => ([m
+[32m+[m[32m              <option key={i} value={new Date().getFullYear() - 2 + i}>[m
+[32m+[m[32m                {new Date().getFullYear() - 2 + i}[m
+[32m+[m[32m              </option>[m
+[32m+[m[32m            ))}[m
+[32m+[m[32m          </select>[m
+[32m+[m[32m          <Button onClick={generateLoonaangifte} disabled={loading}>[m
+[32m+[m[32m            {loading ? 'Generating...' : 'Generate Declaration'}[m
+[32m+[m[32m          </Button>[m
+[32m+[m[32m        </div>[m
+[32m+[m[32m      </div>[m
+[32m+[m
+[32m+[m[32m      {loonaangifteData && ([m
+[32m+[m[32m        <Card>[m
+[32m+[m[32m          <CardHeader>[m
+[32m+[m[32m            <div className="flex justify-between items-center">[m
+[32m+[m[32m              <div>[m
+[32m+[m[32m                <CardTitle>Loonaangifte - {loonaangifteData.period}</CardTitle>[m
+[32m+[m[32m                <CardDescription>[m
+[32m+[m[32m                  Loonheffingennummer: {loonaangifteData.company.loonheffingsnummer}[m
+[32m+[m[32m                </CardDescription>[m
+[32m+[m[32m              </div>[m
+[32m+[m[32m              <Button onClick={downloadLoonaangifte} variant="outline">[m
+[32m+[m[32m                <Download className="w-4 h-4 mr-2" />[m
+[32m+[m[32m                Download[m
+[32m+[m[32m              </Button>[m
+[32m+[m[32m            </div>[m
+[32m+[m[32m          </CardHeader>[m
+[32m+[m[32m          <CardContent>[m
+[32m+[m[32m            <div className="space-y-6">[m
+[32m+[m[32m              <div className="bg-gray-50 p-4 rounded-lg">[m
+[32m+[m[32m                <h3 className="font-medium text-gray-900">{loonaangifteData.company.name}</h3>[m
+[32m+[m[32m                <p className="text-gray-600">{loonaangifteData.company.address}</p>[m
+[32m+[m[32m                <p className="text-gray-600">{loonaangifteData.company.postalCode} {loonaangifteData.company.city}</p>[m
+[32m+[m[32m                <div className="mt-2 space-y-1">[m
+[32m+[m[32m                  <p className="text-sm text-gray-600">Berichtkenmerk: {loonaangifteData.messageReference}</p>[m
+[32m+[m[32m                  <p className="text-sm text-gray-600">Betalingskenmerk: {loonaangifteData.paymentReference}</p>[m
+[32m+[m[32m                  <p className="text-sm text-gray-600">Uiterste betaaldatum: {loonaangifteData.paymentDeadline}</p>[m
+[32m+[m[32m                </div>[m
+[32m+[m[32m              </div>[m
+[32m+[m
+[32m+[m[32m              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">[m
+[32m+[m[32m                <Card>[m
+[32m+[m[32m                  <CardHeader>[m
+[32m+[m[32m                    <CardTitle className="text-lg">Loon</CardTitle>[m
+[32m+[m[32m                  </CardHeader>[m
+[32m+[m[32m                  <CardContent>[m
+[32m+[m[32m                    <div className="space-y-2">[m
+[32m+[m[32m                      <div className="flex justify-between">[m
+[32m+[m[32m                        <span className="text-gray-600">Loon loonbelasting/premie volksverzekeringen</span>[m
+[32m+[m[32m                        <span className="font-medium">€ {loonaangifteData.wageInformation.loonLoonbelasting.toFixed(2)}</span>[m
+[32m+[m[32m                      </div>[m
+[32m+[m[32m                      <div className="flex justify-between">[m
+[32m+[m[32m                        <span className="text-gray-600">Loon werknemersverzekeringen</span>[m
+[32m+[m[32m                        <span className="font-medium">€ {loonaangifteData.wageInformation.loonWerknemersverzekeringen.toFixed(2)}</span>[m
+[32m+[m[32m                      </div>[m
+[32m+[m[32m                    </div>[m
+[32m+[m[32m                  </CardContent>[m
+[32m+[m[32m                </Card>[m
+[32m+[m
+[32m+[m[32m                <Card>[m
+[32m+[m[32m                  <CardHeader>[m
+[32m+[m[32m                    <CardTitle className="text-lg">Loonbelasting/premie volksverzekeringen</CardTitle>[m
+[32m+[m[32m                  </CardHeader>[m
+[32m+[m[32m                  <CardContent>[m
+[32m+[m[32m                    <div className="space-y-2">[m
+[32m+[m[32m                      <div className="flex justify-between">[m
+[32m+[m[32m                        <span className="text-gray-600">Ingehouden loonbelasting/premie</span>[m
+[32m+[m[32m                        <span className="font-medium">€ {loonaangifteData.taxWithholdings.ingehoudenloonbelasting.toFixed(2)}</span>[m
+[32m+[m[32m                      </div>[m
+[32m+[m[32m                      <div className="flex justify-between border-t pt-2">[m
+[32m+[m[32m                        <span className="font-medium">Totaal</span>[m
+[32m+[m[32m                        <span className="font-medium">€ {loonaangifteData.taxWithholdings.total.toFixed(2)}</span>[m
+[32m+[m[32m                      </div>[m
+[32m+[m[32m                    </div>[m
+[32m+[m[32m                  </CardContent>[m
+[32m+[m[32m                </Card>[m
+[32m+[m
+[32m+[m[32m                <Card>[m
+[32m+[m[32m                  <CardHeader>[m
+[32m+[m[32m                    <CardTitle className="text-lg">Betaalspecificatie</CardTitle>[m
+[32m+[m[32m                  </CardHeader>[m
+[32m+[m[32m                  <CardContent>[m
+[32m+[m[32m                    <div className="space-y-2">[m
+[32m+[m[32m                      <div className="flex justify-between">[m
+[32m+[m[32m                        <span className="text-gray-600">Saldo aangifte</span>[m
+[32m+[m[32m                        <span className="font-medium">€ {loonaangifteData.paymentSpecification.saldoAangifte.toFixed(2)}</span>[m
+[32m+[m[32m                      </div>[m
+[32m+[m[32m                      <div className="flex justify-between border-t pt-2">[m
+[32m+[m[32m                        <span className="font-medium">Totaal</span>[m
+[32m+[m[32m                        <span className="font-medium">€ {loonaangifteData.paymentSpecification.total.toFixed(2)}</span>[m
+[32m+[m[32m                      </div>[m
+[32m+[m[32m                    </div>[m
+[32m+[m[32m                  </CardContent>[m
+[32m+[m[32m                </Card>[m
+[32m+[m
+[32m+[m[32m                <Card>[m
+[32m+[m[32m                  <CardHeader>[m
+[32m+[m[32m                    <CardTitle className="text-lg">Kengetallen</CardTitle>[m
+[32m+[m[32m                  </CardHeader>[m
+[32m+[m[32m                  <CardContent>[m
+[32m+[m[32m                    <div className="space-y-2">[m
+[32m+[m[32m                      <div className="flex justify-between">[m
+[32m+[m[32m                        <span className="text-gray-600">Aantal werknemers initieel</span>[m
+[32m+[m[32m                        <span className="font-medium">{loonaangifteData.keyFigures.aantalWerknemersInitieel}</span>[m
+[32m+[m[32m                      </div>[m
+[32m+[m[32m                      <div className="flex justify-between">[m
+[32m+[m[32m                        <span className="text-gray-600">Aantal werknemers intrekking</span>[m
+[32m+[m[32m                        <span className="font-medium">{loonaangifteData.keyFigures.aantalWerknemersIntrekking}</span>[m
+[32m+[m[32m                      </div>[m
+[32m+[m[32m                      <div className="flex justify-between">[m
+[32m+[m[32m                        <span className="text-gray-600">Aantal werknemers correctie</span>[m
+[32m+[m[32m                        <span className="font-medium">{loonaangifteData.keyFigures.aantalWerknemersCorrectie}</span>[m
+[32m+[m[32m                      </div>[m
+[32m+[m[32m                    </div>[m
+[32m+[m[32m                  </CardContent>[m
+[32m+[m[32m                </Card>[m
+[32m+[m[32m              </div>[m
+[32m+[m[32m            </div>[m
+[32m+[m[32m          </CardContent>[m
+[32m+[m[32m        </Card>[m
+[32m+[m[32m      )}[m
+[32m+[m
+[32m+[m[32m      {!loonaangifteData && ([m
+[32m+[m[32m        <Card>[m
+[32m+[m[32m          <CardContent className="flex items-center justify-center py-12">[m
+[32m+[m[32m            <div className="text-center">[m
+[32m+[m[32m              <Printer className="h-12 w-12 text-gray-400 mx-auto mb-4" />[m
+[32m+[m[32m              <p className="text-gray-500">Select a period and click "Generate Declaration" to create the Loonaangifte</p>[m
+[32m+[m[32m            </div>[m
+[32m+[m[32m          </CardContent>[m
+[32m+[m[32m        </Card>[m
+[32m+[m[32m      )}[m
+[32m+[m[32m    </div>[m
+[32m+[m[32m  )[m
+[32m+[m[32m}[m
+[32m+[m
