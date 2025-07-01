@@ -25,7 +25,6 @@ interface TaxSettings {
   id: string
   taxYear: number
   aowRate: number
-  anwRate: number
   wlzRate: number
   zvwRate: number
   aowMaxBase: number
@@ -40,7 +39,6 @@ interface TaxSettings {
 interface TaxSettingsForm {
   taxYear: number
   aowRate: number
-  anwRate: number
   wlzRate: number
   zvwRate: number
   aowMaxBase: number
@@ -61,7 +59,6 @@ export default function TaxSettingsPage() {
   const [formData, setFormData] = useState<TaxSettingsForm>({
     taxYear: new Date().getFullYear(),
     aowRate: 17.90,
-    anwRate: 0.10,
     wlzRate: 9.65,
     zvwRate: 5.65,
     aowMaxBase: 40000,
@@ -200,7 +197,6 @@ export default function TaxSettingsPage() {
     setFormData({
       taxYear: settings.taxYear,
       aowRate: settings.aowRate,
-      anwRate: settings.anwRate,
       wlzRate: settings.wlzRate,
       zvwRate: settings.zvwRate,
       aowMaxBase: settings.aowMaxBase,
@@ -284,10 +280,6 @@ export default function TaxSettingsPage() {
                     <div>
                       <p className="text-sm font-medium text-green-800">AOW (Pension)</p>
                       <p className="text-lg font-bold text-green-900">{formatPercentage(activeSetting.aowRate)}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-green-800">ANW (Surviving)</p>
-                      <p className="text-lg font-bold text-green-900">{formatPercentage(activeSetting.anwRate)}</p>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-green-800">WLZ (Long-term Care)</p>
