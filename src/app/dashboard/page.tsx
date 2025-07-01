@@ -130,7 +130,7 @@ export default function Dashboard() {
       title: "Process Payroll",
       description: "Calculate monthly payroll",
       icon: Calculator,
-      href: "/dashboard/payroll",
+      href: "/payroll",
       color: "bg-green-500"
     },
     {
