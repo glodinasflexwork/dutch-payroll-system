@@ -323,7 +323,8 @@ function calculateHolidayAllowance(annualSalary: number, taxBrackets: typeof TAX
 }
 
 /**
- * Main payroll calculation function
+ * Main payroll calculation function - Updated for Dutch Standards
+ * Only calculates social insurance contributions, NOT income tax
  */
 export function calculateDutchPayroll(
   employeeData: EmployeeData,
@@ -332,53 +333,57 @@ export function calculateDutchPayroll(
   const annualSalary = employeeData.grossMonthlySalary * 12;
   const taxBrackets = getTaxBrackets(employeeData.dateOfBirth);
   
-  // Calculate progressive tax
-  const { totalTax: incomeTaxBeforeCredits, breakdown: taxBracketBreakdown } = 
-    calculateProgressiveTax(annualSalary, taxBrackets);
+  // NOTE: Income tax is NOT calculated in monthly payroll - handled annually by bookkeeping
+  const incomeTaxBeforeCredits = 0;
+  const incomeTaxAfterCredits = 0;
   
-  // Calculate tax credits
+  // Calculate tax credits (for reference/annual use only)
   const generalTaxCredit = calculateGeneralTaxCredit(annualSalary);
   const employedPersonTaxCredit = calculateEmployedPersonTaxCredit(annualSalary);
   const youngDisabledTaxCredit = employeeData.isYoungDisabled ? TAX_CREDITS_2025.youngDisabled : 0;
   const totalTaxCredits = generalTaxCredit + employedPersonTaxCredit + youngDisabledTaxCredit + employeeData.taxCredit;
   
-  // Final income tax after credits
-  const incomeTaxAfterCredits = Math.max(0, incomeTaxBeforeCredits - totalTaxCredits);
-  
-  // National insurance contributions (already included in tax calculation above)
+  // ONLY Social Insurance Contributions (what should be in "Loonheffing")
   const age = calculateAge(employeeData.dateOfBirth);
   const aowContribution = age < 67 ? annualSalary * INSURANCE_RATES_2025.national.aow : 0;
   const anwContribution = annualSalary * INSURANCE_RATES_2025.national.anw;
   const wlzContribution = annualSalary * INSURANCE_RATES_2025.national.wlz;
   
-  // Employee insurance contributions (typically paid by employer, but some may be split)
-  const wwContribution = 0; // Typically fully employer-paid
-  const wiaContribution = 0; // Typically fully employer-paid
+  // ZVW Health Care Contribution (income-dependent)
+  const zvwContribution = annualSalary * 0.0565; // 5.65% for 2025
   
-  // Total deductions from employee salary
-  const totalTaxAndInsurance = incomeTaxAfterCredits;
+  // Employee insurance contributions (typically paid by employer)
+  const wwContribution = 0; // Employer-paid
+  const wiaContribution = 0; // Employer-paid
   
-  // Net salary calculations
-  const netAnnualSalary = annualSalary - totalTaxAndInsurance;
+  // Total "Loonheffing" = ONLY social insurance contributions (NO income tax)
+  const totalLoonheffing = aowContribution + anwContribution + wlzContribution + zvwContribution;
+  
+  // Net salary calculations (much higher without income tax)
+  const netAnnualSalary = annualSalary - totalLoonheffing;
   const netMonthlySalary = netAnnualSalary / 12;
   
   // Employer contributions
   const employerContributions = calculateEmployerContributions(annualSalary, companyData);
   
-  // Holiday allowance
-  const holidayAllowance = calculateHolidayAllowance(annualSalary, taxBrackets);
+  // Holiday allowance (simplified - no tax deduction)
+  const holidayAllowanceGross = annualSalary * 0.0833; // 8.33%
+  const holidayAllowanceNet = holidayAllowanceGross; // No tax deduction in monthly payroll
+  
+  // Create tax bracket breakdown for reference (not used in monthly calculation)
+  const { breakdown: taxBracketBreakdown } = calculateProgressiveTax(annualSalary, taxBrackets);
   
   return {
     grossAnnualSalary: annualSalary,
     grossMonthlySalary: employeeData.grossMonthlySalary,
     
     taxableIncome: annualSalary,
-    incomeTaxBeforeCredits,
+    incomeTaxBeforeCredits: 0, // Not calculated in monthly payroll
     generalTaxCredit,
     employedPersonTaxCredit,
     youngDisabledTaxCredit,
     totalTaxCredits,
-    incomeTaxAfterCredits,
+    incomeTaxAfterCredits: 0, // Not calculated in monthly payroll
     
     aowContribution,
     anwContribution,
@@ -387,7 +392,7 @@ export function calculateDutchPayroll(
     wwContribution,
     wiaContribution,
     
-    totalTaxAndInsurance,
+    totalTaxAndInsurance: totalLoonheffing, // Only social insurance, no income tax
     netMonthlySalary,
     netAnnualSalary,
     
@@ -397,8 +402,8 @@ export function calculateDutchPayroll(
     employerUFOPremium: employerContributions.ufoPremium,
     totalEmployerCosts: employerContributions.totalEmployerCosts,
     
-    holidayAllowanceGross: holidayAllowance.gross,
-    holidayAllowanceNet: holidayAllowance.net,
+    holidayAllowanceGross,
+    holidayAllowanceNet,
     
     taxBracketBreakdown
   };
