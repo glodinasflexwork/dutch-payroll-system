@@ -46,12 +46,14 @@ interface EmployeeReport {
 export default function ReportsPage() {
   const { data: session } = useSession()
   const toast = useToast()
-  const [activeTab, setActiveTab] = useState('employee-reports')
+  const [activeTab, setActiveTab] = useState('payroll-history')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedPeriod, setSelectedPeriod] = useState('all')
   const [loading, setLoading] = useState(false)
   const [employees, setEmployees] = useState<EmployeeReport[]>([])
   const [payrollHistory, setPayrollHistory] = useState<PayrollRecord[]>([])
+  const [selectedPeriodData, setSelectedPeriodData] = useState<PayrollRecord | null>(null)
+  const [periodEmployees, setPeriodEmployees] = useState<any[]>([])
 
   useEffect(() => {
     if (session?.user?.companyId) {
@@ -151,6 +153,53 @@ export default function ReportsPage() {
     } catch (error) {
       console.error("Error fetching payroll history:", error)
       setPayrollHistory([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchPeriodEmployees = async (periodId: string) => {
+    try {
+      setLoading(true)
+      // Find the period data
+      const period = payrollHistory.find(p => p.id === periodId)
+      if (!period) return
+
+      // Fetch payroll records for this specific period
+      const response = await fetch("/api/payroll")
+      if (response.ok) {
+        const result = await response.json()
+        const payrollRecords = result.payrollRecords || []
+        
+        // Filter records for this specific period
+        const periodRecords = payrollRecords.filter((record: any) => {
+          const recordDate = new Date(record.payPeriodStart)
+          const recordPeriod = `${recordDate.toLocaleString('default', { month: 'long' })} ${recordDate.getFullYear()}`
+          return recordPeriod === period.period
+        })
+
+        // Transform to employee format with payroll data
+        const employeesWithPayroll = periodRecords.map((record: any) => ({
+          id: record.employee.id,
+          name: `${record.employee.firstName} ${record.employee.lastName}`,
+          employeeNumber: record.employee.employeeNumber,
+          department: record.employee.department || 'N/A',
+          position: record.employee.position || 'N/A',
+          grossPay: record.grossPay || 0,
+          netPay: record.netPay || 0,
+          taxDeductions: record.totalDeductions || 0,
+          payrollRecordId: record.id,
+          payPeriodStart: record.payPeriodStart,
+          payPeriodEnd: record.payPeriodEnd
+        }))
+
+        setPeriodEmployees(employeesWithPayroll)
+        setSelectedPeriodData(period)
+        setActiveTab('period-employees')
+      }
+    } catch (error) {
+      console.error("Error fetching period employees:", error)
+      toast.error('Error loading employees', 'Failed to load employee data for this period')
     } finally {
       setLoading(false)
     }
@@ -281,7 +330,19 @@ export default function ReportsPage() {
         {/* Tab Navigation */}
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
-            {[
+            {selectedPeriodData && (
+              <button
+                onClick={() => {
+                  setSelectedPeriodData(null)
+                  setPeriodEmployees([])
+                  setActiveTab('payroll-history')
+                }}
+                className="flex items-center py-2 px-1 text-blue-600 hover:text-blue-800"
+              >
+                ← Back to Payroll History
+              </button>
+            )}
+            {!selectedPeriodData && [
               { id: 'payroll-history', label: 'Payroll History', icon: Calendar },
               { id: 'employee-reports', label: 'Employee Reports', icon: Users },
               { id: 'tax-summary', label: 'Tax Summary', icon: Euro },
@@ -372,7 +433,7 @@ export default function ReportsPage() {
                         <p className="font-semibold">{formatCurrency(record.totalTax)}</p>
                       </div>
                       <div className="flex justify-end space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => handleExportPDF('Payroll Report', record.id)}>
+                        <Button variant="outline" size="sm" onClick={() => fetchPeriodEmployees(record.id)}>
                           <Eye className="w-4 h-4 mr-1" />
                           View
                         </Button>
@@ -385,6 +446,113 @@ export default function ReportsPage() {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'period-employees' && selectedPeriodData && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {selectedPeriodData.period} - Employee Payroll Details
+                </h2>
+                <p className="text-gray-600 mt-1">
+                  {selectedPeriodData.employeeCount} employees • Processed {formatDate(selectedPeriodData.processedAt)}
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => handleExportPDF('Period Report', selectedPeriodData.id)}
+                  disabled={loading}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export Period
+                </Button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg border">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Employee
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Department
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Gross Pay
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Tax Deductions
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Net Pay
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {periodEmployees.map((employee) => (
+                      <tr key={employee.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                            <div className="text-sm text-gray-500">#{employee.employeeNumber}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <Badge variant="outline">{employee.department}</Badge>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          {formatCurrency(employee.grossPay)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {formatCurrency(employee.taxDeductions)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
+                          {formatCurrency(employee.netPay)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleGeneratePayslip(employee.id)}
+                              disabled={loading}
+                            >
+                              <FileText className="w-4 h-4 mr-1" />
+                              View Payslip
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleGeneratePayslip(employee.id)}
+                              disabled={loading}
+                            >
+                              <Printer className="w-4 h-4 mr-1" />
+                              Print
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              {periodEmployees.length === 0 && (
+                <div className="text-center py-8">
+                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No employees found for this period.</p>
+                </div>
+              )}
             </div>
           </div>
         )}
