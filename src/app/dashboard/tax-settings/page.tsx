@@ -24,17 +24,12 @@ import {
 interface TaxSettings {
   id: string
   taxYear: number
-  incomeTaxRate1: number
-  incomeTaxRate2: number
-  incomeTaxBracket1Max: number
   aowRate: number
+  anwRate: number
   wlzRate: number
-  wwRate: number
-  wiaRate: number
+  zvwRate: number
   aowMaxBase: number
   wlzMaxBase: number
-  wwMaxBase: number
-  wiaMaxBase: number
   holidayAllowanceRate: number
   minimumWage: number
   isActive: boolean
@@ -44,17 +39,12 @@ interface TaxSettings {
 
 interface TaxSettingsForm {
   taxYear: number
-  incomeTaxRate1: number
-  incomeTaxRate2: number
-  incomeTaxBracket1Max: number
   aowRate: number
+  anwRate: number
   wlzRate: number
-  wwRate: number
-  wiaRate: number
+  zvwRate: number
   aowMaxBase: number
   wlzMaxBase: number
-  wwMaxBase: number
-  wiaMaxBase: number
   holidayAllowanceRate: number
   minimumWage: number
   isActive: boolean
@@ -70,17 +60,12 @@ export default function TaxSettingsPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formData, setFormData] = useState<TaxSettingsForm>({
     taxYear: new Date().getFullYear(),
-    incomeTaxRate1: 36.93,
-    incomeTaxRate2: 49.50,
-    incomeTaxBracket1Max: 75518,
     aowRate: 17.90,
+    anwRate: 0.10,
     wlzRate: 9.65,
-    wwRate: 2.94,
-    wiaRate: 0.58,
+    zvwRate: 5.65,
     aowMaxBase: 40000,
     wlzMaxBase: 40000,
-    wwMaxBase: 70000,
-    wiaMaxBase: 70000,
     holidayAllowanceRate: 8.0,
     minimumWage: 1995,
     isActive: true
@@ -214,17 +199,12 @@ export default function TaxSettingsPage() {
   const startEdit = (settings: TaxSettings) => {
     setFormData({
       taxYear: settings.taxYear,
-      incomeTaxRate1: settings.incomeTaxRate1,
-      incomeTaxRate2: settings.incomeTaxRate2,
-      incomeTaxBracket1Max: settings.incomeTaxBracket1Max,
       aowRate: settings.aowRate,
+      anwRate: settings.anwRate,
       wlzRate: settings.wlzRate,
-      wwRate: settings.wwRate,
-      wiaRate: settings.wiaRate,
+      zvwRate: settings.zvwRate,
       aowMaxBase: settings.aowMaxBase,
       wlzMaxBase: settings.wlzMaxBase,
-      wwMaxBase: settings.wwMaxBase,
-      wiaMaxBase: settings.wiaMaxBase,
       holidayAllowanceRate: settings.holidayAllowanceRate,
       minimumWage: settings.minimumWage,
       isActive: settings.isActive
@@ -302,18 +282,20 @@ export default function TaxSettingsPage() {
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                      <p className="text-sm font-medium text-green-800">Income Tax</p>
-                      <p className="text-lg font-bold text-green-900">
-                        {formatPercentage(activeSetting.incomeTaxRate1)} / {formatPercentage(activeSetting.incomeTaxRate2)}
-                      </p>
-                    </div>
-                    <div>
                       <p className="text-sm font-medium text-green-800">AOW (Pension)</p>
                       <p className="text-lg font-bold text-green-900">{formatPercentage(activeSetting.aowRate)}</p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-green-800">WLZ (Healthcare)</p>
+                      <p className="text-sm font-medium text-green-800">ANW (Surviving)</p>
+                      <p className="text-lg font-bold text-green-900">{formatPercentage(activeSetting.anwRate)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-green-800">WLZ (Long-term Care)</p>
                       <p className="text-lg font-bold text-green-900">{formatPercentage(activeSetting.wlzRate)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-green-800">ZVW (Health Insurance)</p>
+                      <p className="text-lg font-bold text-green-900">{formatPercentage(activeSetting.zvwRate)}</p>
                     </div>
                     <div>
                       <p className="text-sm font-medium text-green-800">Holiday Allowance</p>
