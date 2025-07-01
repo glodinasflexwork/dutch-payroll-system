@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
+import { calculateDutchPayroll, type EmployeeData, type CompanyData } from "@/lib/payroll-calculations"
 
 // Validation schema for payslip generation
 const payslipSchema = z.object({
@@ -61,62 +62,42 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Company not found" }, { status: 404 })
     }
 
-    // Get tax settings
-    const taxSettings = await prisma.taxSettings.findFirst({
-      where: {
-        companyId: session.user.companyId,
-        taxYear: validatedData.year,
-        isActive: true
-      }
-    })
-
-    if (!taxSettings) {
-      return NextResponse.json({ error: "Tax settings not found" }, { status: 404 })
+    // Use the correct Dutch payroll calculation library
+    const employeeData: EmployeeData = {
+      grossMonthlySalary: employee.salary,
+      dateOfBirth: new Date(employee.dateOfBirth),
+      isDGA: employee.isDGA || false,
+      taxTable: employee.taxTable as 'wit' | 'groen',
+      taxCredit: 0, // Standard credit handled in calculation
+      isYoungDisabled: false,
+      hasMultipleJobs: false
     }
 
-    // Calculate payroll for this employee (similar to bulk calculation)
-    let regularPay = 0
-    let hoursWorked = 0
-
-    if (employee.employmentType === "monthly") {
-      regularPay = employee.salary
-      hoursWorked = 160 // Standard monthly hours
-    } else {
-      hoursWorked = 160
-      regularPay = hoursWorked * employee.salary
+    const companyData: CompanyData = {
+      size: 'medium', // Default
+      sector: 'general',
+      awfRate: 'low',
+      aofRate: 'low'
     }
 
-    // Calculate holiday allowance
-    const holidayAllowance = (employee.salary * (taxSettings.holidayAllowanceRate / 100)) / 12
-    const grossPay = regularPay + holidayAllowance
+    // Calculate using the corrected Dutch payroll library
+    const payrollResult = calculateDutchPayroll(employeeData, companyData)
 
-    // Calculate Dutch taxes
-    const { incomeTaxRate1, incomeTaxRate2, incomeTaxBracket1Max, aowRate, wlzRate, wwRate, wiaRate } = taxSettings
+    // Extract the correct values (no income tax, only social insurance)
+    const grossPay = payrollResult.grossMonthlySalary
+    const holidayAllowance = payrollResult.holidayAllowanceGross / 12 // Monthly portion
+    
+    // Loonheffing = only social insurance contributions (AOW + ANW + WLZ + ZVW)
+    const loonheffing = payrollResult.totalTaxAndInsurance / 12 // Monthly portion
+    const netPay = payrollResult.netMonthlySalary
 
-    // Income tax calculation
-    let incomeTax = 0
-    if (grossPay <= incomeTaxBracket1Max) {
-      incomeTax = grossPay * (incomeTaxRate1 / 100)
-    } else {
-      incomeTax = incomeTaxBracket1Max * (incomeTaxRate1 / 100) + 
-                  (grossPay - incomeTaxBracket1Max) * (incomeTaxRate2 / 100)
-    }
+    // Individual components for display (monthly amounts)
+    const aowContribution = payrollResult.aowContribution / 12
+    const anwContribution = payrollResult.anwContribution / 12
+    const wlzContribution = payrollResult.wlzContribution / 12
+    const zvwContribution = (payrollResult.grossAnnualSalary * 0.0565) / 12 // ZVW health care
 
-    // Apply tax table adjustment
-    if (employee.taxTable === "groen") {
-      incomeTax = Math.max(0, incomeTax - 3070) // Standard tax credit for 2025
-    }
-
-    // Social security contributions
-    const aowContribution = Math.min(grossPay, taxSettings.aowMaxBase) * (aowRate / 100)
-    const wlzContribution = Math.min(grossPay, taxSettings.wlzMaxBase) * (wlzRate / 100)
-    const wwContribution = Math.min(grossPay, taxSettings.wwMaxBase) * (wwRate / 100)
-    const wiaContribution = Math.min(grossPay, taxSettings.wiaMaxBase) * (wiaRate / 100)
-
-    const totalDeductions = incomeTax + aowContribution + wlzContribution + wwContribution + wiaContribution
-    const netPay = grossPay - totalDeductions
-
-    // Create payslip data
+    // Create payslip data with corrected amounts
     const payslipData = {
       company: {
         name: company.name,
@@ -143,27 +124,35 @@ export async function GET(request: NextRequest) {
         monthName: new Date(validatedData.year, validatedData.month - 1).toLocaleDateString('nl-NL', { month: 'long' })
       },
       earnings: {
-        baseSalary: Math.round(regularPay * 100) / 100,
+        baseSalary: Math.round(grossPay * 100) / 100,
         holidayAllowance: Math.round(holidayAllowance * 100) / 100,
         grossPay: Math.round(grossPay * 100) / 100,
-        hoursWorked
+        hoursWorked: 160 // Standard monthly hours
       },
       deductions: {
-        incomeTax: Math.round(incomeTax * 100) / 100,
+        // NO income tax in monthly payroll - handled annually
+        incomeTax: 0,
         aowContribution: Math.round(aowContribution * 100) / 100,
+        anwContribution: Math.round(anwContribution * 100) / 100,
         wlzContribution: Math.round(wlzContribution * 100) / 100,
-        wwContribution: Math.round(wwContribution * 100) / 100,
-        wiaContribution: Math.round(wiaContribution * 100) / 100,
-        totalDeductions: Math.round(totalDeductions * 100) / 100
+        zvwContribution: Math.round(zvwContribution * 100) / 100,
+        // WW and WIA are employer-paid, not employee deductions
+        wwContribution: 0,
+        wiaContribution: 0,
+        totalDeductions: Math.round(loonheffing * 100) / 100
       },
       netPay: Math.round(netPay * 100) / 100,
       taxRates: {
-        incomeTaxRate1,
-        incomeTaxRate2,
-        aowRate,
-        wlzRate,
-        wwRate,
-        wiaRate
+        // Rates for reference only
+        aowRate: 17.90,
+        anwRate: 0.10,
+        wlzRate: 9.65,
+        zvwRate: 5.65,
+        // Income tax not calculated monthly
+        incomeTaxRate1: 0,
+        incomeTaxRate2: 0,
+        wwRate: 0, // Employer-paid
+        wiaRate: 0 // Employer-paid
       },
       generatedAt: new Date().toISOString()
     }
@@ -225,62 +214,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Company not found" }, { status: 404 })
     }
 
-    // Get tax settings
-    const taxSettings = await prisma.taxSettings.findFirst({
-      where: {
-        companyId: session.user.companyId,
-        taxYear: validatedData.year,
-        isActive: true
-      }
-    })
-
-    if (!taxSettings) {
-      return NextResponse.json({ error: "Tax settings not found" }, { status: 404 })
+    // Use the correct Dutch payroll calculation library
+    const employeeData: EmployeeData = {
+      grossMonthlySalary: employee.salary,
+      dateOfBirth: new Date(employee.dateOfBirth),
+      isDGA: employee.isDGA || false,
+      taxTable: employee.taxTable as 'wit' | 'groen',
+      taxCredit: 0, // Standard credit handled in calculation
+      isYoungDisabled: false,
+      hasMultipleJobs: false
     }
 
-    // Calculate payroll for this employee (similar to bulk calculation)
-    let regularPay = 0
-    let hoursWorked = 0
-
-    if (employee.employmentType === "monthly") {
-      regularPay = employee.salary
-      hoursWorked = 160 // Standard monthly hours
-    } else {
-      hoursWorked = 160
-      regularPay = hoursWorked * employee.salary
+    const companyData: CompanyData = {
+      size: 'medium', // Default
+      sector: 'general',
+      awfRate: 'low',
+      aofRate: 'low'
     }
 
-    // Calculate holiday allowance
-    const holidayAllowance = (employee.salary * (taxSettings.holidayAllowanceRate / 100)) / 12
-    const grossPay = regularPay + holidayAllowance
+    // Calculate using the corrected Dutch payroll library
+    const payrollResult = calculateDutchPayroll(employeeData, companyData)
 
-    // Calculate Dutch taxes
-    const { incomeTaxRate1, incomeTaxRate2, incomeTaxBracket1Max, aowRate, wlzRate, wwRate, wiaRate } = taxSettings
+    // Extract the correct values (no income tax, only social insurance)
+    const grossPay = payrollResult.grossMonthlySalary
+    const holidayAllowance = payrollResult.holidayAllowanceGross / 12 // Monthly portion
+    
+    // Loonheffing = only social insurance contributions (AOW + ANW + WLZ + ZVW)
+    const loonheffing = payrollResult.totalTaxAndInsurance / 12 // Monthly portion
+    const netPay = payrollResult.netMonthlySalary
 
-    // Income tax calculation
-    let incomeTax = 0
-    if (grossPay <= incomeTaxBracket1Max) {
-      incomeTax = grossPay * (incomeTaxRate1 / 100)
-    } else {
-      incomeTax = incomeTaxBracket1Max * (incomeTaxRate1 / 100) + 
-                  (grossPay - incomeTaxBracket1Max) * (incomeTaxRate2 / 100)
-    }
+    // Individual components for display (monthly amounts)
+    const aowContribution = payrollResult.aowContribution / 12
+    const anwContribution = payrollResult.anwContribution / 12
+    const wlzContribution = payrollResult.wlzContribution / 12
+    const zvwContribution = (payrollResult.grossAnnualSalary * 0.0565) / 12 // ZVW health care
 
-    // Apply tax table adjustment
-    if (employee.taxTable === "groen") {
-      incomeTax = Math.max(0, incomeTax - 3070) // Standard tax credit for 2025
-    }
-
-    // Social security contributions
-    const aowContribution = Math.min(grossPay, taxSettings.aowMaxBase) * (aowRate / 100)
-    const wlzContribution = Math.min(grossPay, taxSettings.wlzMaxBase) * (wlzRate / 100)
-    const wwContribution = Math.min(grossPay, taxSettings.wwMaxBase) * (wwRate / 100)
-    const wiaContribution = Math.min(grossPay, taxSettings.wiaMaxBase) * (wiaRate / 100)
-
-    const totalDeductions = incomeTax + aowContribution + wlzContribution + wwContribution + wiaContribution
-    const netPay = grossPay - totalDeductions
-
-    // Create payslip data
+    // Create payslip data with corrected amounts
     const payslip = {
       company: {
         name: company.name,
@@ -307,28 +276,36 @@ export async function POST(request: NextRequest) {
         monthName: new Date(validatedData.year, validatedData.month - 1).toLocaleDateString('nl-NL', { month: 'long' })
       },
       earnings: {
-        baseSalary: Math.round(regularPay * 100) / 100,
+        baseSalary: Math.round(grossPay * 100) / 100,
         holidayAllowance: Math.round(holidayAllowance * 100) / 100,
         grossPay: Math.round(grossPay * 100) / 100,
-        hoursWorked
+        hoursWorked: 160 // Standard monthly hours
       },
       deductions: {
-        incomeTax: Math.round(incomeTax * 100) / 100,
+        // NO income tax in monthly payroll - handled annually
+        incomeTax: 0,
         aowContribution: Math.round(aowContribution * 100) / 100,
+        anwContribution: Math.round(anwContribution * 100) / 100,
         wlzContribution: Math.round(wlzContribution * 100) / 100,
-        wwContribution: Math.round(wwContribution * 100) / 100,
-        wiaContribution: Math.round(wiaContribution * 100) / 100,
-        totalDeductions: Math.round(totalDeductions * 100) / 100
+        zvwContribution: Math.round(zvwContribution * 100) / 100,
+        // WW and WIA are employer-paid, not employee deductions
+        wwContribution: 0,
+        wiaContribution: 0,
+        totalDeductions: Math.round(loonheffing * 100) / 100
       },
       netPay: Math.round(netPay * 100) / 100,
       taxRates: {
-        incomeTaxRate1,
-        incomeTaxRate2,
-        aowRate,
-        wlzRate,
-        wwRate,
-        wiaRate,
-        holidayAllowanceRate: taxSettings.holidayAllowanceRate
+        // Rates for reference only
+        aowRate: 17.90,
+        anwRate: 0.10,
+        wlzRate: 9.65,
+        zvwRate: 5.65,
+        // Income tax not calculated monthly
+        incomeTaxRate1: 0,
+        incomeTaxRate2: 0,
+        wwRate: 0, // Employer-paid
+        wiaRate: 0, // Employer-paid
+        holidayAllowanceRate: 8.33
       },
       generatedAt: new Date().toISOString()
     }
@@ -518,7 +495,7 @@ function generatePayslipHTML(payslip: any): string {
             <div class="section">
                 <div class="info-grid">
                     <div>
-                        <div class="section-title">Werkgever</div>
+                        <h3 class="section-title">Werkgever</h3>
                         <div class="info-item">
                             <span class="info-label">Bedrijfsnaam:</span>
                             <span class="info-value">${payslip.company.name}</span>
@@ -533,7 +510,7 @@ function generatePayslipHTML(payslip: any): string {
                         </div>
                     </div>
                     <div>
-                        <div class="section-title">Werknemer</div>
+                        <h3 class="section-title">Werknemer</h3>
                         <div class="info-item">
                             <span class="info-label">Naam:</span>
                             <span class="info-value">${payslip.employee.firstName} ${payslip.employee.lastName}</span>
@@ -564,7 +541,7 @@ function generatePayslipHTML(payslip: any): string {
 
             <!-- Earnings -->
             <div class="section">
-                <div class="section-title">Inkomsten</div>
+                <h3 class="section-title">Inkomsten</h3>
                 <table class="earnings-table">
                     <thead>
                         <tr>
@@ -580,7 +557,7 @@ function generatePayslipHTML(payslip: any): string {
                             <td class="amount positive">${formatCurrency(payslip.earnings.baseSalary)}</td>
                         </tr>
                         <tr>
-                            <td>Vakantiegeld (${payslip.taxRates.holidayAllowanceRate || 8}%)</td>
+                            <td>Vakantiegeld (8%)</td>
                             <td>-</td>
                             <td class="amount positive">${formatCurrency(payslip.earnings.holidayAllowance)}</td>
                         </tr>
@@ -595,7 +572,7 @@ function generatePayslipHTML(payslip: any): string {
 
             <!-- Deductions -->
             <div class="section">
-                <div class="section-title">Inhoudingen</div>
+                <h3 class="section-title">Inhoudingen</h3>
                 <table class="deductions-table">
                     <thead>
                         <tr>
@@ -606,26 +583,30 @@ function generatePayslipHTML(payslip: any): string {
                     <tbody>
                         <tr>
                             <td>Loonheffing</td>
-                            <td class="amount negative">-${formatCurrency(payslip.deductions.totalDeductions)}</td>
+                            <td class="amount negative">${formatCurrency(payslip.deductions.totalDeductions)}</td>
                         </tr>
                     </tbody>
                 </table>
+                <p style="font-size: 12px; color: #6b7280; margin-top: 10px;">
+                    <em>Loonheffing bevat: AOW (${payslip.taxRates.aowRate}%), ANW (${payslip.taxRates.anwRate}%), WLZ (${payslip.taxRates.wlzRate}%), ZVW (${payslip.taxRates.zvwRate}%)</em><br>
+                    <em>Inkomstenbelasting wordt jaarlijks afgerekend door de boekhouding</em>
+                </p>
             </div>
 
             <!-- Net Pay -->
             <div class="net-pay">
                 <h3>NETTO UITBETALING</h3>
-                <div class="amount">${formatCurrency(payslip.netPay)}</div>
+                <p class="amount">${formatCurrency(payslip.netPay)}</p>
             </div>
         </div>
-
+        
         <div class="footer">
-            <p>Deze loonstrook is gegenereerd op ${formatDate(payslip.generatedAt)}</p>
-            <p>Voor vragen over uw salaris kunt u contact opnemen met de HR-afdeling</p>
+            <p>Dit document is automatisch gegenereerd door SalarySync op ${formatDate(payslip.generatedAt)}</p>
+            <p>Voor vragen over deze loonstrook kunt u contact opnemen met de HR-afdeling</p>
         </div>
     </div>
 </body>
 </html>
-  `.trim()
+`
 }
 
