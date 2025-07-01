@@ -310,6 +310,8 @@ export async function POST(request: NextRequest) {
                 totalDeductions: payrollResult.totalTaxAndInsurance / 12, // Annual to monthly
                 netPay: payrollResult.netMonthlySalary, // Already monthly
                 employerCosts: payrollResult.totalEmployerCosts / 12, // Annual to monthly
+                taxTable: employee.taxTable || 'wit', // Add the missing taxTable field
+                taxYear: new Date(payPeriodStart).getFullYear(), // Add taxYear field
                 processedDate: new Date()
               }
             })
