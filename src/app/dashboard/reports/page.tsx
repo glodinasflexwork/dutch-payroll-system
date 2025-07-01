@@ -52,15 +52,56 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(false)
   const [employees, setEmployees] = useState<EmployeeReport[]>([])
   const [payrollHistory, setPayrollHistory] = useState<PayrollRecord[]>([])
-  const [selectedPeriodData, setSelectedPeriodData] = useState<PayrollRecord | null>(null)
+  const [selectedPeriodData, setSelectedPeriodData] = useState<any>(null)
   const [periodEmployees, setPeriodEmployees] = useState<any[]>([])
+  const [taxSummaryData, setTaxSummaryData] = useState<any>(null)
 
-  useEffect(() => {
+   useEffect(() => {
     if (session?.user?.companyId) {
       fetchEmployees()
       fetchPayrollHistory()
+      fetchTaxSummary()
     }
-  }, [session])
+  }, [session?.user?.companyId])
+
+  const fetchTaxSummary = async () => {
+    try {
+      const response = await fetch('/api/payroll')
+      if (response.ok) {
+        const payrollRecords = await response.json()
+        
+        // Calculate totals from all payroll records
+        const totals = payrollRecords.reduce((acc: any, record: any) => {
+          acc.totalGross += record.grossPay || 0
+          acc.aowContribution += record.aowContribution || 0
+          acc.anwContribution += record.anwContribution || 0
+          acc.wlzContribution += record.wlzContribution || 0
+          acc.totalLoonheffing += record.totalDeductions || 0
+          acc.totalNet += record.netPay || 0
+          acc.recordCount += 1
+          return acc
+        }, {
+          totalGross: 0,
+          aowContribution: 0,
+          anwContribution: 0,
+          wlzContribution: 0,
+          totalLoonheffing: 0,
+          totalNet: 0,
+          recordCount: 0
+        })
+
+        // Calculate ZVW (5.65% of gross)
+        const zvwContribution = totals.totalGross * 0.0565
+
+        setTaxSummaryData({
+          ...totals,
+          zvwContribution
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching tax summary:', error)
+    }
+  }
 
   const fetchEmployees = async () => {
     try {
@@ -339,7 +380,6 @@ export default function ReportsPage() {
             )}
             {!selectedPeriodData && [
               { id: 'payroll-history', label: 'Payroll History', icon: Calendar },
-              { id: 'employee-reports', label: 'Employee Reports', icon: Users },
               { id: 'tax-summary', label: 'Tax Summary', icon: Euro },
               { id: 'analytics', label: 'Analytics', icon: TrendingUp }
             ].map((tab) => (
@@ -552,156 +592,138 @@ export default function ReportsPage() {
           </div>
         )}
 
-        {activeTab === 'employee-reports' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-gray-900">Employee Reports</h2>
-            <div className="bg-white rounded-lg border">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Employee
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Department
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Gross Pay
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Deductions
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Net Pay
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {employees.map((employee) => (
-                      <tr key={employee.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{employee.name}</div>
-                            <div className="text-sm text-gray-500">{employee.position}</div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge variant="outline">{employee.department}</Badge>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          {formatCurrency(employee.grossPay)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatCurrency(employee.taxDeductions + employee.socialSecurity)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                          {formatCurrency(employee.netPay)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex space-x-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleGeneratePayslip(employee.id)}
-                              disabled={loading}
-                            >
-                              <FileText className="w-4 h-4 mr-1" />
-                              Payslip
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleExportPDF('Employee Report', employee.id)}
-                              disabled={loading}
-                            >
-                              <Printer className="w-4 h-4 mr-1" />
-                              Print
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
         {activeTab === 'tax-summary' && (
           <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-gray-900">Tax Summary</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">Income Tax</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-gray-900">€14,500</div>
-                  <p className="text-sm text-gray-600 mt-1">36.93% & 49.50% brackets</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">AOW (Pension)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-gray-900">€4,000</div>
-                  <p className="text-sm text-gray-600 mt-1">Old-age pension</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">WLZ (Healthcare)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-gray-900">€1,050</div>
-                  <p className="text-sm text-gray-600 mt-1">Long-term care</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-600">Total Deductions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-red-600">€21,050</div>
-                  <p className="text-sm text-gray-600 mt-1">All tax components</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Tax Breakdown by Component</CardTitle>
-                <CardDescription>Detailed view of all tax deductions</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {[
-                    { name: 'Income Tax', amount: 14500, percentage: 68.9 },
-                    { name: 'AOW (Pension)', amount: 4000, percentage: 19.0 },
-                    { name: 'WLZ (Healthcare)', amount: 1050, percentage: 5.0 },
-                    { name: 'WW (Unemployment)', amount: 850, percentage: 4.0 },
-                    { name: 'WIA (Disability)', amount: 650, percentage: 3.1 }
-                  ].map((item) => (
-                    <div key={item.name} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                        <span className="font-medium">{item.name}</span>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <span className="text-sm text-gray-600">{item.percentage}%</span>
-                        <span className="font-semibold">{formatCurrency(item.amount)}</span>
-                      </div>
-                    </div>
-                  ))}
+            <h2 className="text-xl font-semibold text-gray-900">Loonheffing Summary</h2>
+            <p className="text-sm text-gray-600">Real data from processed payroll records (excludes income tax - handled annually)</p>
+            
+            {taxSummaryData ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-600">AOW (Pension)</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-gray-900">{formatCurrency(taxSummaryData.aowContribution)}</div>
+                      <p className="text-sm text-gray-600 mt-1">17.90% - Old-age pension</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-600">ANW (Surviving)</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-gray-900">{formatCurrency(taxSummaryData.anwContribution)}</div>
+                      <p className="text-sm text-gray-600 mt-1">0.10% - Surviving dependants</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-600">WLZ (Healthcare)</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-gray-900">{formatCurrency(taxSummaryData.wlzContribution)}</div>
+                      <p className="text-sm text-gray-600 mt-1">9.65% - Long-term care</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-600">Total Loonheffing</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-blue-600">{formatCurrency(taxSummaryData.totalLoonheffing)}</div>
+                      <p className="text-sm text-gray-600 mt-1">All social contributions</p>
+                    </CardContent>
+                  </Card>
                 </div>
-              </CardContent>
-            </Card>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Loonheffing Breakdown</CardTitle>
+                      <CardDescription>Components of monthly payroll deductions</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {[
+                          { 
+                            name: 'AOW (Old Age Pension)', 
+                            amount: taxSummaryData.aowContribution, 
+                            percentage: ((taxSummaryData.aowContribution / taxSummaryData.totalLoonheffing) * 100).toFixed(1),
+                            color: 'bg-blue-500'
+                          },
+                          { 
+                            name: 'ANW (Surviving Dependants)', 
+                            amount: taxSummaryData.anwContribution, 
+                            percentage: ((taxSummaryData.anwContribution / taxSummaryData.totalLoonheffing) * 100).toFixed(1),
+                            color: 'bg-green-500'
+                          },
+                          { 
+                            name: 'WLZ (Long-term Care)', 
+                            amount: taxSummaryData.wlzContribution, 
+                            percentage: ((taxSummaryData.wlzContribution / taxSummaryData.totalLoonheffing) * 100).toFixed(1),
+                            color: 'bg-purple-500'
+                          },
+                          { 
+                            name: 'ZVW (Health Insurance)', 
+                            amount: taxSummaryData.zvwContribution, 
+                            percentage: ((taxSummaryData.zvwContribution / taxSummaryData.totalLoonheffing) * 100).toFixed(1),
+                            color: 'bg-orange-500'
+                          }
+                        ].map((item) => (
+                          <div key={item.name} className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-3 h-3 ${item.color} rounded-full`}></div>
+                              <span className="font-medium">{item.name}</span>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                              <span className="text-sm text-gray-600">{item.percentage}%</span>
+                              <span className="font-semibold">{formatCurrency(item.amount)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Payroll Overview</CardTitle>
+                      <CardDescription>Summary from {taxSummaryData.recordCount} processed payroll records</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Total Gross Pay</span>
+                          <span className="font-semibold">{formatCurrency(taxSummaryData.totalGross)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Total Loonheffing</span>
+                          <span className="font-semibold text-red-600">-{formatCurrency(taxSummaryData.totalLoonheffing)}</span>
+                        </div>
+                        <div className="border-t pt-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-900 font-medium">Total Net Pay</span>
+                            <span className="font-bold text-green-600">{formatCurrency(taxSummaryData.totalNet)}</span>
+                          </div>
+                        </div>
+                        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                          <p className="text-sm text-blue-800">
+                            <strong>Note:</strong> Income tax is not included in monthly payroll calculations. 
+                            It is handled annually by bookkeeping software according to Dutch standards.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No payroll data available. Process payroll to see tax summary.</p>
+              </div>
+            )}
           </div>
         )}
 
