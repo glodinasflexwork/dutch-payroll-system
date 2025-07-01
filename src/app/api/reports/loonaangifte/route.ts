@@ -91,8 +91,9 @@ export async function GET(request: NextRequest) {
       
       // Social insurance contributions
       acc.aowContribution += record.aowContribution || 0
-      acc.anwContribution += record.anwContribution || 0
       acc.wlzContribution += record.wlzContribution || 0
+      acc.wwContribution += record.wwContribution || 0
+      acc.wiaContribution += record.wiaContribution || 0
       acc.zvwContribution += (record.grossPay || 0) * 0.0565 // Calculate ZVW
       
       return acc
@@ -101,8 +102,9 @@ export async function GET(request: NextRequest) {
       loonWerknemersverzekeringen: 0,
       ingehoudenloonbelasting: 0,
       aowContribution: 0,
-      anwContribution: 0,
       wlzContribution: 0,
+      wwContribution: 0,
+      wiaContribution: 0,
       zvwContribution: 0
     })
 
@@ -167,8 +169,9 @@ export async function GET(request: NextRequest) {
       },
       socialInsuranceBreakdown: {
         aow: wageTotals.aowContribution,
-        anw: wageTotals.anwContribution,
         wlz: wageTotals.wlzContribution,
+        ww: wageTotals.wwContribution,
+        wia: wageTotals.wiaContribution,
         zvw: wageTotals.zvwContribution
       },
       payrollSummary: {

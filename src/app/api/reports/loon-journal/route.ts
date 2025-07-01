@@ -73,17 +73,19 @@ export async function GET(request: NextRequest) {
       acc.totalDeductions += record.totalDeductions || 0
       acc.netWages += record.netPay || 0
       acc.aowContribution += record.aowContribution || 0
-      acc.anwContribution += record.anwContribution || 0
       acc.wlzContribution += record.wlzContribution || 0
-      acc.zvwContribution += (record.grossPay || 0) * 0.0565 // Calculate ZVW
+      acc.wwContribution += record.wwContribution || 0
+      acc.wiaContribution += record.wiaContribution || 0
+      acc.zvwContribution += (record.grossPay || 0) * 0.0565 // Calculate ZVW (not stored in DB)
       return acc
     }, {
       grossWages: 0,
       totalDeductions: 0,
       netWages: 0,
       aowContribution: 0,
-      anwContribution: 0,
       wlzContribution: 0,
+      wwContribution: 0,
+      wiaContribution: 0,
       zvwContribution: 0
     })
 
@@ -142,8 +144,9 @@ export async function GET(request: NextRequest) {
         netWages: totals.netWages,
         socialInsurance: {
           aow: totals.aowContribution,
-          anw: totals.anwContribution,
           wlz: totals.wlzContribution,
+          ww: totals.wwContribution,
+          wia: totals.wiaContribution,
           zvw: totals.zvwContribution
         }
       }
