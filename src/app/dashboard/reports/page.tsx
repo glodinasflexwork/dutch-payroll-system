@@ -89,23 +89,68 @@ export default function ReportsPage() {
 
   const fetchPayrollHistory = async () => {
     try {
-      // For now, use mock data for payroll history
-      // This would typically fetch from a payroll records API
-      const mockHistory: PayrollRecord[] = [
-        {
-          id: '1',
-          period: 'juni 2025',
-          employeeCount: employees.length,
-          totalGross: employees.reduce((sum, emp) => sum + emp.grossPay, 0),
-          totalNet: employees.reduce((sum, emp) => sum + emp.netPay, 0),
-          totalTax: employees.reduce((sum, emp) => sum + emp.taxDeductions + emp.socialSecurity, 0),
-          status: 'completed',
-          processedAt: new Date().toISOString()
-        }
-      ]
-      setPayrollHistory(mockHistory)
+      setLoading(true)
+      // Fetch actual payroll records from the API
+      const response = await fetch("/api/payroll")
+      if (response.ok) {
+        const result = await response.json()
+        const payrollRecords = result.payrollRecords || []
+        
+        // Group payroll records by month/year to create period summaries
+        const periodMap = new Map<string, {
+          records: any[],
+          totalGross: number,
+          totalNet: number,
+          totalTax: number,
+          employeeCount: number,
+          processedAt: string
+        }>()
+        
+        payrollRecords.forEach((record: any) => {
+          const date = new Date(record.payPeriodStart)
+          const periodKey = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`
+          
+          if (!periodMap.has(periodKey)) {
+            periodMap.set(periodKey, {
+              records: [],
+              totalGross: 0,
+              totalNet: 0,
+              totalTax: 0,
+              employeeCount: 0,
+              processedAt: record.processedDate
+            })
+          }
+          
+          const period = periodMap.get(periodKey)!
+          period.records.push(record)
+          period.totalGross += record.grossPay || 0
+          period.totalNet += record.netPay || 0
+          period.totalTax += record.totalDeductions || 0
+          period.employeeCount = period.records.length
+        })
+        
+        // Convert map to array of PayrollRecord objects
+        const historyData: PayrollRecord[] = Array.from(periodMap.entries()).map(([period, data]) => ({
+          id: period.replace(' ', '-').toLowerCase(),
+          period,
+          employeeCount: data.employeeCount,
+          totalGross: data.totalGross,
+          totalNet: data.totalNet,
+          totalTax: data.totalTax,
+          status: 'completed' as const,
+          processedAt: data.processedAt
+        }))
+        
+        setPayrollHistory(historyData)
+      } else {
+        console.error("Failed to fetch payroll records")
+        setPayrollHistory([])
+      }
     } catch (error) {
       console.error("Error fetching payroll history:", error)
+      setPayrollHistory([])
+    } finally {
+      setLoading(false)
     }
   }
 

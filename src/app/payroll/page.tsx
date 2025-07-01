@@ -400,7 +400,6 @@ export default function PayrollPage() {
   const tabs = [
     { id: 'calculate', name: 'Calculate Payroll', icon: Calculator },
     { id: 'records', name: 'Payroll Records', icon: FileText },
-    { id: 'reports', name: 'Reports', icon: TrendingUp },
   ];
 
   return (
@@ -923,16 +922,6 @@ export default function PayrollPage() {
             </div>
           )}
 
-          {/* Reports Tab */}
-          {activeTab === 'reports' && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Payroll Reports</h3>
-              <div className="text-center py-8">
-                <TrendingUp className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">Payroll reports and analytics coming soon.</p>
-              </div>
-            </div>
-          )}
         </div>
       </TrialGuard>
     </DashboardLayout>
