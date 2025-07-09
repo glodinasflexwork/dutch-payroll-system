@@ -34,18 +34,16 @@ export async function POST(request: NextRequest) {
 
     // Create company, user, and trial in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Create company first
+      // Creat      // Create company first
       const company = await tx.company.create({
         data: {
           name: companyName,
-          address: companyAddress || "",
-          city: companyCity || "",
-          postalCode: companyPostalCode || "",
-          kvkNumber: kvkNumber || "",
-          country: "Netherlands",
-          updatedAt: new Date()
+          address: companyAddress || undefined,
+          city: city || undefined,
+          postalCode: postalCode || undefined,
+          kvkNumber: kvkNumber || undefined
         }
-      })
+      })    })
 
       // Create user (not verified yet) - no global role, only company-specific roles
       const user = await tx.user.create({
@@ -54,8 +52,7 @@ export async function POST(request: NextRequest) {
           email,
           password: hashedPassword,
           companyId: company.id, // Legacy field for backward compatibility
-          emailVerified: null, // Not verified yet
-          updatedAt: new Date()
+          emailVerified: null // Not verified yet
         }
       })
 
