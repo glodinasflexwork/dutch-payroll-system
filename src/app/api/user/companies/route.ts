@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
         isActive: true
       },
       include: {
-        company: {
+        Company: {
           select: {
             id: true,
             name: true,
@@ -34,12 +34,12 @@ export async function GET(request: NextRequest) {
 
     // Format the response
     const companies = userCompanies.map(uc => ({
-      id: uc.company.id,
-      name: uc.company.name,
+      id: uc.Company.id,
+      name: uc.Company.name,
       role: uc.role,
       isActive: uc.isActive,
-      industry: uc.company.industry,
-      employeeCount: uc.company.employeeCount
+      industry: uc.Company.industry,
+      employeeCount: uc.Company.employeeCount
     }))
 
     // Always fetch current company from database, not from session
