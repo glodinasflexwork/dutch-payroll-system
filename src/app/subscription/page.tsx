@@ -168,7 +168,7 @@ export default function SubscriptionPage() {
               <div className="flex items-center">
                 <Check className="h-5 w-5 text-green-600 mr-2" />
                 <span className="text-green-800 font-medium">
-                  Current Plan: {currentSubscription.plan.name || 'Unknown'} (€{currentSubscription.plan.price || 0}/month)
+                  Current Plan: {currentSubscription.plan.name || 'Unknown'} (€{(currentSubscription.plan.price || 0) / 100}/month)
                 </span>
               </div>
             </div>
@@ -200,7 +200,7 @@ export default function SubscriptionPage() {
                   {getPlanIcon(plan.name)}
                   <h3 className="mt-4 text-2xl font-bold text-gray-900">{plan.name}</h3>
                   <div className="mt-4">
-                    <span className="text-4xl font-bold text-gray-900">€{plan.price}</span>
+                    <span className="text-4xl font-bold text-gray-900">€{plan.price / 100}</span>
                     <span className="text-gray-600">/month</span>
                   </div>
                 </div>
