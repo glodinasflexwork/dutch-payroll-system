@@ -3,8 +3,6 @@
  */
 
 export interface TaxSettings {
-  incomeTaxRate1: number
-  incomeTaxRate2: number
   incomeTaxBracket1Max: number
   aowRate: number
   wlzRate: number
@@ -46,32 +44,16 @@ export interface PayrollCalculation {
 
 /**
  * Calculate Dutch income tax based on 2025 tax brackets
+ * Note: Income tax is handled annually by bookkeeping software, not in monthly payroll
  */
 export function calculateIncomeTax(
   grossPay: number, 
   taxSettings: TaxSettings, 
   taxTable: 'wit' | 'groen'
 ): number {
-  const { incomeTaxRate1, incomeTaxRate2, incomeTaxBracket1Max } = taxSettings
-  
-  let incomeTax = 0
-  
-  // Calculate tax based on brackets
-  if (grossPay <= incomeTaxBracket1Max) {
-    incomeTax = grossPay * (incomeTaxRate1 / 100)
-  } else {
-    incomeTax = incomeTaxBracket1Max * (incomeTaxRate1 / 100) + 
-                (grossPay - incomeTaxBracket1Max) * (incomeTaxRate2 / 100)
-  }
-  
-  // Apply tax table adjustment
-  if (taxTable === 'groen') {
-    // Green tax table gets standard tax credit
-    const standardTaxCredit = 3070 // 2025 standard tax credit
-    incomeTax = Math.max(0, incomeTax - standardTaxCredit)
-  }
-  
-  return Math.round(incomeTax * 100) / 100
+  // Income tax is not calculated in monthly payroll
+  // It's handled annually by bookkeeping software
+  return 0
 }
 
 /**

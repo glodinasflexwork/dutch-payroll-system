@@ -479,11 +479,7 @@ export default function TaxSettingsPage() {
                         Edit
                       </Button>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 text-sm">
-                      <div>
-                        <p className="font-medium text-gray-600">Income Tax</p>
-                        <p>{formatPercentage(settings.incomeTaxRate1)} / {formatPercentage(settings.incomeTaxRate2)}</p>
-                      </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                       <div>
                         <p className="font-medium text-gray-600">AOW</p>
                         <p>{formatPercentage(settings.aowRate)}</p>

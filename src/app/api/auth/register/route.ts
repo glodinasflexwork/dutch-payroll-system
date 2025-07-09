@@ -72,8 +72,6 @@ export async function POST(request: NextRequest) {
         data: {
           companyId: company.id,
           taxYear: new Date().getFullYear(),
-          incomeTaxRate1: 36.93,
-          incomeTaxRate2: 49.50,
           incomeTaxBracket1Max: 75518,
           aowRate: 17.90,
           wlzRate: 9.65,
