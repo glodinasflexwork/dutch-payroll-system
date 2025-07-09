@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
     // Create company, user, and trial in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Creat      // Create company first
+      // Create company first
       const company = await tx.company.create({
         data: {
           name: companyName,
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
           postalCode: postalCode || undefined,
           kvkNumber: kvkNumber || undefined
         }
-      })    })
+      })
 
       // Create user (not verified yet) - no global role, only company-specific roles
       const user = await tx.user.create({
