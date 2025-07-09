@@ -392,7 +392,7 @@ export default function PricingPage() {
             <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
               Join hundreds of Dutch businesses who trust SalarySync for their payroll needs.
             </p>
-            <Link href="/auth/register">
+            <Link href="/auth/signup">
               <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 text-lg font-semibold">
                 Start Your Free Trial Today
                 <ArrowRight className="ml-2 w-5 h-5" />
