@@ -79,24 +79,26 @@ export async function validateSubscription(companyId: string) {
     })
 
     if (!company?.subscriptions || company.subscriptions.length === 0) {
-      // No subscription found - provide basic access with core features
+      // No subscription found - this should not happen as trial is created on registration
+      // Provide very limited access as fallback
       return { 
         isValid: true, 
         subscription: null,
         limits: {
-          maxEmployees: 10, // Basic limit
-          maxPayrolls: 5, // Limited payroll processing
+          maxEmployees: 1, // Very limited
+          maxPayrolls: 0, // No payroll without subscription
           features: {
-            employees: true, // Always allow employee management
-            payroll: true, // Limited payroll during trial
-            leave_management: true, // Basic leave management
-            time_tracking: false, // Premium feature
-            reporting: false, // Premium feature
-            multi_company: false // Premium feature
+            employees: true, // Basic employee management only
+            payroll: false,
+            leave_management: false,
+            time_tracking: false,
+            reporting: false,
+            multi_company: false
           }
         },
-        isTrial: true,
-        isExpired: false
+        isTrial: false,
+        isExpired: true,
+        message: 'No subscription found - please contact support'
       }
     }
 
@@ -111,7 +113,30 @@ export async function validateSubscription(companyId: string) {
     const trialValid = subscription.trialEnd ? now <= subscription.trialEnd : true
     const isExpired = !isActive && (!isTrialing || !trialValid)
 
-    // If subscription is expired, provide basic access with core features only
+    // During active trial, provide FULL ACCESS to all features
+    if (isTrialing && trialValid) {
+      return { 
+        isValid: true, 
+        subscription,
+        limits: {
+          maxEmployees: 999, // Unlimited during trial
+          maxPayrolls: 999, // Unlimited during trial
+          features: {
+            employees: true,
+            payroll: true,
+            leave_management: true,
+            time_tracking: true,
+            reporting: true,
+            multi_company: true // Full access during trial
+          }
+        },
+        isTrial: true,
+        isExpired: false,
+        message: 'Trial active - full access to all features'
+      }
+    }
+
+    // If subscription is expired, provide very limited access
     if (isExpired) {
       return { 
         isValid: true, // Still valid for basic features
@@ -122,37 +147,15 @@ export async function validateSubscription(companyId: string) {
           features: {
             employees: true, // Always allow employee management
             payroll: false, // Restrict payroll when expired
-            leave_management: true, // Basic leave management still allowed
-            time_tracking: false, // Premium feature restricted
-            reporting: false, // Premium feature restricted
-            multi_company: false // Premium feature restricted
+            leave_management: false, // Restrict premium features
+            time_tracking: false, // Restrict premium features
+            reporting: false, // Restrict premium features
+            multi_company: false // Restrict premium features
           }
         },
         isTrial: false,
         isExpired: true,
-        message: 'Subscription expired - upgrade to access premium features'
-      }
-    }
-
-    // During active trial, provide generous limits
-    if (isTrialing && trialValid) {
-      return { 
-        isValid: true, 
-        subscription,
-        limits: {
-          maxEmployees: 50, // Generous trial limit
-          maxPayrolls: 100, // Full payroll access during trial
-          features: {
-            employees: true,
-            payroll: true,
-            leave_management: true,
-            time_tracking: true,
-            reporting: true,
-            multi_company: false // Only for paid accounts
-          }
-        },
-        isTrial: true,
-        isExpired: false
+        message: 'Trial expired - upgrade to access premium features'
       }
     }
 
@@ -168,21 +171,22 @@ export async function validateSubscription(companyId: string) {
       subscription, 
       limits, 
       isTrial: false,
-      isExpired: false
+      isExpired: false,
+      message: 'Active subscription'
     }
   } catch (error) {
     console.error('Subscription validation error:', error)
-    // On error, provide basic access to prevent blocking users completely
+    // On error, provide very limited access to prevent blocking users completely
     return { 
       isValid: true, 
       subscription: null,
       limits: {
-        maxEmployees: 999, // Always allow employee management
+        maxEmployees: 1, // Very limited on error
         maxPayrolls: 0, // No payroll on error
         features: {
           employees: true, // Core feature always available
           payroll: false,
-          leave_management: true, // Basic feature
+          leave_management: false,
           time_tracking: false,
           reporting: false,
           multi_company: false
