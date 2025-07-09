@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
+import { validateAuth } from "@/lib/auth-utils"
 import { prisma } from "@/lib/prisma"
 import { validateSubscription } from "@/lib/subscription"
 import { calculateDutchPayroll, generatePayrollBreakdown, formatCurrency } from "@/lib/payroll-calculations"
@@ -8,15 +7,21 @@ import { calculateDutchPayroll, generatePayrollBreakdown, formatCurrency } from 
 // POST /api/payroll/calculate - Calculate payroll for specific employee
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    console.log('=== PAYROLL CALCULATE API START ===')
     
-    if (!session?.user?.companyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { context, error, status } = await validateAuth(request, ['employee'])
+    
+    if (!context || error) {
+      console.log('Authentication failed:', error)
+      return NextResponse.json({ error }, { status })
     }
 
+    console.log('Authentication successful for payroll calculation')
+
     // Validate subscription
-    const subscriptionValidation = await validateSubscription(session.user.companyId)
+    const subscriptionValidation = await validateSubscription(context.companyId)
     if (!subscriptionValidation.isValid) {
+      console.log('Subscription validation failed:', subscriptionValidation.error)
       return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
     }
 
