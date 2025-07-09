@@ -72,13 +72,13 @@ export async function validateSubscription(companyId: string) {
     const company = await prisma.company.findUnique({
       where: { id: companyId },
       include: {
-        subscriptions: {
-          include: { plan: true }
+        Subscription: {
+          include: { Plan: true }
         }
       }
     })
 
-    if (!company?.subscriptions || company.subscriptions.length === 0) {
+    if (!company?.Subscription || company.Subscription.length === 0) {
       // No subscription found - this should not happen as trial is created on registration
       // Provide very limited access as fallback
       return { 
@@ -102,7 +102,7 @@ export async function validateSubscription(companyId: string) {
       }
     }
 
-    const subscription = company.subscriptions[0] // Get the first (active) subscription
+    const subscription = company.Subscription[0] // Get the first (active) subscription
     
     // Check if subscription is active or in trial
     const isActive = subscription.status === 'active'
@@ -161,9 +161,9 @@ export async function validateSubscription(companyId: string) {
 
     // For active paid subscriptions with a plan
     const limits: SubscriptionLimits = {
-      maxEmployees: subscription.plan?.maxEmployees || 999,
-      maxPayrolls: subscription.plan?.maxPayrolls || 999,
-      features: convertFeaturesToObject(subscription.plan?.features) // Convert features properly
+      maxEmployees: subscription.Plan?.maxEmployees || 999,
+      maxPayrolls: subscription.Plan?.maxPayrolls || 999,
+      features: convertFeaturesToObject(subscription.Plan?.features) // Convert features properly
     }
 
     return { 
