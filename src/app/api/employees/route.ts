@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       employees: employees,
-      company: {
+      Company: {
         id: context.companyId,
         name: context.companyName
       },

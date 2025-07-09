@@ -27,7 +27,7 @@ export async function PUT(
     const existingRequest = await prisma.leaveRequest.findUnique({
       where: { id: leaveRequestId },
       include: {
-        employee: true,
+        Employee: true,
         leaveType: true
       }
     })
@@ -62,7 +62,7 @@ export async function PUT(
       where: { id: leaveRequestId },
       data: updateData,
       include: {
-        employee: {
+        Employee: {
           select: {
             firstName: true,
             lastName: true,

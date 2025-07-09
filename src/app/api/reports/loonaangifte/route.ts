@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
         }
       },
       include: {
-        employee: {
+        Employee: {
           select: {
             id: true,
             firstName: true,
@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
 
     // Prepare response data
     const loonaangifteData = {
-      company: {
+      Company: {
         name: company.name,
         address: company.address,
         city: company.city,

@@ -58,7 +58,7 @@ export async function getCompanyContext(
             isActive: true
           },
           include: {
-            company: {
+            Company: {
               select: {
                 id: true,
                 name: true
@@ -95,7 +95,7 @@ export async function getCompanyContext(
         }
       },
       include: {
-        company: {
+        Company: {
           select: {
             name: true
           }

@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
         }
       },
       include: {
-        company: true
+        Company: true
       }
     })
 

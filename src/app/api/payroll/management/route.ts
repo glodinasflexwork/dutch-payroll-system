@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
           payPeriodEnd: new Date(payPeriodEnd)
         },
         include: {
-          employee: {
+          Employee: {
             select: {
               id: true,
               employeeNumber: true,
@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
         start: payPeriodStart,
         end: payPeriodEnd
       } : null,
-      company: {
+      Company: {
         id: company?.id,
         name: company?.name
       }
@@ -277,7 +277,7 @@ export async function POST(request: NextRequest) {
             })
 
             results.push({
-              employee: {
+              Employee: {
                 id: employee.id,
                 name: `${employee.firstName} ${employee.lastName}`,
                 employeeNumber: employee.employeeNumber
@@ -317,7 +317,7 @@ export async function POST(request: NextRequest) {
             })
 
             results.push({
-              employee: {
+              Employee: {
                 id: employee.id,
                 name: `${employee.firstName} ${employee.lastName}`,
                 employeeNumber: employee.employeeNumber
@@ -330,7 +330,7 @@ export async function POST(request: NextRequest) {
         } else {
           // Dry run - just return calculation
           results.push({
-            employee: {
+            Employee: {
               id: employee.id,
               name: `${employee.firstName} ${employee.lastName}`,
               employeeNumber: employee.employeeNumber
@@ -343,7 +343,7 @@ export async function POST(request: NextRequest) {
       } catch (employeeError) {
         console.error(`Error processing employee ${employee.id}:`, employeeError)
         errors.push({
-          employee: {
+          Employee: {
             id: employee.id,
             name: `${employee.firstName} ${employee.lastName}`,
             employeeNumber: employee.employeeNumber

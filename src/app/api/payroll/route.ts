@@ -351,7 +351,7 @@ export async function GET(request: NextRequest) {
     const payrollRecords = await prisma.payrollRecord.findMany({
       where: whereClause,
       include: {
-        employee: {
+        Employee: {
           select: {
             id: true,
             employeeNumber: true,

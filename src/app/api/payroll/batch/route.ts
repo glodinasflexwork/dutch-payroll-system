@@ -282,7 +282,7 @@ export async function GET(request: NextRequest) {
         payPeriodEnd: new Date(payPeriodEnd)
       },
       include: {
-        employee: {
+        Employee: {
           select: {
             id: true,
             employeeNumber: true,

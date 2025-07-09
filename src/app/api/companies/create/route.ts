@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      company: {
+      Company: {
         id: company.id,
         name: company.name,
         role: 'owner',
