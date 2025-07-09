@@ -37,7 +37,6 @@ export async function POST(request: NextRequest) {
       // Create company first
       const company = await tx.company.create({
         data: {
-          id: `comp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           name: companyName,
           address: companyAddress || "",
           city: companyCity || "",
@@ -64,15 +63,13 @@ export async function POST(request: NextRequest) {
         data: {
           userId: user.id,
           companyId: company.id,
-          role: "owner", // First user is always the owner
-          joinedAt: new Date()
+          role: "owner" // First user is always the owner
         }
       })
 
       // Create default tax settings for the company
       await tx.taxSettings.create({
         data: {
-          id: `tax_${company.id}_${new Date().getFullYear()}`,
           companyId: company.id,
           taxYear: new Date().getFullYear(),
           incomeTaxRate1: 36.93,
