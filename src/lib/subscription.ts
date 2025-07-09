@@ -104,7 +104,30 @@ export async function validateSubscription(companyId: string) {
 
     const subscription = company.Subscription[0] // Get the first (active) subscription
     
-    // Check if subscription is active or in trial
+    // Add null check for subscription
+    if (!subscription) {
+      return { 
+        isValid: true, 
+        subscription: null,
+        limits: {
+          maxEmployees: 1,
+          maxPayrolls: 0,
+          features: {
+            employees: true,
+            payroll: false,
+            leave_management: false,
+            time_tracking: false,
+            reporting: false,
+            multi_company: false
+          }
+        },
+        isTrial: false,
+        isExpired: true,
+        message: 'No active subscription found'
+      }
+    }
+    
+    // Check if subscription is active or in trial (with null safety)
     const isActive = subscription.status === 'active'
     const isTrialing = subscription.status === 'trialing' || subscription.isTrialActive
     
