@@ -106,7 +106,7 @@ export async function validateSubscription(companyId: string) {
     
     // Check if subscription is active or in trial
     const isActive = subscription.status === 'active'
-    const isTrialing = subscription.status === 'trialing' || subscription.isTrialActive
+    const isTrialing = subscription.status === 'trialing'
     
     // Check if trial is still valid (within trial period)
     const now = new Date()
