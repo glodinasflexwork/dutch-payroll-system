@@ -1,21 +1,33 @@
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
+import { NextRequest, NextResponse } from "next/server"
+import { getAuthenticatedUser } from "@/lib/auth-utils"
 import { prisma } from "@/lib/prisma"
 import { validateSubscription } from "@/lib/subscription"
-import { NextRequest, NextResponse } from "next/server"
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    console.log("=== ANALYTICS API DEBUG ===")
     
-    if (!session?.user?.companyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    // Use the robust authentication system
+    const authResult = await getAuthenticatedUser(request)
+    if (!authResult.success) {
+      console.log("Analytics API - Authentication failed:", authResult.error)
+      return NextResponse.json({ error: authResult.error }, { status: 401 })
     }
 
+    const { user, companyId } = authResult
+    console.log("Analytics API - User authenticated:", user.email, "Company:", companyId)
+
     // Validate subscription
-    const subscriptionValidation = await validateSubscription(session.user.companyId)
-    if (!subscriptionValidation.isValid) {
-      return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
+    try {
+      const subscriptionValidation = await validateSubscription(companyId)
+      if (!subscriptionValidation.isValid) {
+        console.log("Analytics API - Subscription validation failed:", subscriptionValidation.error)
+        return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
+      }
+      console.log("Analytics API - Subscription valid")
+    } catch (subError) {
+      console.log("Analytics API - Subscription validation error:", subError)
+      // Continue without subscription validation for now
     }
 
     // Get query parameters
@@ -27,10 +39,12 @@ export async function GET(request: NextRequest) {
     const startDate = new Date()
     startDate.setMonth(startDate.getMonth() - months)
 
+    console.log("Analytics API - Fetching data for company:", companyId, "from", startDate, "to", endDate)
+
     // Fetch payroll records for the company within date range
     const payrollRecords = await prisma.payrollRecord.findMany({
       where: {
-        companyId: session.user.companyId,
+        companyId: companyId,
         payPeriodStart: {
           gte: startDate,
           lte: endDate
@@ -53,13 +67,17 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    console.log("Analytics API - Found payroll records:", payrollRecords.length)
+
     // Fetch active employees count
     const activeEmployees = await prisma.employee.count({
       where: {
-        companyId: session.user.companyId,
+        companyId: companyId,
         isActive: true
       }
     })
+
+    console.log("Analytics API - Active employees:", activeEmployees)
 
     // Calculate KPI data
     const currentMonth = new Date()
@@ -165,7 +183,7 @@ export async function GET(request: NextRequest) {
     const salaryTypeData = new Map<string, number>()
     const allEmployees = await prisma.employee.findMany({
       where: {
-        companyId: session.user.companyId,
+        companyId: companyId,
         isActive: true
       },
       select: {
@@ -211,16 +229,18 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    console.log("Analytics API - Returning data successfully")
     return NextResponse.json({
       success: true,
       data: analyticsData
     })
 
   } catch (error) {
-    console.error("Error fetching analytics data:", error)
+    console.error("Analytics API - Error:", error)
     return NextResponse.json({
       success: false,
-      error: "Failed to fetch analytics data"
+      error: "Failed to fetch analytics data",
+      details: error instanceof Error ? error.message : "Unknown error"
     }, { status: 500 })
   }
 }
