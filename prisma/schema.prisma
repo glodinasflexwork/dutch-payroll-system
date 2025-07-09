@@ -263,9 +263,7 @@ model TaxSettings {
   companyId             String
   taxYear               Int
   
-  // Income tax brackets
-  incomeTaxRate1        Float    @default(36.93) // First bracket rate
-  incomeTaxRate2        Float    @default(49.50) // Second bracket rate
+  // Income tax bracket (for reference only - not used in monthly calculations)
   incomeTaxBracket1Max  Float    @default(75518) // Maximum for first bracket
   
   // Social security rates
