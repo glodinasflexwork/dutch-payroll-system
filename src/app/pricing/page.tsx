@@ -206,7 +206,7 @@ export default function PricingPage() {
                   Sign In
                 </Button>
               </Link>
-              <Link href="/auth/register">
+              <Link href="/auth/signup">
                 <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6">
                   Start Free Trial
                 </Button>
@@ -300,7 +300,7 @@ export default function PricingPage() {
                       ))}
                     </div>
 
-                    <Link href="/auth/register" className="block">
+                    <Link href="/auth/signup" className="block">
                       <Button 
                         className={`w-full py-3 text-lg font-semibold ${
                           plan.popular 
