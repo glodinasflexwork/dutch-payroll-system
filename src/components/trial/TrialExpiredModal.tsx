@@ -23,10 +23,10 @@ export default function TrialExpiredModal({ isOpen, onClose }: TrialExpiredModal
 
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Trial Expired
+            14-Day Trial Expired
           </h2>
           <p className="text-gray-600">
-            Your 14-day free trial has ended. Upgrade to a paid plan to continue using all features of SalarySync.
+            Your free trial with full access to all features has ended. Upgrade to a paid plan to continue using SalarySync without restrictions.
           </p>
         </div>
 

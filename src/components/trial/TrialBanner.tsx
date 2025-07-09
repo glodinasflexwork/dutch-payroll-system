@@ -71,7 +71,7 @@ export default function TrialBanner({ className = '' }: TrialBannerProps) {
     } else if (trialStatus.daysRemaining === 1) {
       return 'Your trial expires tomorrow. Upgrade now to avoid interruption.';
     } else {
-      return `Your free trial expires in ${trialStatus.daysRemaining} days.`;
+      return `Your free trial expires in ${trialStatus.daysRemaining} days. Enjoy full access to all features!`;
     }
   };
 
@@ -88,7 +88,7 @@ export default function TrialBanner({ className = '' }: TrialBannerProps) {
               Trial started {trialStatus.daysUsed} days ago • 
               {trialStatus.endDate && (
                 ` Expires ${new Date(trialStatus.endDate).toLocaleDateString()}`
-              )}
+              )} • Full access to all features
             </p>
           </div>
         </div>
