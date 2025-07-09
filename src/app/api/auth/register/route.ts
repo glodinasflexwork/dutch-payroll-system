@@ -43,7 +43,8 @@ export async function POST(request: NextRequest) {
           city: companyCity || "",
           postalCode: companyPostalCode || "",
           kvkNumber: kvkNumber || "",
-          country: "Netherlands"
+          country: "Netherlands",
+          updatedAt: new Date()
         }
       })
 
