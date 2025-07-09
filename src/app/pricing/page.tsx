@@ -67,7 +67,7 @@ export default function PricingPage() {
           {
             id: "professional",
             name: "Professional", 
-            price: 5900, // €59.00 in cents
+            price: 7900, // €79.00 in cents - matches database and Stripe
             maxEmployees: 50,
             maxPayrolls: null, // unlimited
             features: {
@@ -88,7 +88,7 @@ export default function PricingPage() {
           {
             id: "enterprise",
             name: "Enterprise",
-            price: 9900, // €99.00 in cents
+            price: 19900, // €199.00 in cents - matches database and Stripe
             maxEmployees: null, // unlimited
             maxPayrolls: null, // unlimited
             features: {
