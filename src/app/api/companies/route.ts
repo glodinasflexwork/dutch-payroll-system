@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
       include: {
         _count: {
           select: {
-            employees: {
+            Employee: {
               where: { isActive: true }
             }
           }
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
     // Add employee count to the company object
     const companyWithStats = {
       ...company,
-      employeeCount: company._count?.employees || 0
+      employeeCount: company._count?.Employee || 0
     }
 
     console.log("Returning company data successfully")
