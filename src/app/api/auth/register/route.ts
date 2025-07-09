@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
         data: {
           name: companyName,
           address: companyAddress || undefined,
-          city: city || undefined,
-          postalCode: postalCode || undefined,
+          city: companyCity || undefined,
+          postalCode: companyPostalCode || undefined,
           kvkNumber: kvkNumber || undefined
         }
       })
