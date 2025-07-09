@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
       // Create default tax settings for the company
       await tx.taxSettings.create({
         data: {
+          id: `tax_${company.id}_${new Date().getFullYear()}`,
           companyId: company.id,
           taxYear: new Date().getFullYear(),
           incomeTaxRate1: 36.93,
@@ -85,7 +86,8 @@ export async function POST(request: NextRequest) {
           wiaMaxBase: 69000,
           holidayAllowanceRate: 8.0,
           minimumWage: 12.83,
-          isActive: true
+          isActive: true,
+          updatedAt: new Date()
         }
       })
 
