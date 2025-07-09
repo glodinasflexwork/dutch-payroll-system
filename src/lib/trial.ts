@@ -66,7 +66,7 @@ export async function createTrial(companyId: string): Promise<void> {
 export async function getTrialStatus(companyId: string): Promise<TrialStatus | null> {
   const subscription = await prisma.subscription.findUnique({
     where: { companyId },
-    include: { plan: true }
+    include: { Plan: true }
   });
 
   if (!subscription) {
