@@ -139,7 +139,6 @@ export async function GET(request: NextRequest) {
       monthData.totalPayroll += record.grossPay || 0
       monthData.employees += 1
       monthData.aow += record.aowContribution || 0
-      monthData.anw += record.anwContribution || 0
       monthData.wlz += record.wlzContribution || 0
       monthData.zvw += (record.grossPay || 0) * 0.0565 // Calculate ZVW
     })

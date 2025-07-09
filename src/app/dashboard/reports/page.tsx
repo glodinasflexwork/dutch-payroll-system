@@ -75,7 +75,6 @@ export default function ReportsPage() {
         const totals = payrollRecords.reduce((acc: any, record: any) => {
           acc.totalGross += record.grossPay || 0
           acc.aowContribution += record.aowContribution || 0
-          acc.anwContribution += record.anwContribution || 0
           acc.wlzContribution += record.wlzContribution || 0
           acc.totalLoonheffing += record.totalDeductions || 0
           acc.totalNet += record.netPay || 0
@@ -84,7 +83,6 @@ export default function ReportsPage() {
         }, {
           totalGross: 0,
           aowContribution: 0,
-          anwContribution: 0,
           wlzContribution: 0,
           totalLoonheffing: 0,
           totalNet: 0,
@@ -614,15 +612,6 @@ export default function ReportsPage() {
                   </Card>
                   <Card>
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium text-gray-600">ANW (Surviving)</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold text-gray-900">{formatCurrency(taxSummaryData.anwContribution)}</div>
-                      <p className="text-sm text-gray-600 mt-1">0.10% - Surviving dependants</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="pb-2">
                       <CardTitle className="text-sm font-medium text-gray-600">WLZ (Healthcare)</CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -655,12 +644,6 @@ export default function ReportsPage() {
                             amount: taxSummaryData.aowContribution, 
                             percentage: ((taxSummaryData.aowContribution / taxSummaryData.totalLoonheffing) * 100).toFixed(1),
                             color: 'bg-blue-500'
-                          },
-                          { 
-                            name: 'ANW (Surviving Dependants)', 
-                            amount: taxSummaryData.anwContribution, 
-                            percentage: ((taxSummaryData.anwContribution / taxSummaryData.totalLoonheffing) * 100).toFixed(1),
-                            color: 'bg-green-500'
                           },
                           { 
                             name: 'WLZ (Long-term Care)', 

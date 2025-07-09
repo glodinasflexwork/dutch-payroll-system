@@ -37,7 +37,6 @@ export interface PayrollResult {
   
   // National insurance (employee portion)
   aowContribution: number;
-  anwContribution: number;
   wlzContribution: number;
   
   // Employee insurance (employee portion)
@@ -346,7 +345,6 @@ export function calculateDutchPayroll(
   // ONLY Social Insurance Contributions (what should be in "Loonheffing")
   const age = calculateAge(employeeData.dateOfBirth);
   const aowContribution = age < 67 ? annualSalary * INSURANCE_RATES_2025.national.aow : 0;
-  const anwContribution = annualSalary * INSURANCE_RATES_2025.national.anw;
   const wlzContribution = annualSalary * INSURANCE_RATES_2025.national.wlz;
   
   // ZVW Health Care Contribution (income-dependent)
@@ -357,7 +355,7 @@ export function calculateDutchPayroll(
   const wiaContribution = 0; // Employer-paid
   
   // Total "Loonheffing" = ONLY social insurance contributions (NO income tax)
-  const totalLoonheffing = aowContribution + anwContribution + wlzContribution + zvwContribution;
+  const totalLoonheffing = aowContribution + wlzContribution + zvwContribution;
   
   // Net salary calculations (much higher without income tax)
   const netAnnualSalary = annualSalary - totalLoonheffing;
@@ -386,7 +384,6 @@ export function calculateDutchPayroll(
     incomeTaxAfterCredits: 0, // Not calculated in monthly payroll
     
     aowContribution,
-    anwContribution,
     wlzContribution,
     
     wwContribution,

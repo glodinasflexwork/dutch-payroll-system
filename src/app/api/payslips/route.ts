@@ -52,32 +52,26 @@ export async function GET(request: NextRequest) {
     }
 
     // Get company information
-    const company = await prisma.company.findFirst({
-      where: {
-        id: session.user.companyId
-      }
+    const company = await prisma.company.findUnique({
+      where: { id: session.user.companyId }
     })
 
     if (!company) {
       return NextResponse.json({ error: "Company not found" }, { status: 404 })
     }
 
-    // Use the correct Dutch payroll calculation library
+    // Prepare data for payroll calculation
     const employeeData: EmployeeData = {
-      grossMonthlySalary: employee.salary,
-      dateOfBirth: new Date(employee.dateOfBirth),
-      isDGA: employee.isDGA || false,
-      taxTable: employee.taxTable as 'wit' | 'groen',
-      taxCredit: 0, // Standard credit handled in calculation
-      isYoungDisabled: false,
-      hasMultipleJobs: false
+      annualSalary: employee.annualSalary,
+      age: new Date().getFullYear() - new Date(employee.dateOfBirth).getFullYear(),
+      hasAOWExemption: employee.hasAOWExemption || false,
+      taxTable: employee.taxTable || 'green',
+      payrollTaxCredit: employee.payrollTaxCredit || 0
     }
 
     const companyData: CompanyData = {
-      size: 'medium', // Default
-      sector: 'general',
-      awfRate: 'low',
-      aofRate: 'low'
+      sector: company.sector || 'general',
+      hasCollectiveAgreement: company.hasCollectiveAgreement || false
     }
 
     // Calculate using the corrected Dutch payroll library
@@ -87,13 +81,12 @@ export async function GET(request: NextRequest) {
     const grossPay = payrollResult.grossMonthlySalary
     const holidayAllowance = payrollResult.holidayAllowanceGross / 12 // Monthly portion
     
-    // Loonheffing = only social insurance contributions (AOW + ANW + WLZ + ZVW)
+    // Loonheffing = only social insurance contributions (AOW + WLZ + ZVW)
     const loonheffing = payrollResult.totalTaxAndInsurance / 12 // Monthly portion
     const netPay = payrollResult.netMonthlySalary
 
     // Individual components for display (monthly amounts)
     const aowContribution = payrollResult.aowContribution / 12
-    const anwContribution = payrollResult.anwContribution / 12
     const wlzContribution = payrollResult.wlzContribution / 12
     const zvwContribution = (payrollResult.grossAnnualSalary * 0.0565) / 12 // ZVW health care
 
@@ -133,7 +126,6 @@ export async function GET(request: NextRequest) {
         // NO income tax in monthly payroll - handled annually
         incomeTax: 0,
         aowContribution: Math.round(aowContribution * 100) / 100,
-        anwContribution: Math.round(anwContribution * 100) / 100,
         wlzContribution: Math.round(wlzContribution * 100) / 100,
         zvwContribution: Math.round(zvwContribution * 100) / 100,
         // WW and WIA are employer-paid, not employee deductions
@@ -145,14 +137,11 @@ export async function GET(request: NextRequest) {
       taxRates: {
         // Rates for reference only
         aowRate: 17.90,
-        anwRate: 0.10,
         wlzRate: 9.65,
         zvwRate: 5.65,
-        // Income tax not calculated monthly
-        incomeTaxRate1: 0,
-        incomeTaxRate2: 0,
-        wwRate: 0, // Employer-paid
-        wiaRate: 0 // Employer-paid
+        // WW and WIA are employer-paid
+        wwRate: 0,
+        wiaRate: 0
       },
       generatedAt: new Date().toISOString()
     }
@@ -204,32 +193,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Get company information
-    const company = await prisma.company.findFirst({
-      where: {
-        id: session.user.companyId
-      }
+    const company = await prisma.company.findUnique({
+      where: { id: session.user.companyId }
     })
 
     if (!company) {
       return NextResponse.json({ error: "Company not found" }, { status: 404 })
     }
 
-    // Use the correct Dutch payroll calculation library
+    // Prepare data for payroll calculation
     const employeeData: EmployeeData = {
-      grossMonthlySalary: employee.salary,
-      dateOfBirth: new Date(employee.dateOfBirth),
-      isDGA: employee.isDGA || false,
-      taxTable: employee.taxTable as 'wit' | 'groen',
-      taxCredit: 0, // Standard credit handled in calculation
-      isYoungDisabled: false,
-      hasMultipleJobs: false
+      annualSalary: employee.annualSalary,
+      age: new Date().getFullYear() - new Date(employee.dateOfBirth).getFullYear(),
+      hasAOWExemption: employee.hasAOWExemption || false,
+      taxTable: employee.taxTable || 'green',
+      payrollTaxCredit: employee.payrollTaxCredit || 0
     }
 
     const companyData: CompanyData = {
-      size: 'medium', // Default
-      sector: 'general',
-      awfRate: 'low',
-      aofRate: 'low'
+      sector: company.sector || 'general',
+      hasCollectiveAgreement: company.hasCollectiveAgreement || false
     }
 
     // Calculate using the corrected Dutch payroll library
@@ -239,18 +222,17 @@ export async function POST(request: NextRequest) {
     const grossPay = payrollResult.grossMonthlySalary
     const holidayAllowance = payrollResult.holidayAllowanceGross / 12 // Monthly portion
     
-    // Loonheffing = only social insurance contributions (AOW + ANW + WLZ + ZVW)
+    // Loonheffing = only social insurance contributions (AOW + WLZ + ZVW)
     const loonheffing = payrollResult.totalTaxAndInsurance / 12 // Monthly portion
     const netPay = payrollResult.netMonthlySalary
 
     // Individual components for display (monthly amounts)
     const aowContribution = payrollResult.aowContribution / 12
-    const anwContribution = payrollResult.anwContribution / 12
     const wlzContribution = payrollResult.wlzContribution / 12
     const zvwContribution = (payrollResult.grossAnnualSalary * 0.0565) / 12 // ZVW health care
 
     // Create payslip data with corrected amounts
-    const payslip = {
+    const payslipData = {
       company: {
         name: company.name,
         address: company.address || '',
@@ -285,7 +267,6 @@ export async function POST(request: NextRequest) {
         // NO income tax in monthly payroll - handled annually
         incomeTax: 0,
         aowContribution: Math.round(aowContribution * 100) / 100,
-        anwContribution: Math.round(anwContribution * 100) / 100,
         wlzContribution: Math.round(wlzContribution * 100) / 100,
         zvwContribution: Math.round(zvwContribution * 100) / 100,
         // WW and WIA are employer-paid, not employee deductions
@@ -297,26 +278,111 @@ export async function POST(request: NextRequest) {
       taxRates: {
         // Rates for reference only
         aowRate: 17.90,
-        anwRate: 0.10,
         wlzRate: 9.65,
         zvwRate: 5.65,
-        // Income tax not calculated monthly
-        incomeTaxRate1: 0,
-        incomeTaxRate2: 0,
-        wwRate: 0, // Employer-paid
-        wiaRate: 0, // Employer-paid
-        holidayAllowanceRate: 8.33
+        // WW and WIA are employer-paid
+        wwRate: 0,
+        wiaRate: 0
       },
       generatedAt: new Date().toISOString()
     }
 
-    // Generate HTML content for the payslip
-    const htmlContent = generatePayslipHTML(payslip)
+    // Generate HTML for PDF
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Loonstrook ${payslipData.payPeriod.monthName} ${payslipData.payPeriod.year}</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+            .header { border-bottom: 2px solid #4F46E5; padding-bottom: 20px; margin-bottom: 30px; }
+            .company-info { margin-bottom: 20px; }
+            .employee-info { background: #F8FAFC; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+            .payslip-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            .payslip-table th, .payslip-table td { padding: 12px; text-align: left; border-bottom: 1px solid #E2E8F0; }
+            .payslip-table th { background: #F1F5F9; font-weight: bold; }
+            .amount { text-align: right; font-weight: bold; }
+            .total-row { background: #EEF2FF; font-weight: bold; }
+            .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #E2E8F0; font-size: 12px; color: #64748B; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Loonstrook</h1>
+            <div class="company-info">
+                <strong>${payslipData.company.name}</strong><br>
+                ${payslipData.company.address}<br>
+                ${payslipData.company.postalCode} ${payslipData.company.city}<br>
+                KvK: ${payslipData.company.kvkNumber} | BTW: ${payslipData.company.taxNumber}
+            </div>
+        </div>
+
+        <div class="employee-info">
+            <h3>Werknemergegevens</h3>
+            <p><strong>Naam:</strong> ${payslipData.employee.firstName} ${payslipData.employee.lastName}</p>
+            <p><strong>Personeelsnummer:</strong> ${payslipData.employee.employeeNumber}</p>
+            <p><strong>Functie:</strong> ${payslipData.employee.position}</p>
+            <p><strong>Periode:</strong> ${payslipData.payPeriod.monthName} ${payslipData.payPeriod.year}</p>
+        </div>
+
+        <table class="payslip-table">
+            <thead>
+                <tr>
+                    <th>Omschrijving</th>
+                    <th class="amount">Bedrag (€)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Bruto loon</td>
+                    <td class="amount">${payslipData.earnings.grossPay.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td>Vakantietoeslag</td>
+                    <td class="amount">${payslipData.earnings.holidayAllowance.toFixed(2)}</td>
+                </tr>
+                <tr class="total-row">
+                    <td><strong>Totaal bruto</strong></td>
+                    <td class="amount"><strong>${payslipData.earnings.grossPay.toFixed(2)}</strong></td>
+                </tr>
+                <tr>
+                    <td>AOW-premie (${payslipData.taxRates.aowRate}%)</td>
+                    <td class="amount">-${payslipData.deductions.aowContribution.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td>WLZ-premie (${payslipData.taxRates.wlzRate}%)</td>
+                    <td class="amount">-${payslipData.deductions.wlzContribution.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td>ZVW-premie (${payslipData.taxRates.zvwRate}%)</td>
+                    <td class="amount">-${payslipData.deductions.zvwContribution.toFixed(2)}</td>
+                </tr>
+                <tr class="total-row">
+                    <td><strong>Totaal inhoudingen</strong></td>
+                    <td class="amount"><strong>-${payslipData.deductions.totalDeductions.toFixed(2)}</strong></td>
+                </tr>
+                <tr class="total-row">
+                    <td><strong>Netto uitbetaling</strong></td>
+                    <td class="amount"><strong>${payslipData.netPay.toFixed(2)}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="footer">
+            <p><strong>Toelichting:</strong></p>
+            <p><em>Loonheffing bevat: AOW (${payslipData.taxRates.aowRate}%), WLZ (${payslipData.taxRates.wlzRate}%), ZVW (${payslipData.taxRates.zvwRate}%)</em><br>
+            <em>Inkomstenbelasting wordt jaarlijks afgerekend via de boekhoudingsoftware</em></p>
+            <p>Gegenereerd op: ${new Date(payslipData.generatedAt).toLocaleDateString('nl-NL')}</p>
+        </div>
+    </body>
+    </html>
+    `
 
     return NextResponse.json({
       success: true,
       html: htmlContent,
-      filename: `payslip-${payslip.employee.firstName}-${payslip.employee.lastName}-${payslip.payPeriod.monthName}-${payslip.payPeriod.year}.html`
+      payslip: payslipData
     })
 
   } catch (error) {
@@ -327,286 +393,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.error("Error generating PDF payslip:", error)
+    console.error("Error generating payslip PDF:", error)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
     )
   }
-}
-
-function generatePayslipHTML(payslip: any): string {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('nl-NL', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2
-    }).format(amount)
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('nl-NL')
-  }
-
-  return `
-<!DOCTYPE html>
-<html lang="nl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loonstrook - ${payslip.employee.firstName} ${payslip.employee.lastName}</title>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-            color: #333;
-        }
-        .payslip-container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
-        .header {
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-        .header h1 {
-            margin: 0 0 10px 0;
-            font-size: 28px;
-            font-weight: bold;
-        }
-        .header p {
-            margin: 5px 0;
-            opacity: 0.9;
-        }
-        .content {
-            padding: 30px;
-        }
-        .section {
-            margin-bottom: 30px;
-        }
-        .section-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #1d4ed8;
-            margin-bottom: 15px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #e5e7eb;
-        }
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        .info-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #f3f4f6;
-        }
-        .info-label {
-            font-weight: 500;
-            color: #6b7280;
-        }
-        .info-value {
-            font-weight: 600;
-            color: #111827;
-        }
-        .earnings-table, .deductions-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 20px;
-        }
-        .earnings-table th, .deductions-table th {
-            background-color: #f9fafb;
-            padding: 12px;
-            text-align: left;
-            font-weight: 600;
-            color: #374151;
-            border-bottom: 2px solid #e5e7eb;
-        }
-        .earnings-table td, .deductions-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid #f3f4f6;
-        }
-        .amount {
-            text-align: right;
-            font-weight: 600;
-        }
-        .positive {
-            color: #059669;
-        }
-        .negative {
-            color: #dc2626;
-        }
-        .total-row {
-            background-color: #f9fafb;
-            font-weight: bold;
-        }
-        .net-pay {
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            margin: 20px 0;
-        }
-        .net-pay h3 {
-            margin: 0 0 10px 0;
-            font-size: 16px;
-            opacity: 0.9;
-        }
-        .net-pay .amount {
-            font-size: 32px;
-            font-weight: bold;
-            margin: 0;
-        }
-        .footer {
-            background-color: #f9fafb;
-            padding: 20px 30px;
-            text-align: center;
-            color: #6b7280;
-            font-size: 14px;
-        }
-        @media print {
-            body { background-color: white; }
-            .payslip-container { box-shadow: none; }
-        }
-    </style>
-</head>
-<body>
-    <div class="payslip-container">
-        <div class="header">
-            <h1>LOONSTROOK</h1>
-            <p>${payslip.payPeriod.monthName} ${payslip.payPeriod.year}</p>
-            <p>${payslip.company.name}</p>
-        </div>
-        
-        <div class="content">
-            <!-- Company & Employee Info -->
-            <div class="section">
-                <div class="info-grid">
-                    <div>
-                        <h3 class="section-title">Werkgever</h3>
-                        <div class="info-item">
-                            <span class="info-label">Bedrijfsnaam:</span>
-                            <span class="info-value">${payslip.company.name}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">KvK nummer:</span>
-                            <span class="info-value">${payslip.company.kvkNumber}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Loonheffingsnummer:</span>
-                            <span class="info-value">${payslip.company.taxNumber}</span>
-                        </div>
-                    </div>
-                    <div>
-                        <h3 class="section-title">Werknemer</h3>
-                        <div class="info-item">
-                            <span class="info-label">Naam:</span>
-                            <span class="info-value">${payslip.employee.firstName} ${payslip.employee.lastName}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Personeelsnummer:</span>
-                            <span class="info-value">${payslip.employee.employeeNumber}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">BSN:</span>
-                            <span class="info-value">${payslip.employee.bsn}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Functie:</span>
-                            <span class="info-value">${payslip.employee.position}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Afdeling:</span>
-                            <span class="info-value">${payslip.employee.department}</span>
-                        </div>
-                        <div class="info-item">
-                            <span class="info-label">Loonheffingstabel:</span>
-                            <span class="info-value">${payslip.employee.taxTable.toUpperCase()}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Earnings -->
-            <div class="section">
-                <h3 class="section-title">Inkomsten</h3>
-                <table class="earnings-table">
-                    <thead>
-                        <tr>
-                            <th>Omschrijving</th>
-                            <th>Uren</th>
-                            <th>Bedrag</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Basissalaris</td>
-                            <td>${payslip.earnings.hoursWorked}</td>
-                            <td class="amount positive">${formatCurrency(payslip.earnings.baseSalary)}</td>
-                        </tr>
-                        <tr>
-                            <td>Vakantiegeld (8%)</td>
-                            <td>-</td>
-                            <td class="amount positive">${formatCurrency(payslip.earnings.holidayAllowance)}</td>
-                        </tr>
-                        <tr class="total-row">
-                            <td><strong>Brutoloon</strong></td>
-                            <td><strong>${payslip.earnings.hoursWorked}</strong></td>
-                            <td class="amount positive"><strong>${formatCurrency(payslip.earnings.grossPay)}</strong></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Deductions -->
-            <div class="section">
-                <h3 class="section-title">Inhoudingen</h3>
-                <table class="deductions-table">
-                    <thead>
-                        <tr>
-                            <th>Omschrijving</th>
-                            <th>Bedrag</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Loonheffing</td>
-                            <td class="amount negative">${formatCurrency(payslip.deductions.totalDeductions)}</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <p style="font-size: 12px; color: #6b7280; margin-top: 10px;">
-                    <em>Loonheffing bevat: AOW (${payslip.taxRates.aowRate}%), ANW (${payslip.taxRates.anwRate}%), WLZ (${payslip.taxRates.wlzRate}%), ZVW (${payslip.taxRates.zvwRate}%)</em><br>
-                    <em>Inkomstenbelasting wordt jaarlijks afgerekend door de boekhouding</em>
-                </p>
-            </div>
-
-            <!-- Net Pay -->
-            <div class="net-pay">
-                <h3>NETTO UITBETALING</h3>
-                <p class="amount">${formatCurrency(payslip.netPay)}</p>
-            </div>
-        </div>
-        
-        <div class="footer">
-            <p>Dit document is automatisch gegenereerd door SalarySync op ${formatDate(payslip.generatedAt)}</p>
-            <p>Voor vragen over deze loonstrook kunt u contact opnemen met de HR-afdeling</p>
-        </div>
-    </div>
-</body>
-</html>
-`
 }
 
