@@ -127,7 +127,7 @@ export async function validateSubscription(companyId: string) {
             leave_management: true,
             time_tracking: true,
             reporting: true,
-            multi_company: true // Full access during trial
+            multi_Company: true // Full access during trial
           }
         },
         isTrial: true,

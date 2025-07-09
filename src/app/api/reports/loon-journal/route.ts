@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
         }
       },
       include: {
-        employee: {
+        Employee: {
           select: {
             firstName: true,
             lastName: true
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
 
     // Prepare response data
     const loonJournalData = {
-      company: {
+      Company: {
         name: company.name,
         address: company.address,
         city: company.city,

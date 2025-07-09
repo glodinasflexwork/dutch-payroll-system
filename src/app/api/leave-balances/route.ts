@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const leaveBalances = await prisma.leaveBalance.findMany({
       where: whereClause,
       include: {
-        employee: {
+        Employee: {
           select: {
             firstName: true,
             lastName: true,
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         }
       },
       orderBy: [
-        { employee: { firstName: 'asc' } },
+        { Employee: { firstName: 'asc' } },
         { leaveType: { name: 'asc' } }
       ]
     })
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
         pending: 0
       },
       include: {
-        employee: {
+        Employee: {
           select: {
             firstName: true,
             lastName: true,

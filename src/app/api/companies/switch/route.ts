@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
         }
       },
       include: {
-        company: {
+        Company: {
           select: {
             id: true,
             name: true,
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       sessionData: {
         companyId: companyId,
         role: userCompany.role,
-        company: {
+        Company: {
           id: userCompany.company.id,
           name: userCompany.company.name
         }

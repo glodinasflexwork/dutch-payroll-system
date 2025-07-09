@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
 
     // Create payslip data with corrected amounts
     const payslipData = {
-      company: {
+      Company: {
         name: company.name,
         address: company.address || '',
         city: company.city || '',
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
         kvkNumber: company.kvkNumber || '',
         taxNumber: company.taxNumber || ''
       },
-      employee: {
+      Employee: {
         firstName: employee.firstName,
         lastName: employee.lastName,
         employeeNumber: employee.employeeNumber || '',
@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
 
     // Create payslip data with corrected amounts
     const payslipData = {
-      company: {
+      Company: {
         name: company.name,
         address: company.address || '',
         city: company.city || '',
@@ -241,7 +241,7 @@ export async function POST(request: NextRequest) {
         kvkNumber: company.kvkNumber || '',
         taxNumber: company.taxNumber || ''
       },
-      employee: {
+      Employee: {
         firstName: employee.firstName,
         lastName: employee.lastName,
         employeeNumber: employee.employeeNumber || '',

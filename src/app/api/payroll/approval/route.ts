@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
         companyId: session.user.companyId
       },
       include: {
-        employee: {
+        Employee: {
           select: {
             firstName: true,
             lastName: true,
@@ -300,7 +300,7 @@ export async function GET(request: NextRequest) {
         payrollRecord: {
           where: payrollWhere,
           include: {
-            employee: {
+            Employee: {
               select: {
                 id: true,
                 employeeNumber: true,

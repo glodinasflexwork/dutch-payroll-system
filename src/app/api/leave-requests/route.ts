@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const leaveRequests = await prisma.leaveRequest.findMany({
       where: createCompanyFilter(context.companyId),
       include: {
-        employee: {
+        Employee: {
           select: {
             firstName: true,
             lastName: true,
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       leaveRequests,
-      company: {
+      Company: {
         id: context.companyId,
         name: context.companyName
       }
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
         requestedById: context.userId
       },
       include: {
-        employee: {
+        Employee: {
           select: {
             firstName: true,
             lastName: true,

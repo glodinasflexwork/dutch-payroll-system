@@ -25,7 +25,7 @@ declare module "next-auth" {
         id: string
         role: string
         isActive: boolean
-        company: {
+        Company: {
           id: string
           name: string
           subscription?: {
@@ -43,7 +43,7 @@ declare module "next-auth" {
         id: string
         role: string
         isActive: boolean
-        company: {
+        Company: {
           id: string
           name: string
         }
@@ -63,7 +63,7 @@ declare module "next-auth" {
       id: string
       role: string
       isActive: boolean
-      company: {
+      Company: {
         id: string
         name: string
         subscription?: {
@@ -81,7 +81,7 @@ declare module "next-auth" {
       id: string
       role: string
       isActive: boolean
-      company: {
+      Company: {
         id: string
         name: string
       }
@@ -102,7 +102,7 @@ declare module "next-auth/jwt" {
       id: string
       role: string
       isActive: boolean
-      company: {
+      Company: {
         id: string
         name: string
         subscription?: {
@@ -120,7 +120,7 @@ declare module "next-auth/jwt" {
       id: string
       role: string
       isActive: boolean
-      company: {
+      Company: {
         id: string
         name: string
       }

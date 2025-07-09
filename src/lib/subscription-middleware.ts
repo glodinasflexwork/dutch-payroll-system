@@ -150,7 +150,7 @@ export async function validateCompanyCreation(userId: string): Promise<Subscript
         role: 'owner' // Only count companies where user is owner
       },
       include: {
-        company: {
+        Company: {
           include: {
             subscription: {
               include: {
