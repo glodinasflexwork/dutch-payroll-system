@@ -84,7 +84,7 @@ export default function LandingPage() {
                   Sign In
                 </Button>
               </Link>
-              <Link href="/auth/register">
+              <Link href="/auth/signup">
                 <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6">
                   Start Free Trial
                 </Button>
@@ -114,7 +114,7 @@ export default function LandingPage() {
                   small businesses, HR professionals, and accountants in the Netherlands.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 mb-12">
-                  <Link href="/auth/register">
+                  <Link href="/auth/signup">
                     <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg">
                       Start Free Trial
                       <ArrowRight className="ml-2 w-5 h-5" />
@@ -368,7 +368,7 @@ export default function LandingPage() {
             <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
               Join hundreds of Dutch businesses who trust SalarySync for their payroll needs.
             </p>
-            <Link href="/auth/register">
+            <Link href="/auth/signup">
               <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 text-lg font-semibold">
                 Start Your Free Trial Today
                 <ArrowRight className="ml-2 w-5 h-5" />
