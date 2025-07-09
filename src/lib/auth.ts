@@ -23,23 +23,7 @@ export const authOptions: NextAuthOptions = {
             email: credentials.email
           },
           include: {
-            company: true,
-            companies: {
-              where: {
-                isActive: true
-              },
-              include: {
-                company: {
-                  select: {
-                    id: true,
-                    name: true
-                  }
-                }
-              },
-              orderBy: {
-                createdAt: 'asc'
-              }
-            }
+            Company: true
           }
         })
 
@@ -56,17 +40,13 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        // Get the user's primary company (first one they joined)
-        const primaryUserCompany = user.companies[0]
-        const currentCompany = primaryUserCompany?.company || user.company
-
         return {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: primaryUserCompany?.role || user.role || 'owner', // Use company-specific role or fallback to global role
-          companyId: currentCompany?.id || user.companyId,
-          company: currentCompany
+          role: user.role || 'admin',
+          companyId: user.companyId,
+          company: user.Company
         }
       }
     })
@@ -75,44 +55,12 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt"
   },
   callbacks: {
-    async jwt({ token, user, trigger, session }) {
+    async jwt({ token, user }) {
       if (user) {
         token.role = user.role
         token.companyId = user.companyId
         token.company = user.company
       }
-      
-      // Handle company switching by refreshing user data from database
-      if (trigger === "update" && session?.companyId) {
-        // Fetch fresh user data with new company context
-        const freshUser = await prisma.user.findUnique({
-          where: { id: token.sub! },
-          include: {
-            companies: {
-              where: {
-                companyId: session.companyId,
-                isActive: true
-              },
-              include: {
-                company: {
-                  select: {
-                    id: true,
-                    name: true
-                  }
-                }
-              }
-            }
-          }
-        })
-
-        if (freshUser && freshUser.companies[0]) {
-          const userCompany = freshUser.companies[0]
-          token.role = userCompany.role
-          token.companyId = userCompany.company.id
-          token.company = userCompany.company
-        }
-      }
-      
       return token
     },
     async session({ session, token }) {
