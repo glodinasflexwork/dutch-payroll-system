@@ -1,20 +1,26 @@
 import { NextRequest, NextResponse } from "next/server"
-import { validateCompanyAccess, auditLog, createCompanyFilter } from "@/lib/company-context"
+import { validateAuth, createCompanyFilter } from "@/lib/auth-utils"
 import { prisma } from "@/lib/prisma"
 import { validateSubscription } from "@/lib/subscription"
 
 // GET /api/employees - Get all employees for the current company
 export async function GET(request: NextRequest) {
   try {
-    const { context, error, status } = await validateCompanyAccess(request, ['employee'])
+    console.log('=== EMPLOYEES GET API START ===')
+    
+    const { context, error, status } = await validateAuth(request, ['employee'])
     
     if (!context || error) {
+      console.log('Authentication failed:', error)
       return NextResponse.json({ error }, { status })
     }
+
+    console.log('Authentication successful, fetching employees for company:', context.companyId)
 
     // Validate subscription - allow basic access even if expired
     const subscriptionValidation = await validateSubscription(context.companyId)
     if (!subscriptionValidation.isValid) {
+      console.log('Subscription validation failed:', subscriptionValidation.error)
       return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
     }
 
@@ -28,8 +34,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Audit log
-    await auditLog(context, 'READ', 'employees', undefined, { count: employees.length })
+    console.log('Found employees:', employees.length)
 
     return NextResponse.json({
       success: true,
@@ -44,6 +49,7 @@ export async function GET(request: NextRequest) {
       }
     })
   } catch (error) {
+    console.error("=== EMPLOYEES GET API ERROR ===")
     console.error("Error fetching employees:", error)
     return NextResponse.json(
       { success: false, error: "Internal server error" },
