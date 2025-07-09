@@ -46,7 +46,7 @@ model Company {
   foundedYear   Int?
   employeeCount Int?
   createdAt     DateTime        @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime        @updatedAt
   Employee      Employee[]
   PayrollRecord PayrollRecord[]
   Subscription  Subscription?
@@ -81,7 +81,7 @@ model Employee {
   emergencyPhone   String?
   companyId        String
   createdAt        DateTime        @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime        @updatedAt
   Company          Company         @relation(fields: [companyId], references: [id])
   PayrollRecord    PayrollRecord[]
 
@@ -116,7 +116,7 @@ model PayrollRecord {
   payslipGenerated Boolean  @default(false)
   notes            String?
   createdAt        DateTime @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime @updatedAt
   Company          Company  @relation(fields: [companyId], references: [id])
   Employee         Employee @relation(fields: [employeeId], references: [id])
 }
@@ -132,7 +132,7 @@ model Plan {
   currency        String         @default("EUR")
   isActive        Boolean        @default(true)
   createdAt       DateTime       @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime       @updatedAt
   stripeProductId String?
   Subscription    Subscription[]
 }
@@ -157,7 +157,7 @@ model Subscription {
   cancelAtPeriodEnd    Boolean   @default(false)
   trialEnd             DateTime?
   createdAt            DateTime  @default(now())
-  updatedAt            DateTime
+  updatedAt            DateTime  @updatedAt
   Company              Company   @relation(fields: [companyId], references: [id])
   Plan                 Plan      @relation(fields: [planId], references: [id])
 }
@@ -181,7 +181,7 @@ model TaxSettings {
   minimumWage          Float    @default(12.83)
   isActive             Boolean  @default(true)
   createdAt            DateTime @default(now())
-  updatedAt            DateTime
+  updatedAt            DateTime @updatedAt
   Company              Company  @relation(fields: [companyId], references: [id])
 
   @@unique([companyId, taxYear])
@@ -195,7 +195,7 @@ model TenantConfig {
   features      Json     @default("{}")
   customization Json     @default("{}")
   createdAt     DateTime @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime @updatedAt
   Company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
@@ -209,7 +209,7 @@ model User {
   role          String        @default("admin")
   companyId     String?
   createdAt     DateTime      @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime      @updatedAt
   Account       Account[]
   Session       Session[]
   Company       Company?      @relation(fields: [companyId], references: [id])
@@ -223,7 +223,7 @@ model UserCompany {
   role      String
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
-  updatedAt DateTime
+  updatedAt DateTime @updatedAt
   Company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
