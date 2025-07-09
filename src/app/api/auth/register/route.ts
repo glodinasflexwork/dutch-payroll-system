@@ -54,7 +54,8 @@ export async function POST(request: NextRequest) {
           email,
           password: hashedPassword,
           companyId: company.id, // Legacy field for backward compatibility
-          emailVerified: null // Not verified yet
+          emailVerified: null, // Not verified yet
+          updatedAt: new Date()
         }
       })
 
