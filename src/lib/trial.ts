@@ -26,17 +26,36 @@ export async function createTrial(companyId: string): Promise<void> {
   const now = new Date();
   const trialEnd = new Date(now.getTime() + (TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000));
 
+  // First, check if a plan exists, if not create a default trial plan
+  let trialPlan = await prisma.plan.findFirst({
+    where: { name: 'Trial' }
+  });
+
+  if (!trialPlan) {
+    trialPlan = await prisma.plan.create({
+      data: {
+        name: 'Trial',
+        description: '14-day free trial',
+        price: 0,
+        currency: 'EUR',
+        interval: 'month',
+        features: ['All features included'],
+        maxEmployees: 999,
+        maxPayrolls: 999,
+        isActive: true
+      }
+    });
+  }
+
   await prisma.subscription.create({
     data: {
       companyId,
+      planId: trialPlan.id,
       status: 'trialing',
       currentPeriodStart: now,
       currentPeriodEnd: trialEnd,
-      trialStart: now,
       trialEnd: trialEnd,
-      isTrialActive: true,
-      trialDaysUsed: 0,
-      trialExtensions: 0
+      cancelAtPeriodEnd: false
     }
   });
 }
