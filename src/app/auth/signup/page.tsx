@@ -23,6 +23,15 @@ interface DebugInfo {
   status: 'info' | 'success' | 'error' | 'warning'
 }
 
+interface KvKCompany {
+  name: string
+  address: string
+  city: string
+  postalCode: string
+  kvkNumber: string
+  status: string
+}
+
 export default function SignUp() {
   const [formData, setFormData] = useState({
     name: "",
@@ -43,6 +52,9 @@ export default function SignUp() {
   const [debugInfo, setDebugInfo] = useState<DebugInfo[]>([])
   const [showPassword, setShowPassword] = useState(false)
   const [fieldTouched, setFieldTouched] = useState<{[key: string]: boolean}>({})
+  const [kvkLoading, setKvkLoading] = useState(false)
+  const [kvkSearchResults, setKvkSearchResults] = useState<KvKCompany[]>([])
+  const [showKvkResults, setShowKvkResults] = useState(false)
   const router = useRouter()
 
   const addDebugInfo = (step: string, details: string, status: DebugInfo['status'] = 'info') => {
@@ -53,6 +65,112 @@ export default function SignUp() {
       timestamp: new Date().toLocaleTimeString()
     }
     setDebugInfo(prev => [...prev, newDebugInfo])
+  }
+
+  // KvK API functions
+  const lookupKvKNumber = async (kvkNumber: string) => {
+    if (!kvkNumber || kvkNumber.length !== 8) return
+
+    setKvkLoading(true)
+    setShowKvkResults(false)
+    
+    if (debugMode) {
+      addDebugInfo('KvK Lookup', `Looking up KvK number: ${kvkNumber}`, 'info')
+    }
+
+    try {
+      const response = await fetch(`/api/kvk/lookup?kvkNumber=${kvkNumber}`)
+      const data = await response.json()
+
+      if (debugMode) {
+        addDebugInfo('KvK API Response', JSON.stringify(data, null, 2), response.ok ? 'success' : 'error')
+      }
+
+      if (response.ok && data.company) {
+        // Auto-fill company information
+        setFormData(prev => ({
+          ...prev,
+          companyName: data.company.name || prev.companyName,
+          companyAddress: data.company.address || prev.companyAddress,
+          companyCity: data.company.city || prev.companyCity,
+          companyPostalCode: data.company.postalCode || prev.companyPostalCode
+        }))
+
+        if (debugMode) {
+          addDebugInfo('Auto-fill Success', 'Company information auto-filled from KvK', 'success')
+        }
+      } else {
+        if (debugMode) {
+          addDebugInfo('KvK Lookup Failed', data.error || 'Company not found', 'warning')
+        }
+      }
+    } catch (error) {
+      if (debugMode) {
+        addDebugInfo('KvK API Error', error instanceof Error ? error.message : 'Network error', 'error')
+      }
+    } finally {
+      setKvkLoading(false)
+    }
+  }
+
+  const searchKvKByName = async (companyName: string) => {
+    if (!companyName || companyName.length < 3) return
+
+    setKvkLoading(true)
+    
+    if (debugMode) {
+      addDebugInfo('KvK Search', `Searching for companies: ${companyName}`, 'info')
+    }
+
+    try {
+      const response = await fetch(`/api/kvk/lookup?name=${encodeURIComponent(companyName)}&action=search`)
+      const data = await response.json()
+
+      if (debugMode) {
+        addDebugInfo('KvK Search Response', JSON.stringify(data, null, 2), response.ok ? 'success' : 'error')
+      }
+
+      if (response.ok && data.companies) {
+        setKvkSearchResults(data.companies)
+        setShowKvkResults(true)
+        
+        if (debugMode) {
+          addDebugInfo('Search Results', `Found ${data.companies.length} companies`, 'success')
+        }
+      } else {
+        setKvkSearchResults([])
+        setShowKvkResults(false)
+        
+        if (debugMode) {
+          addDebugInfo('Search Failed', data.error || 'No companies found', 'warning')
+        }
+      }
+    } catch (error) {
+      setKvkSearchResults([])
+      setShowKvkResults(false)
+      
+      if (debugMode) {
+        addDebugInfo('Search Error', error instanceof Error ? error.message : 'Network error', 'error')
+      }
+    } finally {
+      setKvkLoading(false)
+    }
+  }
+
+  const selectKvKCompany = (company: KvKCompany) => {
+    setFormData(prev => ({
+      ...prev,
+      companyName: company.name,
+      companyAddress: company.address,
+      companyCity: company.city,
+      companyPostalCode: company.postalCode,
+      kvkNumber: company.kvkNumber
+    }))
+    setShowKvkResults(false)
+    
+    if (debugMode) {
+      addDebugInfo('Company Selected', `Selected: ${company.name}`, 'success')
+    }
   }
 
   const validateField = (name: string, value: string): string | undefined => {
@@ -143,6 +261,25 @@ export default function SignUp() {
         ...prev,
         [name]: error
       }))
+    }
+
+    // KvK auto-lookup when KvK number is entered
+    if (name === 'kvkNumber' && value.replace(/\s/g, '').length === 8) {
+      const cleanKvkNumber = value.replace(/\s/g, '')
+      lookupKvKNumber(cleanKvkNumber)
+    }
+
+    // KvK search when company name is typed (with debounce)
+    if (name === 'companyName' && value.length >= 3) {
+      // Clear previous timeout
+      if (window.kvkSearchTimeout) {
+        clearTimeout(window.kvkSearchTimeout)
+      }
+      
+      // Set new timeout for search
+      window.kvkSearchTimeout = setTimeout(() => {
+        searchKvKByName(value)
+      }, 1000) // 1 second debounce
     }
 
     if (debugMode) {
