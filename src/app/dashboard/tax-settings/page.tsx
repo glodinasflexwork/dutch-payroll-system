@@ -26,9 +26,13 @@ interface TaxSettings {
   taxYear: number
   aowRate: number
   wlzRate: number
+  wwRate: number
+  wiaRate: number
   zvwRate: number
   aowMaxBase: number
   wlzMaxBase: number
+  wwMaxBase: number
+  wiaMaxBase: number
   holidayAllowanceRate: number
   minimumWage: number
   isActive: boolean
@@ -40,9 +44,13 @@ interface TaxSettingsForm {
   taxYear: number
   aowRate: number
   wlzRate: number
+  wwRate: number
+  wiaRate: number
   zvwRate: number
   aowMaxBase: number
   wlzMaxBase: number
+  wwMaxBase: number
+  wiaMaxBase: number
   holidayAllowanceRate: number
   minimumWage: number
   isActive: boolean
@@ -60,9 +68,13 @@ export default function TaxSettingsPage() {
     taxYear: new Date().getFullYear(),
     aowRate: 17.90,
     wlzRate: 9.65,
+    wwRate: 2.70,
+    wiaRate: 0.60,
     zvwRate: 5.65,
     aowMaxBase: 40000,
     wlzMaxBase: 40000,
+    wwMaxBase: 69000,
+    wiaMaxBase: 69000,
     holidayAllowanceRate: 8.0,
     minimumWage: 1995,
     isActive: true
@@ -177,9 +189,13 @@ export default function TaxSettingsPage() {
       taxYear: new Date().getFullYear(),
       aowRate: 17.90,
       wlzRate: 9.65,
+      wwRate: 2.70,
+      wiaRate: 0.60,
       zvwRate: 5.65,
       aowMaxBase: 40000,
       wlzMaxBase: 40000,
+      wwMaxBase: 69000,
+      wiaMaxBase: 69000,
       holidayAllowanceRate: 8.0,
       minimumWage: 1995,
       isActive: true
@@ -192,9 +208,13 @@ export default function TaxSettingsPage() {
       taxYear: settings.taxYear,
       aowRate: settings.aowRate,
       wlzRate: settings.wlzRate,
+      wwRate: settings.wwRate,
+      wiaRate: settings.wiaRate,
       zvwRate: settings.zvwRate,
       aowMaxBase: settings.aowMaxBase,
       wlzMaxBase: settings.wlzMaxBase,
+      wwMaxBase: settings.wwMaxBase,
+      wiaMaxBase: settings.wiaMaxBase,
       holidayAllowanceRate: settings.holidayAllowanceRate,
       minimumWage: settings.minimumWage,
       isActive: settings.isActive
