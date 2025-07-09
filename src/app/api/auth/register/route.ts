@@ -34,9 +34,10 @@ export async function POST(request: NextRequest) {
 
     // Create company, user, and trial in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Create company
+      // Create company first
       const company = await tx.company.create({
         data: {
+          id: `comp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           name: companyName,
           address: companyAddress || "",
           city: companyCity || "",
