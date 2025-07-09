@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
       where: { id: session.user.companyId },
       include: {
         subscriptions: {
-          include: { plan: true }
+          include: { Plan: true }
         }
       }
     });

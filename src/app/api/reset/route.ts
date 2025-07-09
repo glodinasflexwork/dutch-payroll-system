@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     // Delete existing user and related data
     const existingUser = await prisma.user.findUnique({
       where: { email },
-      include: { company: true }
+      include: { Company: true }
     })
 
     if (existingUser) {

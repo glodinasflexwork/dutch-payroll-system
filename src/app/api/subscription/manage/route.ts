@@ -30,7 +30,7 @@ export async function PUT(request: NextRequest) {
     // Get current subscription
     const currentSubscription = await prisma.subscription.findUnique({
       where: { companyId: session.user.companyId },
-      include: { plan: true }
+      include: { Plan: true }
     })
 
     if (!currentSubscription || !currentSubscription.stripeSubscriptionId) {
@@ -135,7 +135,7 @@ export async function DELETE(request: NextRequest) {
     // Get current subscription
     const currentSubscription = await prisma.subscription.findUnique({
       where: { companyId: session.user.companyId },
-      include: { plan: true }
+      include: { Plan: true }
     })
 
     if (!currentSubscription || !currentSubscription.stripeSubscriptionId) {

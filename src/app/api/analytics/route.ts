@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
         }
       },
       include: {
-        employee: {
+        Employee: {
           select: {
             id: true,
             firstName: true,
@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
     const departmentData = new Map<string, { employees: number, totalSalary: number }>()
     
     currentMonthRecords.forEach(record => {
-      const dept = record.employee.department || 'Other'
+      const dept = record.Employee.department || 'Other'
       if (!departmentData.has(dept)) {
         departmentData.set(dept, { employees: 0, totalSalary: 0 })
       }
