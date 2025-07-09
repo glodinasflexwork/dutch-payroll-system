@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,7 +8,7 @@ datasource db {
 }
 
 model Account {
-  id                String  @id @default(cuid())
+  id                String  @id
   userId            String
   type              String
   provider          String
@@ -23,55 +20,214 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  User              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
 
+model Company {
+  id            String          @id
+  name          String
+  address       String?
+  city          String?
+  postalCode    String?
+  country       String          @default("Netherlands")
+  phone         String?
+  email         String?
+  website       String?
+  kvkNumber     String?
+  taxNumber     String?
+  vatNumber     String?
+  bankAccount   String?
+  contactEmail  String?
+  contactPhone  String?
+  description   String?
+  industry      String?
+  foundedYear   Int?
+  employeeCount Int?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime
+  Employee      Employee[]
+  PayrollRecord PayrollRecord[]
+  Subscription  Subscription?
+  TaxSettings   TaxSettings[]
+  TenantConfig  TenantConfig?
+  User          User[]
+  UserCompany   UserCompany[]
+}
+
+model Employee {
+  id               String          @id
+  employeeNumber   String
+  firstName        String
+  lastName         String
+  email            String?
+  phone            String?
+  address          String?
+  city             String?
+  postalCode       String?
+  bsn              String
+  dateOfBirth      DateTime
+  startDate        DateTime
+  endDate          DateTime?
+  position         String
+  department       String?
+  employmentType   String
+  salary           Float
+  taxTable         String
+  isActive         Boolean         @default(true)
+  bankAccount      String?
+  emergencyContact String?
+  emergencyPhone   String?
+  companyId        String
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime
+  Company          Company         @relation(fields: [companyId], references: [id])
+  PayrollRecord    PayrollRecord[]
+
+  @@unique([companyId, bsn])
+  @@unique([companyId, employeeNumber])
+}
+
+model PayrollRecord {
+  id               String   @id
+  employeeId       String
+  companyId        String
+  payPeriodStart   DateTime
+  payPeriodEnd     DateTime
+  processedDate    DateTime @default(now())
+  baseSalary       Float
+  hoursWorked      Float    @default(0)
+  overtimeHours    Float    @default(0)
+  overtimeRate     Float    @default(1.5)
+  regularPay       Float
+  overtimePay      Float
+  holidayAllowance Float    @default(0)
+  grossPay         Float
+  incomeTax        Float
+  aowContribution  Float
+  wlzContribution  Float
+  wwContribution   Float
+  wiaContribution  Float
+  totalDeductions  Float
+  netPay           Float
+  taxTable         String
+  taxYear          Int
+  payslipGenerated Boolean  @default(false)
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime
+  Company          Company  @relation(fields: [companyId], references: [id])
+  Employee         Employee @relation(fields: [employeeId], references: [id])
+}
+
+model Plan {
+  id              String         @id
+  name            String
+  stripePriceId   String?
+  maxEmployees    Int?
+  maxPayrolls     Int?
+  features        Json
+  price           Float
+  currency        String         @default("EUR")
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime
+  stripeProductId String?
+  Subscription    Subscription[]
+}
+
 model Session {
-  id           String   @id @default(cuid())
+  id           String   @id
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  User         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id                   String    @id
+  companyId            String    @unique
+  planId               String
+  status               String
+  stripeSubscriptionId String?
+  stripeCustomerId     String?
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean   @default(false)
+  trialEnd             DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime
+  Company              Company   @relation(fields: [companyId], references: [id])
+  Plan                 Plan      @relation(fields: [planId], references: [id])
+}
+
+model TaxSettings {
+  id                   String   @id
+  companyId            String
+  taxYear              Int
+  incomeTaxRate1       Float    @default(36.93)
+  incomeTaxRate2       Float    @default(49.50)
+  incomeTaxBracket1Max Float    @default(75518)
+  aowRate              Float    @default(17.90)
+  wlzRate              Float    @default(9.65)
+  wwRate               Float    @default(2.70)
+  wiaRate              Float    @default(0.60)
+  aowMaxBase           Float    @default(40000)
+  wlzMaxBase           Float    @default(40000)
+  wwMaxBase            Float    @default(69000)
+  wiaMaxBase           Float    @default(69000)
+  holidayAllowanceRate Float    @default(8.0)
+  minimumWage          Float    @default(12.83)
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime
+  Company              Company  @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, taxYear])
+}
+
+model TenantConfig {
+  id            String   @id
+  companyId     String   @unique
+  settings      Json     @default("{}")
+  limits        Json     @default("{}")
+  features      Json     @default("{}")
+  customization Json     @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime
+  Company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String        @id
   name          String?
-  email         String    @unique
+  email         String        @unique
   emailVerified DateTime?
   image         String?
   password      String?
-  role          String    @default("admin") // Global role, will be deprecated in favor of UserCompany roles
-  companyId     String?   // Legacy field - keeping for backward compatibility during migration
-  language      String    @default("en") // User's preferred language (en, nl, etc.)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  role          String        @default("admin")
+  companyId     String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime
+  Account       Account[]
+  Session       Session[]
+  Company       Company?      @relation(fields: [companyId], references: [id])
+  UserCompany   UserCompany[]
+}
 
-  accounts      Account[]
-  sessions      Session[]
-  company       Company?     @relation(fields: [companyId], references: [id]) // Legacy relationship
-  companies     UserCompany[] // New multi-tenant relationship
-  
-  // Payroll approval relations
-  payrollApprovalsSubmitted PayrollApproval[] @relation("PayrollApprovalSubmittedBy")
-  payrollApprovalsReviewed  PayrollApproval[] @relation("PayrollApprovalReviewedBy")
-  payrollApprovalsApproved  PayrollApproval[] @relation("PayrollApprovalApprovedBy")
-  payrollApprovalsFinalized PayrollApproval[] @relation("PayrollApprovalFinalizedBy")
-  payrollApprovalHistory    PayrollApprovalHistory[]
-  
-  // Phase 1 new relations
-  leaveRequestsRequested    LeaveRequest[] @relation("LeaveRequestRequestedBy")
-  leaveRequestsReviewed     LeaveRequest[] @relation("LeaveRequestReviewedBy")
-  leaveRequestsApproved     LeaveRequest[] @relation("LeaveRequestApprovedBy")
-  timeEntriesApproved       TimeEntry[] @relation("TimeEntryApprovedBy")
-  timeSheetsApproved        TimeSheet[] @relation("TimeSheetApprovedBy")
-  reportsCreated            Report[] @relation("ReportCreatedBy")
-  
-  // Multi-company relations
-  companyInvitationsSent    CompanyInvitation[] @relation("CompanyInvitationInvitedBy")
+model UserCompany {
+  id        String   @id
+  userId    String
+  companyId String
+  role      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
 }
 
 model VerificationToken {
@@ -81,668 +237,3 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
-
-model Company {
-  id                String   @id @default(cuid())
-  name              String
-  address           String?
-  city              String?
-  postalCode        String?
-  country           String   @default("Netherlands")
-  phone             String?  // Company phone number
-  email             String?  // Company email
-  website           String?  // Company website
-  kvkNumber         String?  // Chamber of Commerce number
-  taxNumber         String?  // Tax identification number (Loonheffingsnummer)
-  vatNumber         String?  // VAT number (BTW nummer)
-  bankAccount       String?
-  contactEmail      String?  // Legacy field - keeping for compatibility
-  contactPhone      String?  // Legacy field - keeping for compatibility
-  description       String?  // Company description
-  industry          String?  // Industry/sector
-  foundedYear       Int?     // Year company was founded
-  employeeCount     Int?     // Number of employees
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  users             User[]        // Legacy relationship
-  userCompanies     UserCompany[] // New multi-tenant relationship
-  employees         Employee[]
-  payrollRecords    PayrollRecord[]
-  payrollApprovals  PayrollApproval[]
-  employeeAllowances EmployeeAllowance[]
-  employeeDeductions EmployeeDeduction[]
-  taxSettings       TaxSettings[]
-  subscriptions     Subscription[] // One-to-many relationship with subscriptions
-  tenantConfig      TenantConfig? // One-to-one relationship with tenant config
-  invitations       CompanyInvitation[] // Company invitations
-  
-  // Phase 1 new relations
-  leaveTypes        LeaveType[]
-  leaveBalances     LeaveBalance[]
-  leaveRequests     LeaveRequest[]
-  projects          Project[]
-  timeEntries       TimeEntry[]
-  timeSheets        TimeSheet[]
-  reports           Report[]
-}
-
-model Employee {
-  id                String   @id @default(cuid())
-  employeeNumber    String   // Company-specific employee number
-  
-  // Personal Information
-  firstName         String
-  lastName          String
-  email             String?
-  phone             String?
-  address           String?
-  city              String?
-  postalCode        String?
-  country           String   @default("Netherlands")
-  
-  // Dutch-specific identifiers
-  bsn               String   // Burgerservicenummer (Dutch social security number)
-  nationality       String   @default("Dutch")
-  
-  // Employment Information
-  dateOfBirth       DateTime
-  startDate         DateTime
-  endDate           DateTime?
-  probationEndDate  DateTime? // Proeftijd
-  position          String
-  department        String?
-  
-  // Contract Information
-  employmentType    String   // "permanent", "temporary", "freelance", "intern"
-  contractType      String   // "fulltime", "parttime", "zero_hours"
-  workingHours      Float    @default(40) // Hours per week
-  workingDays       Float    @default(5)  // Days per week
-  
-  // Salary Information
-  salary            Float    // Monthly gross salary
-  salaryType        String   @default("monthly") // "monthly", "hourly", "annual"
-  hourlyRate        Float?   // For hourly employees
-  
-  // Dutch Tax Information
-  taxTable          String   // "wit" (white) or "groen" (green)
-  taxCredit         Float    @default(0) // Heffingskorting
-  payrollTaxNumber  String?  // Loonheffingsnummer
-  
-  // Benefits and Allowances
-  holidayAllowance  Float    @default(8.33) // Vakantiegeld percentage
-  holidayDays       Int      @default(25)   // Vacation days per year
-  pensionScheme     String?  // Pension scheme type
-  
-  // Banking Information
-  bankAccount       String?  // IBAN
-  bankName          String?
-  
-  // Emergency Contact
-  emergencyContact  String?
-  emergencyPhone    String?
-  emergencyRelation String?
-  
-  // Employment Status
-  isActive          Boolean  @default(true)
-  isDGA             Boolean  @default(false) // Directeur-grootaandeelhouder
-  
-  // System fields
-  companyId         String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  createdBy         String?  // User who created the employee
-  
-  // Relations
-  company           Company @relation(fields: [companyId], references: [id])
-  payrollRecords    PayrollRecord[]
-  employeeAllowances EmployeeAllowance[]
-  employeeDeductions EmployeeDeduction[]
-  
-  // Phase 1 new relations
-  leaveBalances     LeaveBalance[]
-  leaveRequests     LeaveRequest[]
-  timeEntries       TimeEntry[]
-  timeSheets        TimeSheet[]
-  
-  // Compound unique constraints for per-company uniqueness
-  @@unique([companyId, employeeNumber])
-  @@unique([companyId, bsn])
-}
-
-model PayrollRecord {
-  id                String   @id @default(cuid())
-  employeeId        String
-  companyId         String
-  payPeriodStart    DateTime
-  payPeriodEnd      DateTime
-  processedDate     DateTime @default(now())
-  
-  // Basic pay information
-  baseSalary        Float
-  hoursWorked       Float    @default(0)
-  overtimeHours     Float    @default(0)
-  overtimeRate      Float    @default(1.5)
-  
-  // Gross pay calculations
-  regularPay        Float
-  overtimePay       Float
-  holidayAllowance  Float    @default(0) // Vakantiegeld
-  grossPay          Float
-  
-  // Tax deductions
-  incomeTax         Float
-  aowContribution   Float    // AOW (State pension)
-  wlzContribution   Float    // WLZ (Long-term care)
-  wwContribution    Float    // WW (Unemployment insurance)
-  wiaContribution   Float    // WIA (Disability insurance)
-  totalDeductions   Float
-  
-  // Net pay
-  netPay            Float
-  
-  // Employer costs
-  employerCosts     Float    @default(0) // Total employer contributions
-  
-  // Additional information
-  taxTable          String   // "wit" or "groen"
-  taxYear           Int
-  payslipGenerated  Boolean  @default(false)
-  notes             String?
-  
-  employee          Employee @relation(fields: [employeeId], references: [id])
-  company           Company  @relation(fields: [companyId], references: [id])
-  approval          PayrollApproval?
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-}
-
-model TaxSettings {
-  id                    String   @id @default(cuid())
-  companyId             String
-  taxYear               Int
-  
-  // Income tax bracket (for reference only - not used in monthly calculations)
-  incomeTaxBracket1Max  Float    @default(75518) // Maximum for first bracket
-  
-  // Social security rates
-  aowRate               Float    @default(17.90) // AOW rate
-  wlzRate               Float    @default(9.65)  // WLZ rate
-  wwRate                Float    @default(2.70)  // WW rate
-  wiaRate               Float    @default(0.60)  // WIA rate
-  
-  // Maximum contribution bases
-  aowMaxBase            Float    @default(40000)  // AOW maximum base
-  wlzMaxBase            Float    @default(40000)  // WLZ maximum base
-  wwMaxBase             Float    @default(69000)  // WW maximum base
-  wiaMaxBase            Float    @default(69000)  // WIA maximum base
-  
-  // Other settings
-  holidayAllowanceRate  Float    @default(8.0)   // Holiday allowance percentage
-  minimumWage           Float    @default(12.83) // Minimum wage per hour
-  
-  isActive              Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
-  company               Company  @relation(fields: [companyId], references: [id])
-  
-  @@unique([companyId, taxYear])
-}
-
-
-// Multi-tenancy and Subscription Models
-
-model Plan {
-  id               String   @id @default(cuid())
-  name             String   // "Starter", "Professional", "Enterprise"
-  stripeProductId  String?  // Stripe product ID
-  stripePriceId    String?  // Stripe price ID
-  maxEmployees     Int?     // null = unlimited
-  maxPayrolls      Int?     // null = unlimited
-  features         Json     // Feature flags as JSON
-  price            Float    // Monthly price in cents
-  currency         String   @default("EUR")
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  
-  subscriptions Subscription[]
-}
-
-model Subscription {
-  id                 String   @id @default(cuid())
-  companyId          String   @unique
-  planId             String?  // Allow null for trial subscriptions
-  status             String   // active, canceled, past_due, trialing, trial_expired, etc.
-  stripeSubscriptionId String? // Stripe subscription ID
-  stripeCustomerId   String?  // Stripe customer ID
-  currentPeriodStart DateTime
-  currentPeriodEnd   DateTime
-  cancelAtPeriodEnd  Boolean  @default(false)
-  
-  // Enhanced trial tracking
-  trialStart        DateTime? // When trial started
-  trialEnd          DateTime? // When trial ends
-  isTrialActive     Boolean   @default(false) // Whether currently in trial
-  trialDaysUsed     Int       @default(0) // Days of trial used
-  trialExtensions   Int       @default(0) // Number of trial extensions granted
-  
-  // Conversion tracking
-  convertedFromTrial Boolean  @default(false) // Whether this was converted from trial
-  trialConvertedAt   DateTime? // When trial was converted to paid
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
-  company           Company @relation(fields: [companyId], references: [id])
-  plan              Plan?   @relation(fields: [planId], references: [id])
-}
-
-model UserCompany {
-  id        String   @id @default(cuid())
-  userId    String
-  companyId String
-  role      String   // "owner", "admin", "hr", "accountant", "employee"
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  
-  @@unique([userId, companyId])
-}
-
-model TenantConfig {
-  id            String   @id @default(cuid())
-  companyId     String   @unique
-  settings      Json     @default("{}")  // Tenant-specific settings
-  limits        Json     @default("{}")  // Usage limits
-  features      Json     @default("{}")  // Enabled features
-  customization Json     @default("{}")  // UI customization
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-}
-
-
-
-// Payroll Approval Workflow Models
-
-model PayrollApproval {
-  id                String   @id @default(cuid())
-  payrollRecordId   String   @unique
-  companyId         String
-  
-  // Workflow status
-  status            String   // draft, pending, approved, rejected, finalized, paid, cancelled
-  
-  // Workflow participants
-  submittedBy       String
-  submittedAt       DateTime
-  reviewedBy        String?
-  reviewedAt        DateTime?
-  approvedBy        String?
-  approvedAt        DateTime?
-  finalizedBy       String?
-  finalizedAt       DateTime?
-  
-  // Comments and reasons
-  comments          String?
-  rejectionReason   String?
-  
-  // Relations
-  payrollRecord     PayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Cascade)
-  company           Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  submittedByUser   User          @relation("PayrollApprovalSubmittedBy", fields: [submittedBy], references: [id])
-  reviewedByUser    User?         @relation("PayrollApprovalReviewedBy", fields: [reviewedBy], references: [id])
-  approvedByUser    User?         @relation("PayrollApprovalApprovedBy", fields: [approvedBy], references: [id])
-  finalizedByUser   User?         @relation("PayrollApprovalFinalizedBy", fields: [finalizedBy], references: [id])
-  history           PayrollApprovalHistory[]
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-}
-
-model PayrollApprovalHistory {
-  id                  String   @id @default(cuid())
-  payrollApprovalId   String
-  
-  // Action details
-  action              String   // submit, approve, reject, finalize, cancel
-  performedBy         String
-  performedAt         DateTime
-  comments            String?
-  
-  // Status transition
-  previousStatus      String
-  newStatus           String
-  
-  // Relations
-  payrollApproval     PayrollApproval @relation(fields: [payrollApprovalId], references: [id], onDelete: Cascade)
-  performedByUser     User            @relation(fields: [performedBy], references: [id])
-  
-  createdAt           DateTime @default(now())
-}
-
-
-
-// Employee Allowances and Deductions Models
-
-model EmployeeAllowance {
-  id          String   @id @default(cuid())
-  employeeId  String
-  companyId   String
-  
-  // Allowance details
-  type        String   // "car", "phone", "internet", "travel", "meal", "clothing", "other"
-  name        String   // Human readable name
-  description String?  // Optional description
-  
-  // Amount configuration
-  amount      Float    // Monthly allowance amount
-  currency    String   @default("EUR")
-  taxable     Boolean  @default(true) // Whether this allowance is taxable
-  
-  // Validity period
-  startDate   DateTime
-  endDate     DateTime?
-  isActive    Boolean  @default(true)
-  
-  // Relations
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@index([employeeId])
-  @@index([companyId])
-}
-
-model EmployeeDeduction {
-  id          String   @id @default(cuid())
-  employeeId  String
-  companyId   String
-  
-  // Deduction details
-  type        String   // "pension", "union", "insurance", "loan", "garnishment", "other"
-  name        String   // Human readable name
-  description String?  // Optional description
-  
-  // Amount configuration
-  amount      Float    // Monthly deduction amount
-  currency    String   @default("EUR")
-  isPercentage Boolean @default(false) // Whether amount is a percentage of salary
-  maxAmount   Float?   // Maximum deduction amount (for percentage-based)
-  
-  // Validity period
-  startDate   DateTime
-  endDate     DateTime?
-  isActive    Boolean  @default(true)
-  
-  // Relations
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@index([employeeId])
-  @@index([companyId])
-}
-
-// Phase 1 Features: Leave Management System
-
-model LeaveType {
-  id          String   @id @default(cuid())
-  companyId   String
-  name        String   // "Vakantie", "Ziekte", "Persoonlijk", "Zwangerschapsverlof", etc.
-  nameEn      String   // English name for reference
-  code        String   // Short code like "VAK", "ZIE", "PER"
-  color       String   @default("#3B82F6") // Color for calendar display
-  isPaid      Boolean  @default(true)
-  requiresApproval Boolean @default(true)
-  maxDaysPerYear Int?   // Maximum days per year (null = unlimited)
-  carryOverDays Int?    // Days that can be carried to next year
-  isActive    Boolean  @default(true)
-  
-  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  leaveRequests LeaveRequest[]
-  leaveBalances LeaveBalance[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@unique([companyId, code])
-  @@index([companyId])
-}
-
-model LeaveBalance {
-  id          String   @id @default(cuid())
-  employeeId  String
-  companyId   String
-  leaveTypeId String
-  year        Int      // Calendar year
-  
-  // Balance tracking
-  totalDays   Float    // Total allocated days for the year
-  usedDays    Float    @default(0) // Days already used
-  pendingDays Float    @default(0) // Days in pending requests
-  availableDays Float  // Calculated: totalDays - usedDays - pendingDays
-  
-  // Carry over from previous year
-  carriedOverDays Float @default(0)
-  
-  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@unique([employeeId, leaveTypeId, year])
-  @@index([employeeId])
-  @@index([companyId])
-}
-
-model LeaveRequest {
-  id          String   @id @default(cuid())
-  employeeId  String
-  companyId   String
-  leaveTypeId String
-  
-  // Request details
-  startDate   DateTime
-  endDate     DateTime
-  totalDays   Float    // Calculated working days
-  reason      String?  // Optional reason/description
-  
-  // Status workflow
-  status      String   @default("pending") // pending, approved, rejected, cancelled
-  
-  // Approval workflow
-  requestedBy String   // Employee who requested (usually same as employeeId)
-  requestedAt DateTime @default(now())
-  reviewedBy  String?  // Manager/HR who reviewed
-  reviewedAt  DateTime?
-  approvedBy  String?  // Final approver
-  approvedAt  DateTime?
-  
-  // Comments and feedback
-  comments    String?  // Comments from approver
-  rejectionReason String? // Reason for rejection
-  
-  // Relations
-  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
-  requestedByUser User  @relation("LeaveRequestRequestedBy", fields: [requestedBy], references: [id])
-  reviewedByUser  User? @relation("LeaveRequestReviewedBy", fields: [reviewedBy], references: [id])
-  approvedByUser  User? @relation("LeaveRequestApprovedBy", fields: [approvedBy], references: [id])
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@index([employeeId])
-  @@index([companyId])
-  @@index([status])
-}
-
-// Phase 1 Features: Time Tracking System
-
-model Project {
-  id          String   @id @default(cuid())
-  companyId   String
-  name        String
-  description String?
-  code        String?  // Project code for easy reference
-  color       String   @default("#3B82F6") // Color for time tracking display
-  isActive    Boolean  @default(true)
-  
-  // Budget tracking (optional)
-  budgetHours Float?   // Total budgeted hours
-  hourlyRate  Float?   // Rate for this project
-  
-  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  timeEntries TimeEntry[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@unique([companyId, code])
-  @@index([companyId])
-}
-
-model TimeEntry {
-  id          String   @id @default(cuid())
-  employeeId  String
-  companyId   String
-  projectId   String?  // Optional project assignment
-  
-  // Time details
-  date        DateTime // Date of work (date only)
-  startTime   DateTime? // Start time (can be null for manual entries)
-  endTime     DateTime? // End time (can be null for manual entries)
-  breakMinutes Int     @default(0) // Break time in minutes
-  totalHours  Float    // Total hours worked (calculated or manual)
-  
-  // Entry details
-  description String?  // Description of work done
-  entryType   String   @default("manual") // "manual", "timer", "imported"
-  
-  // Status and approval
-  status      String   @default("draft") // draft, submitted, approved, rejected
-  submittedAt DateTime?
-  approvedBy  String?
-  approvedAt  DateTime?
-  
-  // Relations
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  project     Project? @relation(fields: [projectId], references: [id])
-  approvedByUser User? @relation("TimeEntryApprovedBy", fields: [approvedBy], references: [id])
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@index([employeeId, date])
-  @@index([companyId])
-  @@index([date])
-}
-
-model TimeSheet {
-  id          String   @id @default(cuid())
-  employeeId  String
-  companyId   String
-  
-  // Period details
-  weekStartDate DateTime // Start of the week (Monday)
-  weekEndDate   DateTime // End of the week (Sunday)
-  year        Int
-  weekNumber  Int
-  
-  // Summary
-  totalHours  Float    @default(0) // Total hours for the week
-  regularHours Float   @default(0) // Regular working hours
-  overtimeHours Float  @default(0) // Overtime hours
-  
-  // Status
-  status      String   @default("draft") // draft, submitted, approved
-  submittedAt DateTime?
-  approvedBy  String?
-  approvedAt  DateTime?
-  
-  // Relations
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  approvedByUser User? @relation("TimeSheetApprovedBy", fields: [approvedBy], references: [id])
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@unique([employeeId, weekStartDate])
-  @@index([employeeId])
-  @@index([companyId])
-}
-
-// Phase 1 Features: Enhanced Reporting
-
-model Report {
-  id          String   @id @default(cuid())
-  companyId   String
-  name        String
-  description String?
-  reportType  String   // "payroll", "leave", "timesheet", "employee", "custom"
-  
-  // Report configuration
-  parameters  Json     @default("{}") // Report parameters as JSON
-  filters     Json     @default("{}") // Applied filters
-  columns     Json     @default("{}") // Selected columns
-  
-  // Scheduling
-  isScheduled Boolean  @default(false)
-  schedule    String?  // Cron expression for scheduled reports
-  
-  // Access control
-  createdBy   String
-  isPublic    Boolean  @default(false) // Whether other users can access
-  
-  company     Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdByUser User  @relation("ReportCreatedBy", fields: [createdBy], references: [id])
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@index([companyId])
-  @@index([reportType])
-}
-
-// Update existing models with new relations
-
-
-
-
-model CompanyInvitation {
-  id        String   @id @default(cuid())
-  companyId String
-  email     String
-  role      String   @default("employee")
-  token     String   @unique
-  expiresAt DateTime
-  isUsed    Boolean  @default(false)
-  invitedBy String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  inviter User    @relation("CompanyInvitationInvitedBy", fields: [invitedBy], references: [id])
-
-  @@index([companyId])
-  @@index([token])
-  @@index([email])
-}
-
