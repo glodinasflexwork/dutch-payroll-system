@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getAuthenticatedUser } from "@/lib/auth-utils"
+import { validateAuth } from "@/lib/auth-utils"
 import { prisma } from "@/lib/prisma"
 import { validateSubscription } from "@/lib/subscription"
 
@@ -7,15 +7,15 @@ export async function GET(request: NextRequest) {
   try {
     console.log("=== ANALYTICS API DEBUG ===")
     
-    // Use the robust authentication system
-    const authResult = await getAuthenticatedUser(request)
-    if (!authResult.success) {
+    // Use the correct authentication system
+    const authResult = await validateAuth(request, ['employee'])
+    if (!authResult.context) {
       console.log("Analytics API - Authentication failed:", authResult.error)
-      return NextResponse.json({ error: authResult.error }, { status: 401 })
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status || 401 })
     }
 
-    const { user, companyId } = authResult
-    console.log("Analytics API - User authenticated:", user.email, "Company:", companyId)
+    const { userId, companyId, userRole } = authResult.context
+    console.log("Analytics API - User authenticated:", userId, "Company:", companyId, "Role:", userRole)
 
     // Validate subscription
     try {
