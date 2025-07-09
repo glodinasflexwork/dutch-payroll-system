@@ -156,6 +156,9 @@ model Subscription {
   currentPeriodEnd     DateTime
   cancelAtPeriodEnd    Boolean   @default(false)
   trialEnd             DateTime?
+  isTrialActive        Boolean   @default(false)
+  trialStart           DateTime?
+  trialExtensions      Int       @default(0)
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
   Company              Company   @relation(fields: [companyId], references: [id])

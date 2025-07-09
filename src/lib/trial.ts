@@ -55,6 +55,9 @@ export async function createTrial(companyId: string): Promise<void> {
       currentPeriodStart: now,
       currentPeriodEnd: trialEnd,
       trialEnd: trialEnd,
+      isTrialActive: true,
+      trialStart: now,
+      trialExtensions: 0,
       cancelAtPeriodEnd: false
     }
   });
@@ -73,13 +76,13 @@ export async function getTrialStatus(companyId: string): Promise<TrialStatus | n
     return null;
   }
 
-  // Check if subscription is in trial status and has trialEnd
-  if (subscription.status !== 'trialing' || !subscription.trialEnd) {
+  // If not in trial, return null
+  if (!subscription.isTrialActive || !subscription.trialStart || !subscription.trialEnd) {
     return null;
   }
 
   const now = new Date();
-  const trialStart = subscription.currentPeriodStart; // Use currentPeriodStart as trial start
+  const trialStart = subscription.trialStart;
   const trialEnd = subscription.trialEnd;
   
   const totalTrialMs = trialEnd.getTime() - trialStart.getTime();
@@ -89,10 +92,10 @@ export async function getTrialStatus(companyId: string): Promise<TrialStatus | n
   const daysUsed = Math.max(0, Math.floor(usedTrialMs / (24 * 60 * 60 * 1000)));
   const daysRemaining = Math.max(0, Math.ceil(remainingTrialMs / (24 * 60 * 60 * 1000)));
   const isExpired = now > trialEnd;
-  const canExtend = true; // Allow extensions for now
+  const canExtend = subscription.trialExtensions < 1; // Allow one extension
 
   return {
-    isActive: subscription.status === 'trialing' && !isExpired,
+    isActive: subscription.isTrialActive && !isExpired,
     daysRemaining,
     daysUsed,
     startDate: trialStart,
