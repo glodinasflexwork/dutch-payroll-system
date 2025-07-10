@@ -217,9 +217,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { pageName, groupName } = getCurrentPageInfo()
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-screen bg-gray-50 flex">
       {/* Mobile Header */}
-      <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-3">
+      <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-3 fixed top-0 left-0 right-0 z-40">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <Button
@@ -272,7 +272,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-80 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0",
+        "fixed inset-y-0 left-0 z-50 w-80 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 lg:flex lg:flex-col",
         sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         <div className="flex flex-col h-full">
@@ -424,9 +424,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Main Content */}
-      <div className="lg:pl-80">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Desktop Header */}
-        <div className="hidden lg:block bg-white border-b border-gray-200 px-6 py-4">
+        <div className="hidden lg:block bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{pageName}</h1>
@@ -447,8 +447,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
 
         {/* Page Content */}
-        <main className="p-4 lg:p-6">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 overflow-auto p-4 lg:p-6 pt-20 lg:pt-6">
+          <div className="max-w-7xl mx-auto h-full">
             {children}
           </div>
         </main>
