@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
             lastName: true,
             department: true,
             position: true,
-            salaryType: true
+            employmentType: true
           }
         }
       },
