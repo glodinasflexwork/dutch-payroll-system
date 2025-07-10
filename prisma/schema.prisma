@@ -72,6 +72,7 @@ model Employee {
   dateOfBirth      DateTime
   startDate        DateTime
   endDate          DateTime?
+  probationEndDate DateTime?
   position         String
   department       String?
   employmentType   String
