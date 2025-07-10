@@ -478,19 +478,36 @@ export default function PayrollPage() {
                     </div>
                     
                     <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                      {employees.map((employee) => (
-                        <label key={employee.id} className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={selectedEmployees.includes(employee.id)}
-                            onChange={() => toggleEmployeeSelection(employee.id)}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          />
-                          <span className="ml-2 text-sm text-gray-700">
-                            {employee.firstName} {employee.lastName} ({employee.employeeNumber})
-                          </span>
-                        </label>
-                      ))}
+                      {employees.length === 0 ? (
+                        <div className="text-center py-8">
+                          <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                          <p className="text-lg font-medium text-gray-900 mb-2">No Employees Found</p>
+                          <p className="text-sm text-gray-500 mb-4">
+                            You need to add employees before you can process payroll calculations.
+                          </p>
+                          <button
+                            onClick={() => window.location.href = '/dashboard/employees'}
+                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                          >
+                            <Users className="w-4 h-4 mr-2" />
+                            Add Employees
+                          </button>
+                        </div>
+                      ) : (
+                        employees.map((employee) => (
+                          <label key={employee.id} className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedEmployees.includes(employee.id)}
+                              onChange={() => toggleEmployeeSelection(employee.id)}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <span className="ml-2 text-sm text-gray-700">
+                              {employee.firstName} {employee.lastName} ({employee.employeeNumber})
+                            </span>
+                          </label>
+                        ))
+                      )}
                     </div>
                     
                     {selectedEmployees.length > 0 && (
@@ -647,7 +664,7 @@ export default function PayrollPage() {
                   <div className="flex space-x-3">
                     <button
                       onClick={calculatePayroll}
-                      disabled={loading || selectedEmployees.length === 0}
+                      disabled={loading || employees.length === 0 || selectedEmployees.length === 0}
                       className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
                     >
                       <Calculator className="w-4 h-4 mr-2" />
@@ -656,7 +673,7 @@ export default function PayrollPage() {
                     
                     <button
                       onClick={processPayroll}
-                      disabled={processing || selectedEmployees.length === 0}
+                      disabled={processing || employees.length === 0 || selectedEmployees.length === 0}
                       className="flex-1 inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
                     >
                       <Play className="w-4 h-4 mr-2" />
@@ -853,8 +870,18 @@ export default function PayrollPage() {
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <Calculator className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500">Select employees and calculate payroll to see results here.</p>
+                    {employees.length === 0 ? (
+                      <>
+                        <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500 mb-2">No employees available for payroll calculation.</p>
+                        <p className="text-sm text-gray-400">Add employees first to see calculation results here.</p>
+                      </>
+                    ) : (
+                      <>
+                        <Calculator className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500">Select employees and calculate payroll to see results here.</p>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
