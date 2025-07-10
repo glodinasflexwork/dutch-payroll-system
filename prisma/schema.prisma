@@ -67,6 +67,7 @@ model Employee {
   city             String?
   postalCode       String?
   country          String          @default("Netherlands")
+  nationality      String          @default("Dutch")
   bsn              String
   dateOfBirth      DateTime
   startDate        DateTime
