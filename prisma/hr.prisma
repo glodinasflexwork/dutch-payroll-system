@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/@prisma/hr-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("HR_DATABASE_URL")
+}
+
+model Employee {
+  id               String          @id @default(cuid())
+  employeeNumber   String
+  firstName        String
+  lastName         String
+  email            String?
+  phone            String?
+  address          String?
+  city             String?
+  postalCode       String?
+  country          String          @default("Netherlands")
+  nationality      String          @default("Dutch")
+  bsn              String
+  dateOfBirth      DateTime
+  startDate        DateTime
+  endDate          DateTime?
+  probationEndDate DateTime?
+  position         String
+  department       String?
+  employmentType   String
+  contractType     String
+  workingHours     Float           @default(40)
+  workingDays      Float           @default(5)
+  bankAccount      String?
+  bankName         String?
+  emergencyContact String?
+  emergencyPhone   String?
+  emergencyRelation String?
+  isActive         Boolean         @default(true)
+  createdBy        String?
+  companyId        String
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  LeaveRequest     LeaveRequest[]
+  TimeEntry        TimeEntry[]
+  EmployeeHistory  EmployeeHistory[]
+
+  @@unique([companyId, bsn])
+  @@unique([companyId, employeeNumber])
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  managerId   String?
+  companyId   String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([companyId, name])
+}
+
+model Position {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  department  String?
+  level       String?
+  companyId   String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([companyId, title])
+}
+
+model LeaveType {
+  id           String         @id @default(cuid())
+  name         String
+  description  String?
+  isPaid       Boolean        @default(true)
+  maxDays      Int?
+  requiresApproval Boolean    @default(true)
+  companyId    String
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  LeaveRequest LeaveRequest[]
+
+  @@unique([companyId, name])
+}
+
+model LeaveRequest {
+  id          String    @id @default(cuid())
+  employeeId  String
+  leaveTypeId String
+  startDate   DateTime
+  endDate     DateTime
+  days        Float
+  reason      String?
+  status      String    @default("pending")
+  approvedBy  String?
+  approvedAt  DateTime?
+  rejectedBy  String?
+  rejectedAt  DateTime?
+  rejectionReason String?
+  companyId   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  Employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  LeaveType   LeaveType @relation(fields: [leaveTypeId], references: [id])
+}
+
+model TimeEntry {
+  id          String   @id @default(cuid())
+  employeeId  String
+  date        DateTime
+  startTime   DateTime?
+  endTime     DateTime?
+  breakTime   Float?   @default(0)
+  totalHours  Float?
+  description String?
+  status      String   @default("draft")
+  approvedBy  String?
+  approvedAt  DateTime?
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  Employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, date])
+}
+
+model EmployeeHistory {
+  id          String   @id @default(cuid())
+  employeeId  String
+  field       String
+  oldValue    String?
+  newValue    String?
+  changedBy   String
+  reason      String?
+  companyId   String
+  createdAt   DateTime @default(now())
+  Employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model PerformanceReview {
+  id          String   @id @default(cuid())
+  employeeId  String
+  reviewerId  String
+  period      String
+  startDate   DateTime
+  endDate     DateTime
+  goals       Json?
+  achievements Json?
+  feedback    String?
+  rating      Float?
+  status      String   @default("draft")
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+

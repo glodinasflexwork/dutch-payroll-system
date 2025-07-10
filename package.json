@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "prisma generate && next build",
+    "build": "npx prisma generate --schema=prisma/auth.prisma && npx prisma generate --schema=prisma/hr.prisma && npx prisma generate --schema=prisma/payroll.prisma && next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate",
+    "postinstall": "npx prisma generate --schema=prisma/auth.prisma && npx prisma generate --schema=prisma/hr.prisma && npx prisma generate --schema=prisma/payroll.prisma",
     "setup-stripe": "node scripts/setup-stripe-production.js",
     "test-webhooks": "stripe listen --forward-to localhost:3000/api/webhooks/stripe"
   },
