@@ -6,7 +6,6 @@ import { useEffect, useState } from "react"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import TrialBanner from "@/components/trial/TrialBanner"
 import TrialCountdown from "@/components/trial/TrialCountdown"
-import { QuickActionsPanel } from "@/components/ui/quick-actions-panel"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -18,8 +17,7 @@ import {
   Building2,
   Euro,
   Clock,
-  CheckCircle,
-  Play
+  CheckCircle
 } from "lucide-react"
 
 interface DashboardStats {
@@ -35,7 +33,6 @@ export default function Dashboard() {
   const router = useRouter()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [showTutorial, setShowTutorial] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -48,7 +45,7 @@ export default function Dashboard() {
       setLoading(true)
       fetchDashboardStats()
     }
-  }, [session?.user?.companyId])
+  }, [session?.user?.companyId]) // Fix: trigger on companyId changes, not just session
 
   const fetchDashboardStats = async () => {
     try {
@@ -104,10 +101,6 @@ export default function Dashboard() {
     }
   }
 
-  const handleStartTutorial = () => {
-    setShowTutorial(true)
-  }
-
   if (status === "loading" || loading) {
     return (
       <DashboardLayout>
@@ -124,6 +117,37 @@ export default function Dashboard() {
   if (!session) {
     return null
   }
+
+  const quickActions = [
+    {
+      title: "Add Employee",
+      description: "Register a new employee",
+      icon: Users,
+      href: "/dashboard/employees",
+      color: "bg-blue-500"
+    },
+    {
+      title: "Process Payroll",
+      description: "Calculate monthly payroll",
+      icon: Calculator,
+      href: "/payroll",
+      color: "bg-green-500"
+    },
+    {
+      title: "View Reports",
+      description: "Generate payroll reports",
+      icon: FileText,
+      href: "/dashboard/reports",
+      color: "bg-purple-500"
+    },
+    {
+      title: "Tax Settings",
+      description: "Configure tax rates",
+      icon: TrendingUp,
+      href: "/dashboard/tax-settings",
+      color: "bg-orange-500"
+    }
+  ]
 
   return (
     <DashboardLayout>
@@ -147,13 +171,6 @@ export default function Dashboard() {
 
         {/* Trial Banner */}
         <TrialBanner />
-
-        {/* Quick Actions Panel - New Enhanced Component */}
-        <QuickActionsPanel 
-          employeeCount={stats?.totalEmployees || 0}
-          hasProcessedPayroll={(stats?.totalPayrollRecords || 0) > 0}
-          onStartTutorial={handleStartTutorial}
-        />
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -210,52 +227,68 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Trial Countdown */}
+        {/* Trial Countdown and Quick Actions */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Trial Countdown - Takes 1 column */}
           <div className="lg:col-span-1">
             <TrialCountdown />
           </div>
           
-          {/* System Status - Takes remaining space */}
+          {/* Quick Actions - Takes 3 columns */}
           <div className="lg:col-span-3">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span>System Status</span>
-                </CardTitle>
-                <CardDescription>
-                  Your Dutch payroll system is running smoothly
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <div>
-                      <p className="font-medium">Database</p>
-                      <p className="text-sm text-muted-foreground">Connected</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {quickActions.map((action, index) => (
+                <Card key={index} className="hover-lift cursor-pointer group" onClick={() => router.push(action.href)}>
+                  <CardHeader className="pb-3">
+                    <div className={`w-12 h-12 ${action.color} rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                      <action.icon className="w-6 h-6 text-white" />
                     </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <div>
-                      <p className="font-medium">Authentication</p>
-                      <p className="text-sm text-muted-foreground">Active</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <div>
-                      <p className="font-medium">Tax Calculations</p>
-                      <p className="text-sm text-muted-foreground">2025 Rates</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                    <CardTitle className="text-lg">{action.title}</CardTitle>
+                    <CardDescription>{action.description}</CardDescription>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
+
+        {/* System Status */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <CheckCircle className="w-5 h-5 text-green-500" />
+              <span>System Status</span>
+            </CardTitle>
+            <CardDescription>
+              Your Dutch payroll system is running smoothly
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <div>
+                  <p className="font-medium">Database</p>
+                  <p className="text-sm text-muted-foreground">Connected</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <div>
+                  <p className="font-medium">Authentication</p>
+                  <p className="text-sm text-muted-foreground">Active</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <div>
+                  <p className="font-medium">Tax Calculations</p>
+                  <p className="text-sm text-muted-foreground">2025 Rates</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Company Info */}
         <Card>
@@ -281,93 +314,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Tutorial Modal */}
-      {showTutorial && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-gray-900">Welcome to SalarySync!</h3>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setShowTutorial(false)}
-              >
-                ×
-              </Button>
-            </div>
-            
-            <div className="space-y-6">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Play className="w-8 h-8 text-blue-600" />
-                </div>
-                <h4 className="text-lg font-semibold mb-2">Interactive Tutorial System</h4>
-                <p className="text-gray-600">
-                  The comprehensive tutorial system is being implemented. This will guide you through:
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 border rounded-lg">
-                  <h5 className="font-semibold text-blue-600 mb-2">Phase 1: Business Setup</h5>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• Company information</li>
-                    <li>• Dutch tax configuration</li>
-                    <li>• Account preferences</li>
-                  </ul>
-                </div>
-                
-                <div className="p-4 border rounded-lg">
-                  <h5 className="font-semibold text-green-600 mb-2">Phase 2: People Management</h5>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• Add employees</li>
-                    <li>• Dutch compliance setup</li>
-                    <li>• Leave management</li>
-                  </ul>
-                </div>
-                
-                <div className="p-4 border rounded-lg">
-                  <h5 className="font-semibold text-purple-600 mb-2">Phase 3: Payroll Processing</h5>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• First payroll run</li>
-                    <li>• Tax calculations</li>
-                    <li>• Results review</li>
-                  </ul>
-                </div>
-                
-                <div className="p-4 border rounded-lg">
-                  <h5 className="font-semibold text-orange-600 mb-2">Phase 4: Monitoring</h5>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• Analytics & reports</li>
-                    <li>• Ongoing operations</li>
-                    <li>• System management</li>
-                  </ul>
-                </div>
-              </div>
-
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h5 className="font-semibold text-blue-800 mb-2">Quick Start Guide</h5>
-                <p className="text-blue-700 text-sm mb-3">
-                  For now, follow these steps to get started:
-                </p>
-                <ol className="text-sm text-blue-700 space-y-1">
-                  <li>1. Add your first employee using the "Add Employee" button above</li>
-                  <li>2. Review tax settings to ensure Dutch compliance</li>
-                  <li>3. Process your first payroll when ready</li>
-                  <li>4. Explore analytics and reports</li>
-                </ol>
-              </div>
-
-              <div className="flex justify-center">
-                <Button onClick={() => setShowTutorial(false)} className="px-8">
-                  Get Started
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </DashboardLayout>
   )
 }

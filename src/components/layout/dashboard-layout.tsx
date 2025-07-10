@@ -18,95 +18,171 @@ import {
   User,
   CreditCard,
   Crown,
-  Calendar
+  Calendar,
+  TrendingUp,
+  UserCheck,
+  DollarSign,
+  Building,
+  Wallet,
+  ChevronDown,
+  ChevronRight,
+  HelpCircle,
+  Play
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CompanySwitcher } from "@/components/ui/company-switcher"
+import { TutorialSystem } from "@/components/tutorial/TutorialSystem"
 import { cn } from "@/lib/utils"
 
 interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
-const navigation = [
+interface NavigationGroup {
+  id: string
+  name: string
+  icon: React.ComponentType<any>
+  description: string
+  items: NavigationItem[]
+  defaultExpanded?: boolean
+}
+
+interface NavigationItem {
+  name: string
+  href: string
+  icon: React.ComponentType<any>
+  description: string
+  badge?: string
+}
+
+const navigationGroups: NavigationGroup[] = [
   {
-    name: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-    description: "Overview and analytics"
+    id: "overview",
+    name: "Overview & Insights",
+    icon: TrendingUp,
+    description: "Monitoring and business intelligence",
+    defaultExpanded: true,
+    items: [
+      {
+        name: "Dashboard",
+        href: "/dashboard",
+        icon: LayoutDashboard,
+        description: "Overview and analytics"
+      },
+      {
+        name: "Analytics",
+        href: "/dashboard/analytics",
+        icon: BarChart3,
+        description: "Charts and insights"
+      },
+      {
+        name: "Reports",
+        href: "/dashboard/reports",
+        icon: FileText,
+        description: "View payroll reports"
+      }
+    ]
   },
   {
-    name: "Analytics",
-    href: "/dashboard/analytics",
-    icon: BarChart3,
-    description: "Charts and insights"
+    id: "people",
+    name: "People Management",
+    icon: UserCheck,
+    description: "Workforce and HR management",
+    defaultExpanded: true,
+    items: [
+      {
+        name: "Employees",
+        href: "/dashboard/employees",
+        icon: Users,
+        description: "Manage employee records"
+      },
+      {
+        name: "Leave Management",
+        href: "/dashboard/leave-management",
+        icon: Calendar,
+        description: "Leave requests and balances"
+      }
+    ]
   },
   {
-    name: "Employees",
-    href: "/dashboard/employees",
-    icon: Users,
-    description: "Manage employee records"
+    id: "payroll",
+    name: "Payroll Operations",
+    icon: DollarSign,
+    description: "Core payroll processing and compliance",
+    defaultExpanded: true,
+    items: [
+      {
+        name: "Payroll",
+        href: "/payroll",
+        icon: Calculator,
+        description: "Process payroll calculations"
+      },
+      {
+        name: "Tax Settings",
+        href: "/dashboard/tax-settings",
+        icon: Settings,
+        description: "Configure Dutch tax rates"
+      }
+    ]
   },
   {
-    name: "Leave Management",
-    href: "/dashboard/leave-management",
-    icon: Calendar,
-    description: "Leave requests and balances"
+    id: "business",
+    name: "Business Management",
+    icon: Building,
+    description: "Company setup and administration",
+    defaultExpanded: false,
+    items: [
+      {
+        name: "Company",
+        href: "/dashboard/company",
+        icon: Building2,
+        description: "Company information"
+      },
+      {
+        name: "Company Management",
+        href: "/dashboard/companies",
+        icon: Building2,
+        description: "Manage multiple companies"
+      },
+      {
+        name: "Settings",
+        href: "/dashboard/settings",
+        icon: Settings,
+        description: "Account and language settings"
+      }
+    ]
   },
   {
-    name: "Payroll",
-    href: "/payroll",
-    icon: Calculator,
-    description: "Process payroll calculations and batch processing"
-  },
-  {
-    name: "Reports",
-    href: "/dashboard/reports",
-    icon: FileText,
-    description: "View payroll reports"
-  },
-  {
-    name: "Subscription",
-    href: "/subscription",
-    icon: Crown,
-    description: "Manage your plan"
-  },
-  {
-    name: "Billing",
-    href: "/billing",
-    icon: CreditCard,
-    description: "Invoices and payments"
-  },
-  {
-    name: "Tax Settings",
-    href: "/dashboard/tax-settings",
-    icon: Settings,
-    description: "Configure tax rates"
-  },
-  {
-    name: "Company",
-    href: "/dashboard/company",
-    icon: Building2,
-    description: "Company information"
-  },
-  {
-    name: "Company Management",
-    href: "/dashboard/companies",
-    icon: Building2,
-    description: "Manage multiple companies"
-  },
-  {
-    name: "Settings",
-    href: "/dashboard/settings",
-    icon: Settings,
-    description: "Account and language settings"
+    id: "subscription",
+    name: "Subscription & Billing",
+    icon: Wallet,
+    description: "Financial management and service plans",
+    defaultExpanded: false,
+    items: [
+      {
+        name: "Subscription",
+        href: "/subscription",
+        icon: Crown,
+        description: "Manage your plan"
+      },
+      {
+        name: "Billing",
+        href: "/billing",
+        icon: CreditCard,
+        description: "Invoices and payments"
+      }
+    ]
   }
 ]
 
 function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [companyRole, setCompanyRole] = useState<string>("")
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+    new Set(navigationGroups.filter(group => group.defaultExpanded).map(group => group.id))
+  )
+  const [showTutorial, setShowTutorial] = useState(false)
   const { data: session } = useSession()
   const pathname = usePathname()
 
@@ -132,6 +208,29 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
     fetchCompanyRole()
   }, [session?.user?.id])
 
+  const toggleGroup = (groupId: string) => {
+    const newExpanded = new Set(expandedGroups)
+    if (newExpanded.has(groupId)) {
+      newExpanded.delete(groupId)
+    } else {
+      newExpanded.add(groupId)
+    }
+    setExpandedGroups(newExpanded)
+  }
+
+  const getCurrentPageInfo = () => {
+    for (const group of navigationGroups) {
+      for (const item of group.items) {
+        if (item.href === pathname) {
+          return { group: group.name, page: item.name, description: item.description }
+        }
+      }
+    }
+    return { group: "Dashboard", page: "Dashboard", description: "Welcome to your dashboard" }
+  }
+
+  const currentPageInfo = getCurrentPageInfo()
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Mobile sidebar overlay */}
@@ -144,7 +243,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-50 w-80 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
@@ -169,42 +268,109 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
             </Button>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href
+          {/* Tutorial Button */}
+          <div className="p-4 border-b border-gray-100">
+            <Button
+              variant="outline"
+              className="w-full justify-start text-blue-600 border-blue-200 hover:bg-blue-50"
+              onClick={() => setShowTutorial(true)}
+            >
+              <Play className="w-4 h-4 mr-2" />
+              Start Tutorial
+            </Button>
+          </div>
+
+          {/* Navigation Groups */}
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+            {navigationGroups.map((group) => {
+              const isExpanded = expandedGroups.has(group.id)
+              const hasActiveItem = group.items.some(item => item.href === pathname)
+              
               return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center space-x-3 px-3 py-3 rounded-lg text-sm font-medium transition-all duration-200 group hover-lift",
-                    isActive
-                      ? "bg-blue-600 text-white shadow-professional"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                  )}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <item.icon className={cn(
-                    "w-5 h-5 transition-colors",
-                    isActive ? "text-white" : "text-gray-500 group-hover:text-gray-700"
-                  )} />
-                  <div className="flex-1">
-                    <div className="font-medium">{item.name}</div>
-                    <div className={cn(
-                      "text-xs",
-                      isActive ? "text-blue-100" : "text-gray-500"
-                    )}>
-                      {item.description}
+                <div key={group.id} className="space-y-1">
+                  {/* Group Header */}
+                  <button
+                    onClick={() => toggleGroup(group.id)}
+                    className={cn(
+                      "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group",
+                      hasActiveItem
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                    )}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <group.icon className={cn(
+                        "w-4 h-4 transition-colors",
+                        hasActiveItem ? "text-blue-600" : "text-gray-500 group-hover:text-gray-700"
+                      )} />
+                      <span className="font-semibold">{group.name}</span>
                     </div>
-                  </div>
-                  {isActive && (
-                    <div className="w-2 h-2 bg-white rounded-full animate-scale-in" />
+                    {isExpanded ? (
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                    )}
+                  </button>
+
+                  {/* Group Items */}
+                  {isExpanded && (
+                    <div className="ml-4 space-y-1 animate-in slide-in-from-top-2 duration-200">
+                      {group.items.map((item) => {
+                        const isActive = pathname === item.href
+                        return (
+                          <Link
+                            key={item.name}
+                            href={item.href}
+                            className={cn(
+                              "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all duration-200 group hover-lift",
+                              isActive
+                                ? "bg-blue-600 text-white shadow-professional"
+                                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                            )}
+                            onClick={() => setSidebarOpen(false)}
+                          >
+                            <item.icon className={cn(
+                              "w-4 h-4 transition-colors",
+                              isActive ? "text-white" : "text-gray-500 group-hover:text-gray-700"
+                            )} />
+                            <div className="flex-1">
+                              <div className="font-medium">{item.name}</div>
+                              <div className={cn(
+                                "text-xs",
+                                isActive ? "text-blue-100" : "text-gray-500"
+                              )}>
+                                {item.description}
+                              </div>
+                            </div>
+                            {item.badge && (
+                              <Badge variant="secondary" className="text-xs">
+                                {item.badge}
+                              </Badge>
+                            )}
+                            {isActive && (
+                              <div className="w-2 h-2 bg-white rounded-full animate-scale-in" />
+                            )}
+                          </Link>
+                        )
+                      })}
+                    </div>
                   )}
-                </Link>
+                </div>
               )
             })}
           </nav>
+
+          {/* Help Section */}
+          <div className="p-4 border-t border-gray-100">
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              onClick={() => setShowTutorial(true)}
+            >
+              <HelpCircle className="w-4 h-4 mr-2" />
+              Help & Support
+            </Button>
+          </div>
 
           {/* User info and logout */}
           <div className="p-4 border-t border-gray-200 flex-shrink-0">
@@ -237,7 +403,7 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-72">
+      <div className="lg:pl-80">
         {/* Top bar */}
         <header className="bg-white border-b border-gray-200 px-4 py-4 lg:px-6">
           <div className="flex items-center justify-between">
@@ -251,11 +417,16 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Menu className="w-5 h-5" />
               </Button>
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {navigation.find(item => item.href === pathname)?.name || "Dashboard"}
-                </h2>
+                <div className="flex items-center space-x-2">
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {currentPageInfo.page}
+                  </h2>
+                  <Badge variant="outline" className="text-xs">
+                    {currentPageInfo.group}
+                  </Badge>
+                </div>
                 <p className="text-sm text-gray-500">
-                  {navigation.find(item => item.href === pathname)?.description || "Welcome to your dashboard"}
+                  {currentPageInfo.description}
                 </p>
               </div>
             </div>
@@ -280,6 +451,12 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </main>
       </div>
+
+      {/* Tutorial System */}
+      <TutorialSystem 
+        isOpen={showTutorial}
+        onClose={() => setShowTutorial(false)}
+      />
     </div>
   )
 }
@@ -287,3 +464,4 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
 // Named export for compatibility
 export { DashboardLayout }
 export default DashboardLayout
+
