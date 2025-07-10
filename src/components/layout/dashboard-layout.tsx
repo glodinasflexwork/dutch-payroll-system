@@ -108,9 +108,9 @@ const navigationGroups: NavigationGroup[] = [
   {
     id: "payroll",
     name: "Payroll Operations",
-    icon: DollarSign,
-    description: "Core payroll processing and compliance",
-    defaultExpanded: true,
+    icon: Calculator,
+    description: "Core payroll calculations and compliance",
+    defaultExpanded: false,
     items: [
       {
         name: "Payroll",
@@ -121,7 +121,7 @@ const navigationGroups: NavigationGroup[] = [
       {
         name: "Tax Settings",
         href: "/dashboard/tax-settings",
-        icon: Settings,
+        icon: DollarSign,
         description: "Configure Dutch tax rates"
       }
     ]
@@ -130,7 +130,7 @@ const navigationGroups: NavigationGroup[] = [
     id: "business",
     name: "Business Management",
     icon: Building,
-    description: "Company setup and administration",
+    description: "Business setup and administration",
     defaultExpanded: false,
     items: [
       {
@@ -140,16 +140,10 @@ const navigationGroups: NavigationGroup[] = [
         description: "Company information"
       },
       {
-        name: "Company Management",
-        href: "/dashboard/companies",
-        icon: Building2,
-        description: "Manage multiple companies"
-      },
-      {
         name: "Settings",
         href: "/dashboard/settings",
         icon: Settings,
-        description: "Account and language settings"
+        description: "Account preferences"
       }
     ]
   },
@@ -163,290 +157,298 @@ const navigationGroups: NavigationGroup[] = [
       {
         name: "Subscription",
         href: "/subscription",
-        icon: Crown,
-        description: "Manage your plan"
-      },
-      {
-        name: "Billing",
-        href: "/billing",
         icon: CreditCard,
-        description: "Invoices and payments"
+        description: "Manage subscription"
       }
     ]
   }
 ]
 
-function DashboardLayout({ children }: DashboardLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [companyRole, setCompanyRole] = useState<string>("")
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
-    new Set(navigationGroups.filter(group => group.defaultExpanded).map(group => group.id))
-  )
-  const [showTutorial, setShowTutorial] = useState(false)
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { data: session } = useSession()
   const pathname = usePathname()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+    new Set(navigationGroups.filter(g => g.defaultExpanded).map(g => g.id))
+  )
+  const [showTutorial, setShowTutorial] = useState(false)
 
-  // Fetch user's role in the current company
+  // Close sidebar when route changes on mobile
   useEffect(() => {
-    const fetchCompanyRole = async () => {
-      if (session?.user?.id) {
-        try {
-          const response = await fetch('/api/user/companies')
-          if (response.ok) {
-            const data = await response.json()
-            const currentCompany = data.currentCompany
-            if (currentCompany) {
-              setCompanyRole(currentCompany.role)
-            }
-          }
-        } catch (error) {
-          console.error('Failed to fetch company role:', error)
-        }
-      }
-    }
+    setSidebarOpen(false)
+  }, [pathname])
 
-    fetchCompanyRole()
-  }, [session?.user?.id])
+  // Prevent body scroll when sidebar is open on mobile
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [sidebarOpen])
 
   const toggleGroup = (groupId: string) => {
-    const newExpanded = new Set(expandedGroups)
-    if (newExpanded.has(groupId)) {
-      newExpanded.delete(groupId)
-    } else {
-      newExpanded.add(groupId)
-    }
-    setExpandedGroups(newExpanded)
+    setExpandedGroups(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(groupId)) {
+        newSet.delete(groupId)
+      } else {
+        newSet.add(groupId)
+      }
+      return newSet
+    })
   }
 
   const getCurrentPageInfo = () => {
     for (const group of navigationGroups) {
       for (const item of group.items) {
-        if (item.href === pathname) {
-          return { group: group.name, page: item.name, description: item.description }
+        if (pathname === item.href) {
+          return { pageName: item.name, groupName: group.name }
         }
       }
     }
-    return { group: "Dashboard", page: "Dashboard", description: "Welcome to your dashboard" }
+    return { pageName: "Dashboard", groupName: "Overview & Insights" }
   }
 
-  const currentPageInfo = getCurrentPageInfo()
+  const { pageName, groupName } = getCurrentPageInfo()
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Mobile sidebar overlay */}
+      {/* Mobile Header */}
+      <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(true)}
+              className="h-8 w-8"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <LayoutDashboard className="w-4 h-4 text-primary-foreground" />
+              </div>
+              <div className="hidden sm:block">
+                <h1 className="text-lg font-semibold text-gray-900">{pageName}</h1>
+                <p className="text-xs text-gray-500">{groupName}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <div className="hidden sm:block">
+              <CompanySwitcher />
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowTutorial(true)}
+              className="h-8 w-8"
+            >
+              <Play className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        
+        {/* Mobile Company Switcher - Show on small screens */}
+        <div className="sm:hidden mt-3">
+          <CompanySwitcher />
+        </div>
+      </div>
+
+      {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
+          className="lg:hidden fixed inset-0 z-50 bg-black bg-opacity-50"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-80 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        "fixed inset-y-0 left-0 z-50 w-80 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
         <div className="flex flex-col h-full">
-          {/* Logo and close button */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
+          {/* Desktop Header */}
+          <div className="hidden lg:flex items-center justify-between p-6 border-b border-gray-200">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center">
-                <Calculator className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                <LayoutDashboard className="w-6 h-6 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-gray-900">SalarySync</h1>
+                <h1 className="text-xl font-bold text-gray-900">SalarySync</h1>
+                <p className="text-sm text-gray-500">Professional Payroll</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Header */}
+          <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-200">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <LayoutDashboard className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-gray-900">SalarySync</h1>
                 <p className="text-xs text-gray-500">Professional Payroll</p>
               </div>
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden"
               onClick={() => setSidebarOpen(false)}
+              className="h-8 w-8"
             >
-              <X className="w-5 h-5" />
+              <X className="h-5 w-5" />
             </Button>
           </div>
 
           {/* Tutorial Button */}
-          <div className="p-4 border-b border-gray-100">
+          <div className="p-4 border-b border-gray-200">
             <Button
-              variant="outline"
-              className="w-full justify-start text-blue-600 border-blue-200 hover:bg-blue-50"
               onClick={() => setShowTutorial(true)}
+              className="w-full justify-start text-left h-auto p-3"
+              variant="outline"
             >
-              <Play className="w-4 h-4 mr-2" />
-              Start Tutorial
+              <Play className="w-4 h-4 mr-3 flex-shrink-0" />
+              <div className="text-left">
+                <div className="font-medium text-sm">Start Tutorial</div>
+                <div className="text-xs text-muted-foreground">Learn SalarySync step by step</div>
+              </div>
             </Button>
           </div>
 
-          {/* Navigation Groups */}
-          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-            {navigationGroups.map((group) => {
-              const isExpanded = expandedGroups.has(group.id)
-              const hasActiveItem = group.items.some(item => item.href === pathname)
-              
-              return (
-                <div key={group.id} className="space-y-1">
-                  {/* Group Header */}
-                  <button
-                    onClick={() => toggleGroup(group.id)}
-                    className={cn(
-                      "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group",
-                      hasActiveItem
-                        ? "bg-blue-50 text-blue-700"
-                        : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
-                    )}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <group.icon className={cn(
-                        "w-4 h-4 transition-colors",
-                        hasActiveItem ? "text-blue-600" : "text-gray-500 group-hover:text-gray-700"
-                      )} />
-                      <span className="font-semibold">{group.name}</span>
+          {/* Navigation */}
+          <nav className="flex-1 overflow-y-auto p-4 space-y-2">
+            {navigationGroups.map((group) => (
+              <div key={group.id} className="space-y-1">
+                <button
+                  onClick={() => toggleGroup(group.id)}
+                  className="w-full flex items-center justify-between p-3 text-left rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <group.icon className="w-5 h-5 text-gray-600" />
+                    <div>
+                      <div className="font-medium text-sm text-gray-900">{group.name}</div>
+                      <div className="text-xs text-gray-500 hidden sm:block">{group.description}</div>
                     </div>
-                    {isExpanded ? (
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4 text-gray-400" />
-                    )}
-                  </button>
-
-                  {/* Group Items */}
-                  {isExpanded && (
-                    <div className="ml-4 space-y-1 animate-in slide-in-from-top-2 duration-200">
-                      {group.items.map((item) => {
-                        const isActive = pathname === item.href
-                        return (
-                          <Link
-                            key={item.name}
-                            href={item.href}
-                            className={cn(
-                              "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm transition-all duration-200 group hover-lift",
-                              isActive
-                                ? "bg-blue-600 text-white shadow-professional"
-                                : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                            )}
-                            onClick={() => setSidebarOpen(false)}
-                          >
-                            <item.icon className={cn(
-                              "w-4 h-4 transition-colors",
-                              isActive ? "text-white" : "text-gray-500 group-hover:text-gray-700"
-                            )} />
-                            <div className="flex-1">
-                              <div className="font-medium">{item.name}</div>
-                              <div className={cn(
-                                "text-xs",
-                                isActive ? "text-blue-100" : "text-gray-500"
-                              )}>
-                                {item.description}
-                              </div>
-                            </div>
-                            {item.badge && (
-                              <Badge variant="secondary" className="text-xs">
-                                {item.badge}
-                              </Badge>
-                            )}
-                            {isActive && (
-                              <div className="w-2 h-2 bg-white rounded-full animate-scale-in" />
-                            )}
-                          </Link>
-                        )
-                      })}
-                    </div>
+                  </div>
+                  {expandedGroups.has(group.id) ? (
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
                   )}
-                </div>
-              )
-            })}
+                </button>
+
+                {expandedGroups.has(group.id) && (
+                  <div className="ml-4 space-y-1">
+                    {group.items.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={cn(
+                          "flex items-center space-x-3 p-3 rounded-lg transition-colors text-sm",
+                          pathname === item.href
+                            ? "bg-primary text-primary-foreground"
+                            : "text-gray-700 hover:bg-gray-100"
+                        )}
+                      >
+                        <item.icon className="w-4 h-4 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{item.name}</div>
+                          <div className={cn(
+                            "text-xs truncate hidden sm:block",
+                            pathname === item.href ? "text-primary-foreground/80" : "text-gray-500"
+                          )}>
+                            {item.description}
+                          </div>
+                        </div>
+                        {item.badge && (
+                          <Badge variant="secondary" className="text-xs">
+                            {item.badge}
+                          </Badge>
+                        )}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </nav>
 
-          {/* Help Section */}
-          <div className="p-4 border-t border-gray-100">
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              onClick={() => setShowTutorial(true)}
-            >
-              <HelpCircle className="w-4 h-4 mr-2" />
-              Help & Support
-            </Button>
-          </div>
-
-          {/* User info and logout */}
-          <div className="p-4 border-t border-gray-200 flex-shrink-0">
-            <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50">
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-white" />
+          {/* User Section */}
+          <div className="p-4 border-t border-gray-200">
+            <div className="flex items-center space-x-3 mb-3">
+              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                <User className="w-4 h-4 text-primary-foreground" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {session?.user?.name}
+                  {session?.user?.name || "User"}
                 </p>
                 <p className="text-xs text-gray-500 truncate">
-                  {session?.user?.company?.name}
+                  {session?.user?.email || "user@example.com"}
                 </p>
-                <Badge variant="secondary" className="mt-1 text-xs">
-                  {companyRole || session?.user?.role || 'User'}
-                </Badge>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              className="w-full mt-3 justify-start text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              onClick={() => signOut({ callbackUrl: "/auth/signin" })}
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign out
-            </Button>
+            
+            <div className="space-y-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start h-8"
+                onClick={() => window.open("/help", "_blank")}
+              >
+                <HelpCircle className="w-4 h-4 mr-2" />
+                Help & Support
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={() => signOut()}
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign out
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Main content */}
+      {/* Main Content */}
       <div className="lg:pl-80">
-        {/* Top bar */}
-        <header className="bg-white border-b border-gray-200 px-4 py-4 lg:px-6">
+        {/* Desktop Header */}
+        <div className="hidden lg:block bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="lg:hidden"
-                onClick={() => setSidebarOpen(true)}
-              >
-                <Menu className="w-5 h-5" />
-              </Button>
-              <div>
-                <div className="flex items-center space-x-2">
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {currentPageInfo.page}
-                  </h2>
-                  <Badge variant="outline" className="text-xs">
-                    {currentPageInfo.group}
-                  </Badge>
-                </div>
-                <p className="text-sm text-gray-500">
-                  {currentPageInfo.description}
-                </p>
-              </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">{pageName}</h1>
+              <p className="text-sm text-gray-500">{groupName}</p>
             </div>
             <div className="flex items-center space-x-4">
               <CompanySwitcher />
-              <Badge variant="outline" className="hidden sm:flex">
-                {new Date().toLocaleDateString('nl-NL', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
-              </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowTutorial(true)}
+              >
+                <Play className="w-4 h-4 mr-2" />
+                Start Tutorial
+              </Button>
             </div>
           </div>
-        </header>
+        </div>
 
-        {/* Page content */}
+        {/* Page Content */}
         <main className="p-4 lg:p-6">
-          <div className="animate-in">
+          <div className="max-w-7xl mx-auto">
             {children}
           </div>
         </main>
@@ -463,5 +465,4 @@ function DashboardLayout({ children }: DashboardLayoutProps) {
 
 // Named export for compatibility
 export { DashboardLayout }
-export default DashboardLayout
 
