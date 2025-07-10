@@ -76,12 +76,26 @@ model Employee {
   position         String
   department       String?
   employmentType   String
+  contractType     String
+  workingHours     Float           @default(40)
+  workingDays      Float           @default(5)
   salary           Float
+  salaryType       String          @default("monthly")
+  hourlyRate       Float?
   taxTable         String
-  isActive         Boolean         @default(true)
+  taxCredit        Float           @default(0)
+  payrollTaxNumber String?
+  holidayAllowance Float           @default(8.33)
+  holidayDays      Int             @default(25)
+  pensionScheme    String?
   bankAccount      String?
+  bankName         String?
   emergencyContact String?
   emergencyPhone   String?
+  emergencyRelation String?
+  isActive         Boolean         @default(true)
+  isDGA            Boolean         @default(false)
+  createdBy        String?
   companyId        String
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
