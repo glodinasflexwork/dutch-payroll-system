@@ -80,16 +80,16 @@ export async function GET(request: NextRequest) {
     const company = await prisma.company.findUnique({
       where: { id: session.user.companyId },
       include: {
-        subscriptions: {
+        Subscription: {
           include: { Plan: true }
         }
       }
     });
 
     console.log('Company found:', company?.name);
-    console.log('Subscriptions:', company?.subscriptions);
+    console.log('Subscription:', company?.Subscription);
 
-    if (!company?.subscriptions || company.subscriptions.length === 0) {
+    if (!company?.Subscription) {
       console.log('No subscription found');
       return NextResponse.json({ 
         subscription: null,
@@ -98,11 +98,11 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get the active subscription
-    const subscription = company.subscriptions.find(sub => sub.status === 'active') || company.subscriptions[0];
+    // Get the subscription (it's a single object, not an array)
+    const subscription = company.Subscription;
     
-    console.log('Active subscription:', subscription);
-    console.log('Plan features (raw):', subscription.plan?.features);
+    console.log('Subscription:', subscription);
+    console.log('Plan features (raw):', subscription.Plan?.features);
 
     if (!subscription) {
       console.log('No active subscription found');
@@ -114,19 +114,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Convert features to proper format
-    const convertedFeatures = convertFeaturesToObject(subscription.plan?.features);
+    const convertedFeatures = convertFeaturesToObject(subscription.Plan?.features);
     console.log('Converted features:', convertedFeatures);
 
     // Return subscription with converted features
     const result = {
       subscription: {
         ...subscription,
-        plan: subscription.plan ? {
-          ...subscription.plan,
+        plan: subscription.Plan ? {
+          ...subscription.Plan,
           features: convertedFeatures
         } : null
       },
-      hasAccess: subscription.status === 'active',
+      hasAccess: subscription.status === 'active' || subscription.status === 'trialing',
       payrollAccess: convertedFeatures.payroll === true
     };
 
