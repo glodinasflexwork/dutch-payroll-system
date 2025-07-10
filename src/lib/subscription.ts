@@ -78,7 +78,7 @@ export async function validateSubscription(companyId: string) {
       }
     })
 
-    if (!company?.Subscription || company.Subscription.length === 0) {
+    if (!company?.Subscription) {
       // No subscription found - this should not happen as trial is created on registration
       // Provide very limited access as fallback
       return { 
@@ -102,30 +102,7 @@ export async function validateSubscription(companyId: string) {
       }
     }
 
-    const subscription = company.Subscription[0] // Get the first (active) subscription
-    
-    // Add null check for subscription
-    if (!subscription) {
-      return { 
-        isValid: true, 
-        subscription: null,
-        limits: {
-          maxEmployees: 1,
-          maxPayrolls: 0,
-          features: {
-            employees: true,
-            payroll: false,
-            leave_management: false,
-            time_tracking: false,
-            reporting: false,
-            multi_company: false
-          }
-        },
-        isTrial: false,
-        isExpired: true,
-        message: 'No active subscription found'
-      }
-    }
+    const subscription = company.Subscription // One-to-one relation, not array
     
     // Check if subscription is active or in trial (with null safety)
     const isActive = subscription.status === 'active'
