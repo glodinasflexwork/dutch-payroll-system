@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { authClient } from '@/lib/database-clients'
 
 export interface CompanyContext {
   userId: string
@@ -42,7 +42,7 @@ export async function getCompanyContext(
       // Always fetch current company from database, not from session
       // This ensures we get the latest company selection after switching
       console.log('Fetching companyId from database for user:', session.user.id)
-      const user = await prisma.user.findUnique({
+      const user = await authClient.user.findUnique({
         where: { id: session.user.id },
         select: { companyId: true }
       })
@@ -52,7 +52,7 @@ export async function getCompanyContext(
 
       if (!companyId) {
         // If no company in user record, get user's first company
-        const firstUserCompany = await prisma.userCompany.findFirst({
+        const firstUserCompany = await authClient.userCompany.findFirst({
           where: {
             userId: session.user.id,
             isActive: true
@@ -77,7 +77,7 @@ export async function getCompanyContext(
         companyId = firstUserCompany.company.id
         
         // Update user's companyId if it was null
-        await prisma.user.update({
+        await authClient.user.update({
           where: { id: session.user.id },
           data: { companyId: companyId }
         })
@@ -87,7 +87,7 @@ export async function getCompanyContext(
     console.log('Final companyId to use:', companyId)
 
     // Verify user has access to this company
-    const userCompany = await prisma.userCompany.findUnique({
+    const userCompany = await authClient.userCompany.findUnique({
       where: {
         userId_companyId: {
           userId: session.user.id,
@@ -225,7 +225,7 @@ export async function auditLog(
     })
 
     // Optional: Store in database
-    // await prisma.auditLog.create({
+    // await authClient.auditLog.create({
     //   data: {
     //     userId: context.userId,
     //     companyId: context.companyId,

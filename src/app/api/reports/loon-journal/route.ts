@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { payrollClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get company information
-    const company = await prisma.company.findUnique({
+    const company = await payrollClient.company.findUnique({
       where: { id: session.user.companyId },
       select: {
         name: true,
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     const endDate = new Date(year, month, 0, 23, 59, 59)
 
     // Fetch payroll records for the period
-    const payrollRecords = await prisma.payrollRecord.findMany({
+    const payrollRecords = await payrollClient.payrollRecord.findMany({
       where: {
         companyId: session.user.companyId,
         payPeriodStart: {

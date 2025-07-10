@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { PrismaClient } from '@prisma/client';
+import { authClient } from "@/lib/database-clients";
 
-const prisma = new PrismaClient();
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     console.log('Company ID:', session.user.companyId);
 
     // Get company
-    const company = await prisma.company.findUnique({
+    const company = await authClient.company.findUnique({
       where: { id: session.user.companyId },
       include: {
         subscriptions: true
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await prisma.$disconnect();
+    await authClient.$disconnect();
   }
 }
 

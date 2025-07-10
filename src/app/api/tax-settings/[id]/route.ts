@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { payrollClient } from "@/lib/database-clients"
 
 export async function PUT(
   request: NextRequest,
@@ -37,7 +37,7 @@ export async function PUT(
     }
 
     // Check if the tax settings belongs to the user's company
-    const existingSettings = await prisma.taxSettings.findFirst({
+    const existingSettings = await payrollClient.taxSettings.findFirst({
       where: {
         id: params.id,
         companyId: session.user.companyId
@@ -50,7 +50,7 @@ export async function PUT(
 
     // If setting as active, deactivate other tax settings for this company
     if (isActive) {
-      await prisma.taxSettings.updateMany({
+      await payrollClient.taxSettings.updateMany({
         where: {
           companyId: session.user.companyId,
           id: { not: params.id }
@@ -61,7 +61,7 @@ export async function PUT(
       })
     }
 
-    const updatedSettings = await prisma.taxSettings.update({
+    const updatedSettings = await payrollClient.taxSettings.update({
       where: {
         id: params.id
       },
@@ -101,7 +101,7 @@ export async function DELETE(
     }
 
     // Check if the tax settings belongs to the user's company
-    const existingSettings = await prisma.taxSettings.findFirst({
+    const existingSettings = await payrollClient.taxSettings.findFirst({
       where: {
         id: params.id,
         companyId: session.user.companyId
@@ -112,7 +112,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Tax settings not found" }, { status: 404 })
     }
 
-    await prisma.taxSettings.delete({
+    await payrollClient.taxSettings.delete({
       where: {
         id: params.id
       }

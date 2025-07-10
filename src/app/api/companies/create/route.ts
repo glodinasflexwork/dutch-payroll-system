@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { authClient } from '@/lib/database-clients'
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the company
-    const company = await prisma.company.create({
+    const company = await authClient.company.create({
       data: {
         name,
         address,
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Add the user as owner of the company
-    await prisma.userCompany.create({
+    await authClient.userCompany.create({
       data: {
         userId: session.user.id,
         companyId: company.id,
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Create default tenant configuration
-    await prisma.tenantConfig.create({
+    await authClient.tenantConfig.create({
       data: {
         companyId: company.id,
         settings: {

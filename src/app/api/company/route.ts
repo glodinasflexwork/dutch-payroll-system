@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { authClient } from "@/lib/database-clients"
 
 // GET /api/company - Get current user's company information
 export async function GET(request: NextRequest) {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch company data
-    const company = await prisma.company.findFirst({
+    const company = await authClient.company.findFirst({
       where: {
         id: session.user.companyId
       },

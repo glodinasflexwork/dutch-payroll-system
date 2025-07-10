@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { authClient } from "@/lib/database-clients"
 import { stripe } from "@/lib/stripe"
 
 // POST /api/billing/portal - Create Stripe customer portal session
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get current subscription
-    const subscription = await prisma.subscription.findUnique({
+    const subscription = await authClient.subscription.findUnique({
       where: { companyId: session.user.companyId }
     })
 
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get current subscription
-    const subscription = await prisma.subscription.findUnique({
+    const subscription = await authClient.subscription.findUnique({
       where: { companyId: session.user.companyId }
     })
 

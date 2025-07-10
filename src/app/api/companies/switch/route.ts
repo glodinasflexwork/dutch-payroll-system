@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { authClient } from '@/lib/database-clients'
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user has access to this company
-    const userCompany = await prisma.userCompany.findUnique({
+    const userCompany = await authClient.userCompany.findUnique({
       where: {
         userId_companyId: {
           userId: session.user.id,
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update user's current company in the database
-    await prisma.user.update({
+    await authClient.user.update({
       where: { id: session.user.id },
       data: { companyId: companyId }
     })

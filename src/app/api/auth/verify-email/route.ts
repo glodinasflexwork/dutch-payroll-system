@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { authClient } from '@/lib/database-clients';
 import crypto from 'crypto';
-
-const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find the verification token
-    const verificationToken = await prisma.verificationToken.findUnique({
+    const verificationToken = await authClient.verificationToken.findUnique({
       where: { token }
     });
 
@@ -30,7 +28,7 @@ export async function POST(request: NextRequest) {
     // Check if token is expired
     if (verificationToken.expires < new Date()) {
       // Clean up expired token
-      await prisma.verificationToken.delete({
+      await authClient.verificationToken.delete({
         where: { token }
       });
       
@@ -41,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find the user by email (identifier in verification token)
-    const user = await prisma.user.findUnique({
+    const user = await authClient.user.findUnique({
       where: { email: verificationToken.identifier }
     });
 
@@ -53,13 +51,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Update user as verified
-    await prisma.user.update({
+    await authClient.user.update({
       where: { id: user.id },
       data: { emailVerified: new Date() }
     });
 
     // Clean up the verification token
-    await prisma.verificationToken.delete({
+    await authClient.verificationToken.delete({
       where: { token }
     });
 
@@ -83,12 +81,12 @@ export async function generateVerificationToken(email: string): Promise<string> 
   const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
   // Clean up any existing tokens for this email
-  await prisma.verificationToken.deleteMany({
+  await authClient.verificationToken.deleteMany({
     where: { identifier: email }
   });
 
   // Create new verification token
-  await prisma.verificationToken.create({
+  await authClient.verificationToken.create({
     data: {
       identifier: email,
       token,
