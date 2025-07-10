@@ -176,6 +176,7 @@ model TaxSettings {
   wlzRate              Float    @default(9.65)
   wwRate               Float    @default(2.70)
   wiaRate              Float    @default(0.60)
+  zvwRate              Float    @default(5.65)
   aowMaxBase           Float    @default(40000)
   wlzMaxBase           Float    @default(40000)
   wwMaxBase            Float    @default(69000)
