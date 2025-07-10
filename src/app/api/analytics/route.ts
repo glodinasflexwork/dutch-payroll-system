@@ -179,21 +179,21 @@ export async function GET(request: NextRequest) {
       deptData.totalSalary += record.grossPay || 0
     })
 
-    // Employee distribution by salary type
-    const salaryTypeData = new Map<string, number>()
+    // Employee distribution by employment type
+    const employmentTypeData = new Map<string, number>()
     const allEmployees = await prisma.employee.findMany({
       where: {
         companyId: companyId,
         isActive: true
       },
       select: {
-        salaryType: true
+        employmentType: true
       }
     })
 
     allEmployees.forEach(emp => {
-      const type = emp.salaryType === 'hourly' ? 'Hourly' : 'Monthly'
-      salaryTypeData.set(type, (salaryTypeData.get(type) || 0) + 1)
+      const type = emp.employmentType === 'hourly' ? 'Hourly' : 'Monthly'
+      employmentTypeData.set(type, (employmentTypeData.get(type) || 0) + 1)
     })
 
     // Prepare response data
@@ -213,7 +213,7 @@ export async function GET(request: NextRequest) {
         employees: data.employees,
         avgSalary: data.employees > 0 ? data.totalSalary / data.employees : 0
       })),
-      employmentTypeDistribution: Array.from(salaryTypeData.entries()).map(([name, value]) => ({
+      employmentTypeDistribution: Array.from(employmentTypeData.entries()).map(([name, value]) => ({
         name,
         value,
         color: name === 'Monthly' ? '#3b82f6' : '#10b981'
