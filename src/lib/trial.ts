@@ -26,27 +26,26 @@ export async function createTrial(companyId: string): Promise<void> {
   const now = new Date();
   const trialEnd = new Date(now.getTime() + (TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000));
 
-  // First, check if a plan exists, if not create a default trial plan
-  let trialPlan = await prisma.plan.findFirst({
-    where: { name: 'Trial' }
+  // Find the Trial Plan (note: it's named "Trial Plan" not "Trial")
+  const trialPlan = await prisma.plan.findFirst({
+    where: { name: 'Trial Plan' }
   });
 
   if (!trialPlan) {
-    trialPlan = await prisma.plan.create({
-      data: {
-        name: 'Trial',
-        description: '14-day free trial',
-        price: 0,
-        currency: 'EUR',
-        interval: 'month',
-        features: ['All features included'],
-        maxEmployees: 999,
-        maxPayrolls: 999,
-        isActive: true
-      }
-    });
+    throw new Error('Trial Plan not found in database');
   }
 
+  // Check if subscription already exists for this company
+  const existingSubscription = await prisma.subscription.findFirst({
+    where: { companyId }
+  });
+
+  if (existingSubscription) {
+    console.log(`Subscription already exists for company ${companyId}`);
+    return;
+  }
+
+  // Create subscription with trial
   await prisma.subscription.create({
     data: {
       companyId,
@@ -54,20 +53,18 @@ export async function createTrial(companyId: string): Promise<void> {
       status: 'trialing',
       currentPeriodStart: now,
       currentPeriodEnd: trialEnd,
-      trialEnd: trialEnd,
-      isTrialActive: true,
-      trialStart: now,
-      trialExtensions: 0,
-      cancelAtPeriodEnd: false
+      trialEnd: trialEnd
     }
   });
+
+  console.log(`Trial created successfully for company ${companyId}`);
 }
 
 /**
  * Get trial status for a company
  */
 export async function getTrialStatus(companyId: string): Promise<TrialStatus | null> {
-  const subscription = await prisma.subscription.findUnique({
+  const subscription = await prisma.subscription.findFirst({
     where: { companyId },
     include: { Plan: true }
   });
@@ -76,13 +73,13 @@ export async function getTrialStatus(companyId: string): Promise<TrialStatus | n
     return null;
   }
 
-  // If not in trial, return null
-  if (!subscription.isTrialActive || !subscription.trialStart || !subscription.trialEnd) {
+  // If not in trial status, return null
+  if (subscription.status !== 'trialing' || !subscription.trialEnd) {
     return null;
   }
 
   const now = new Date();
-  const trialStart = subscription.trialStart;
+  const trialStart = subscription.currentPeriodStart;
   const trialEnd = subscription.trialEnd;
   
   const totalTrialMs = trialEnd.getTime() - trialStart.getTime();
@@ -92,16 +89,15 @@ export async function getTrialStatus(companyId: string): Promise<TrialStatus | n
   const daysUsed = Math.max(0, Math.floor(usedTrialMs / (24 * 60 * 60 * 1000)));
   const daysRemaining = Math.max(0, Math.ceil(remainingTrialMs / (24 * 60 * 60 * 1000)));
   const isExpired = now > trialEnd;
-  const canExtend = subscription.trialExtensions < 1; // Allow one extension
 
   return {
-    isActive: subscription.isTrialActive && !isExpired,
+    isActive: subscription.status === 'trialing' && !isExpired,
     daysRemaining,
     daysUsed,
     startDate: trialStart,
     endDate: trialEnd,
     isExpired,
-    canExtend
+    canExtend: false // For now, no extensions
   };
 }
 
