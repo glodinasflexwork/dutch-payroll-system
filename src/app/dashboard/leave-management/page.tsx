@@ -168,11 +168,11 @@ export default function LeaveManagementPage() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Verlofbeheer</h1>
-            <p className="text-gray-600">Beheer verlofaanvragen, saldi en verloftypen</p>
+            <h1 className="text-2xl font-bold text-gray-900">Leave Management</h1>
+            <p className="text-gray-600">Manage leave requests, balances and leave types</p>
           </div>
           <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-            + Nieuw Verlofverzoek
+            + New Leave Request
           </button>
         </div>
 
@@ -187,7 +187,7 @@ export default function LeaveManagementPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Verlofaanvragen
+              Leave Requests
             </button>
             <button
               onClick={() => setActiveTab('balances')}
@@ -197,7 +197,7 @@ export default function LeaveManagementPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Verlofsaldi
+              Leave Balances
             </button>
             <button
               onClick={() => setActiveTab('types')}
@@ -207,7 +207,7 @@ export default function LeaveManagementPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Verloftypen
+              Leave Types
             </button>
           </nav>
         </div>
@@ -230,7 +230,7 @@ export default function LeaveManagementPage() {
             {activeTab === 'requests' && (
               <div className="bg-white shadow rounded-lg">
                 <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-900">Verlofaanvragen</h3>
+                  <h3 className="text-lg font-medium text-gray-900">Leave Requests</h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
@@ -313,7 +313,7 @@ export default function LeaveManagementPage() {
                       {leaveRequests.length === 0 && (
                         <tr>
                           <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                            Geen verlofaanvragen gevonden
+                            No leave requests found
                           </td>
                         </tr>
                       )}
@@ -327,7 +327,7 @@ export default function LeaveManagementPage() {
             {activeTab === 'balances' && (
               <div className="bg-white shadow rounded-lg">
                 <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-900">Verlofsaldi</h3>
+                  <h3 className="text-lg font-medium text-gray-900">Leave Balances</h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
@@ -394,7 +394,7 @@ export default function LeaveManagementPage() {
                       {leaveBalances.length === 0 && (
                         <tr>
                           <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
-                            Geen verlofsaldi gevonden
+                            No leave balances found
                           </td>
                         </tr>
                       )}
@@ -408,7 +408,7 @@ export default function LeaveManagementPage() {
             {activeTab === 'types' && (
               <div className="bg-white shadow rounded-lg">
                 <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-900">Verloftypen</h3>
+                  <h3 className="text-lg font-medium text-gray-900">Leave Types</h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
@@ -474,7 +474,7 @@ export default function LeaveManagementPage() {
                       {leaveTypes.length === 0 && (
                         <tr>
                           <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
-                            Geen verloftypen gevonden
+                            No leave types found
                           </td>
                         </tr>
                       )}
