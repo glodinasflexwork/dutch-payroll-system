@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { validateAuth } from "@/lib/auth-utils"
+import { payrollClient } from "@/lib/database-clients"
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const { context, error, status } = await validateAuth(request, ['admin', 'hr', 'accountant'])
     
-    if (!session?.user?.companyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!context || error) {
+      return NextResponse.json({ error }, { status })
     }
 
-    const taxSettings = await prisma.taxSettings.findMany({
+    const taxSettings = await payrollClient.taxSettings.findMany({
       where: {
-        companyId: session.user.companyId
+        companyId: context.companyId
       },
       orderBy: {
         taxYear: 'desc'
@@ -29,10 +28,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const { context, error, status } = await validateAuth(request, ['admin', 'hr', 'accountant'])
     
-    if (!session?.user?.companyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!context || error) {
+      return NextResponse.json({ error }, { status })
     }
 
     const body = await request.json()
@@ -59,9 +58,9 @@ export async function POST(request: NextRequest) {
 
     // If setting as active, deactivate other tax settings for this company
     if (isActive) {
-      await prisma.taxSettings.updateMany({
+      await payrollClient.taxSettings.updateMany({
         where: {
-          companyId: session.user.companyId
+          companyId: context.companyId
         },
         data: {
           isActive: false
@@ -69,9 +68,9 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const taxSettings = await prisma.taxSettings.create({
+    const taxSettings = await payrollClient.taxSettings.create({
       data: {
-        companyId: session.user.companyId,
+        companyId: context.companyId,
         taxYear,
         aowRate,
         wlzRate,

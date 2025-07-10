@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { authClient } from '@/lib/database-clients'
 
 export interface AuthContext {
   userId: string
@@ -50,7 +50,7 @@ export async function getAuthContext(request: NextRequest): Promise<AuthContext 
     // Get user's current company with enhanced error handling
     let user
     try {
-      user = await prisma.user.findUnique({
+      user = await authClient.user.findUnique({
         where: { id: session.user.id },
         select: { 
           id: true,
@@ -74,7 +74,7 @@ export async function getAuthContext(request: NextRequest): Promise<AuthContext 
     // If no company set, get user's first company
     if (!companyId) {
       try {
-        const firstUserCompany = await prisma.userCompany.findFirst({
+        const firstUserCompany = await authClient.userCompany.findFirst({
           where: {
             userId: session.user.id,
             isActive: true
@@ -96,7 +96,7 @@ export async function getAuthContext(request: NextRequest): Promise<AuthContext 
           companyId = firstUserCompany.companyId
           
           // Update user's companyId
-          await prisma.user.update({
+          await authClient.user.update({
             where: { id: session.user.id },
             data: { companyId: companyId }
           })
@@ -117,7 +117,7 @@ export async function getAuthContext(request: NextRequest): Promise<AuthContext 
     // Get user's role and company info
     let userCompany
     try {
-      userCompany = await prisma.userCompany.findUnique({
+      userCompany = await authClient.userCompany.findUnique({
         where: {
           userId_companyId: {
             userId: session.user.id,

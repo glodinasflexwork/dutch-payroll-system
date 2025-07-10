@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/@prisma/payroll-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("PAYROLL_DATABASE_URL")
+}
+
+model PayrollRecord {
+  id               String   @id @default(cuid())
+  employeeId       String
+  employeeNumber   String
+  firstName        String
+  lastName         String
+  period           String
+  year             Int
+  month            Int
+  grossSalary      Float
+  netSalary        Float
+  taxDeduction     Float
+  socialSecurity   Float
+  pensionDeduction Float?
+  otherDeductions  Float?
+  overtime         Float?
+  bonus            Float?
+  holidayAllowance Float?
+  expenses         Float?
+  paymentDate      DateTime?
+  status           String   @default("draft")
+  companyId        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  PayrollBatch     PayrollBatch? @relation(fields: [batchId], references: [id])
+  batchId          String?
+  TaxCalculation   TaxCalculation[]
+  PayslipGeneration PayslipGeneration[]
+
+  @@unique([employeeId, year, month])
+}
+
+model PayrollBatch {
+  id            String          @id @default(cuid())
+  batchNumber   String
+  period        String
+  year          Int
+  month         Int
+  status        String          @default("draft")
+  totalEmployees Int
+  totalGross    Float
+  totalNet      Float
+  totalTax      Float
+  processedBy   String
+  processedAt   DateTime?
+  approvedBy    String?
+  approvedAt    DateTime?
+  companyId     String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  PayrollRecord PayrollRecord[]
+
+  @@unique([companyId, year, month])
+}
+
+model TaxSettings {
+  id                String   @id @default(cuid())
+  year              Int
+  aowRate           Float
+  wlzRate           Float
+  zvwRate           Float
+  holidayAllowance  Float
+  pensionRate       Float?
+  isActive          Boolean  @default(true)
+  companyId         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([year, companyId])
+}
+
+model TaxCalculation {
+  id              String        @id @default(cuid())
+  payrollRecordId String
+  employeeId      String
+  taxTable        String
+  grossSalary     Float
+  taxableIncome   Float
+  incomeTax       Float
+  aowContribution Float
+  wlzContribution Float
+  zvwContribution Float
+  totalTax        Float
+  taxCredit       Float
+  netSalary       Float
+  calculationDate DateTime
+  companyId       String
+  createdAt       DateTime      @default(now())
+  PayrollRecord   PayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Cascade)
+}
+
+model PayslipGeneration {
+  id              String        @id @default(cuid())
+  payrollRecordId String
+  employeeId      String
+  fileName        String
+  filePath        String?
+  status          String        @default("pending")
+  generatedAt     DateTime?
+  sentAt          DateTime?
+  downloadedAt    DateTime?
+  companyId       String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  PayrollRecord   PayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Cascade)
+}
+
+model ComplianceReport {
+  id          String   @id @default(cuid())
+  reportType  String
+  period      String
+  year        Int
+  month       Int?
+  quarter     Int?
+  fileName    String
+  filePath    String?
+  status      String   @default("draft")
+  generatedBy String
+  generatedAt DateTime?
+  submittedAt DateTime?
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([companyId, reportType, year, month, quarter])
+}
+
+model PayrollAnalytics {
+  id              String   @id @default(cuid())
+  period          String
+  year            Int
+  month           Int
+  totalEmployees  Int
+  totalGrossPay   Float
+  totalNetPay     Float
+  totalTaxPaid    Float
+  averageGrossPay Float
+  averageNetPay   Float
+  departmentBreakdown Json?
+  positionBreakdown Json?
+  companyId       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([companyId, year, month])
+}
+
+model CostCenter {
+  id          String   @id @default(cuid())
+  name        String
+  code        String
+  description String?
+  budget      Float?
+  actualCost  Float?
+  department  String?
+  isActive    Boolean  @default(true)
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([companyId, code])
+}
+
+model FinancialAudit {
+  id          String   @id @default(cuid())
+  action      String
+  entityType  String
+  entityId    String
+  oldValues   Json?
+  newValues   Json?
+  performedBy String
+  reason      String?
+  ipAddress   String?
+  userAgent   String?
+  companyId   String
+  createdAt   DateTime @default(now())
+}
+
