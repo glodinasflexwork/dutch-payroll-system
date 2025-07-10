@@ -45,13 +45,13 @@ interface PayrollCalculation {
   hoursWorked?: number
   overtimeHours?: number
   holidayAllowance: number
-  incomeTax: number
+  // incomeTax: number - removed (handled by tax advisors)
   aowContribution: number
   wlzContribution: number
   wwContribution: number
   wiaContribution: number
   totalDeductions: number
-  netPay: number
+  grossPayAfterContributions: number // Gross pay minus social security contributions (not net pay)
   employerCosts: number
 }
 
@@ -171,8 +171,8 @@ export default function PayrollPage() {
     return calculations.reduce((sum, calc) => sum + calc.totalDeductions, 0)
   }
 
-  const getTotalNetPay = () => {
-    return calculations.reduce((sum, calc) => sum + calc.netPay, 0)
+  const getTotalGrossAfterContributions = () => {
+    return calculations.reduce((sum, calc) => sum + calc.grossPayAfterContributions, 0)
   }
 
   const getTotalEmployerCosts = () => {
@@ -194,7 +194,7 @@ export default function PayrollPage() {
       'Employment Type',
       'Tax Table',
       'Gross Pay',
-      'Income Tax',
+      'Social Security Only',
       'AOW Contribution',
       'WLZ Contribution', 
       'WW Contribution',
@@ -214,13 +214,13 @@ export default function PayrollPage() {
         calc.employee.employmentType,
         calc.employee.taxTable.toUpperCase(),
         calc.grossPay.toFixed(2),
-        calc.incomeTax.toFixed(2),
+        // calc.incomeTax.toFixed(2), - removed (handled by tax advisors)
         calc.aowContribution.toFixed(2),
         calc.wlzContribution.toFixed(2),
         calc.wwContribution.toFixed(2),
         calc.wiaContribution.toFixed(2),
         calc.totalDeductions.toFixed(2),
-        calc.netPay.toFixed(2),
+        calc.grossPayAfterContributions.toFixed(2),
         calc.holidayAllowance.toFixed(2)
       ].join(','))
     ].join('\n')
@@ -540,13 +540,13 @@ export default function PayrollPage() {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Net Pay</CardTitle>
+                  <CardTitle className="text-sm font-medium">Gross After Contributions</CardTitle>
                   <CheckCircle className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">{formatCurrency(getTotalNetPay())}</div>
+                  <div className="text-2xl font-bold text-blue-600">{formatCurrency(getTotalGrossAfterContributions())}</div>
                   <p className="text-xs text-muted-foreground">
-                    Amount to pay employees
+                    Gross pay minus social security
                   </p>
                 </CardContent>
               </Card>
@@ -622,7 +622,7 @@ export default function PayrollPage() {
                             )}
                           </td>
                           <td className="py-3 px-4">
-                            <p className="font-medium text-red-600">{formatCurrency(calc.incomeTax)}</p>
+                            <p className="font-medium text-gray-600">Tax Advisor</p>
                             <p className="text-xs text-gray-500">
                               {calc.employee.taxTable.toUpperCase()} table
                             </p>
@@ -639,7 +639,7 @@ export default function PayrollPage() {
                             <p className="font-medium text-red-600">{formatCurrency(calc.totalDeductions)}</p>
                           </td>
                           <td className="py-3 px-4">
-                            <p className="font-medium text-blue-600">{formatCurrency(calc.netPay)}</p>
+                            <p className="font-medium text-blue-600">{formatCurrency(calc.grossPayAfterContributions)}</p>
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex items-center space-x-2">

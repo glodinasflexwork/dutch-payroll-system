@@ -31,7 +31,9 @@ interface EmployeeFormData {
   country: string
   nationality: string
   phoneNumber: string
-  address: string
+  streetName: string
+  houseNumber: string
+  houseNumberAddition: string
   postalCode: string
   city: string
   bankAccount: string
@@ -60,7 +62,7 @@ const STEPS = [
     title: "Personal Information",
     description: "Basic employee details and contact information",
     icon: User,
-    fields: ['firstName', 'lastName', 'email', 'bsn', 'country', 'nationality', 'phoneNumber', 'address', 'postalCode', 'city', 'bankAccount']
+    fields: ['firstName', 'lastName', 'email', 'bsn', 'country', 'nationality', 'phoneNumber', 'streetName', 'houseNumber', 'houseNumberAddition', 'postalCode', 'city', 'bankAccount']
   },
   {
     id: 2,
@@ -100,7 +102,9 @@ export default function AddEmployeeWizardPage() {
     country: 'Netherlands',
     nationality: 'Dutch',
     phoneNumber: '',
-    address: '',
+    streetName: '',
+    houseNumber: '',
+    houseNumberAddition: '',
     postalCode: '',
     city: '',
     bankAccount: '',
@@ -300,11 +304,27 @@ export default function AddEmployeeWizardPage() {
           isRequired: false
         }
       
-      case 'address':
+      case 'streetName':
         return {
-          isValid: value.length === 0 || value.trim().length >= 5,
-          message: value.length === 0 ? 'Address is optional' :
-                   value.trim().length < 5 ? 'Please enter a complete address' : 'Valid address',
+          isValid: value.length === 0 || value.trim().length >= 2,
+          message: value.length === 0 ? 'Street name is optional' :
+                   value.trim().length < 2 ? 'Street name must be at least 2 characters' : 'Valid street name',
+          isRequired: false
+        }
+      
+      case 'houseNumber':
+        return {
+          isValid: value.length === 0 || /^\d+[a-zA-Z]?$/.test(value.trim()),
+          message: value.length === 0 ? 'House number is optional' :
+                   !/^\d+[a-zA-Z]?$/.test(value.trim()) ? 'Please enter a valid house number (e.g., 123, 45A)' : 'Valid house number',
+          isRequired: false
+        }
+      
+      case 'houseNumberAddition':
+        return {
+          isValid: value.length === 0 || value.trim().length <= 10,
+          message: value.length === 0 ? 'House number addition is optional' :
+                   value.trim().length > 10 ? 'Addition should be short (e.g., A, bis, etc.)' : 'Valid addition',
           isRequired: false
         }
       
@@ -617,17 +637,45 @@ export default function AddEmployeeWizardPage() {
               </div>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Street Name
+                </label>
+                <Input
+                  value={formData.streetName}
+                  onChange={(e) => handleInputChange('streetName', e.target.value)}
+                  placeholder="Leyweg"
+                  className={getFieldClassName('streetName')}
+                />
+                {renderFieldFeedback('streetName')}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  House Number
+                </label>
+                <Input
+                  value={formData.houseNumber}
+                  onChange={(e) => handleInputChange('houseNumber', e.target.value)}
+                  placeholder="123"
+                  className={getFieldClassName('houseNumber')}
+                />
+                {renderFieldFeedback('houseNumber')}
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Address
+                House Number Addition
               </label>
               <Input
-                value={formData.address}
-                onChange={(e) => handleInputChange('address', e.target.value)}
-                placeholder="Straatnaam 123"
-                className={getFieldClassName('address')}
+                value={formData.houseNumberAddition}
+                onChange={(e) => handleInputChange('houseNumberAddition', e.target.value)}
+                placeholder="A, B, bis, etc. (optional)"
+                className={getFieldClassName('houseNumberAddition')}
               />
-              {renderFieldFeedback('address')}
+              {renderFieldFeedback('houseNumberAddition')}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

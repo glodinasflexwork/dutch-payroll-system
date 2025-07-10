@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     await authClient.taxSettings.create({
       data: {
         taxYear: 2025,
-        incomeTaxBracket1Max: 75518,
+        
         aowRate: 17.90,
         wlzRate: 9.65,
         wwRate: 2.70,

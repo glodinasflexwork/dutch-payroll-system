@@ -9,11 +9,6 @@ interface ValidationErrors {
   email?: string
   password?: string
   confirmPassword?: string
-  companyName?: string
-  companyAddress?: string
-  companyCity?: string
-  companyPostalCode?: string
-  kvkNumber?: string
 }
 
 interface DebugInfo {
@@ -23,26 +18,12 @@ interface DebugInfo {
   status: 'info' | 'success' | 'error' | 'warning'
 }
 
-interface KvKCompany {
-  name: string
-  address: string
-  city: string
-  postalCode: string
-  kvkNumber: string
-  status: string
-}
-
 export default function SignUp() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
-    confirmPassword: "",
-    companyName: "",
-    companyAddress: "",
-    companyCity: "",
-    companyPostalCode: "",
-    kvkNumber: ""
+    confirmPassword: ""
   })
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({})
   const [isLoading, setIsLoading] = useState(false)
@@ -52,9 +33,6 @@ export default function SignUp() {
   const [debugInfo, setDebugInfo] = useState<DebugInfo[]>([])
   const [showPassword, setShowPassword] = useState(false)
   const [fieldTouched, setFieldTouched] = useState<{[key: string]: boolean}>({})
-  const [kvkLoading, setKvkLoading] = useState(false)
-  const [kvkSearchResults, setKvkSearchResults] = useState<KvKCompany[]>([])
-  const [showKvkResults, setShowKvkResults] = useState(false)
   const router = useRouter()
 
   const addDebugInfo = (step: string, details: string, status: DebugInfo['status'] = 'info') => {
@@ -65,112 +43,6 @@ export default function SignUp() {
       timestamp: new Date().toLocaleTimeString()
     }
     setDebugInfo(prev => [...prev, newDebugInfo])
-  }
-
-  // KvK API functions
-  const lookupKvKNumber = async (kvkNumber: string) => {
-    if (!kvkNumber || kvkNumber.length !== 8) return
-
-    setKvkLoading(true)
-    setShowKvkResults(false)
-    
-    if (debugMode) {
-      addDebugInfo('KvK Lookup', `Looking up KvK number: ${kvkNumber}`, 'info')
-    }
-
-    try {
-      const response = await fetch(`/api/kvk/lookup?kvkNumber=${kvkNumber}`)
-      const data = await response.json()
-
-      if (debugMode) {
-        addDebugInfo('KvK API Response', JSON.stringify(data, null, 2), response.ok ? 'success' : 'error')
-      }
-
-      if (response.ok && data.company) {
-        // Auto-fill company information
-        setFormData(prev => ({
-          ...prev,
-          companyName: data.company.name || prev.companyName,
-          companyAddress: data.company.address || prev.companyAddress,
-          companyCity: data.company.city || prev.companyCity,
-          companyPostalCode: data.company.postalCode || prev.companyPostalCode
-        }))
-
-        if (debugMode) {
-          addDebugInfo('Auto-fill Success', 'Company information auto-filled from KvK', 'success')
-        }
-      } else {
-        if (debugMode) {
-          addDebugInfo('KvK Lookup Failed', data.error || 'Company not found', 'warning')
-        }
-      }
-    } catch (error) {
-      if (debugMode) {
-        addDebugInfo('KvK API Error', error instanceof Error ? error.message : 'Network error', 'error')
-      }
-    } finally {
-      setKvkLoading(false)
-    }
-  }
-
-  const searchKvKByName = async (companyName: string) => {
-    if (!companyName || companyName.length < 3) return
-
-    setKvkLoading(true)
-    
-    if (debugMode) {
-      addDebugInfo('KvK Search', `Searching for companies: ${companyName}`, 'info')
-    }
-
-    try {
-      const response = await fetch(`/api/kvk/lookup?name=${encodeURIComponent(companyName)}&action=search`)
-      const data = await response.json()
-
-      if (debugMode) {
-        addDebugInfo('KvK Search Response', JSON.stringify(data, null, 2), response.ok ? 'success' : 'error')
-      }
-
-      if (response.ok && data.companies) {
-        setKvkSearchResults(data.companies)
-        setShowKvkResults(true)
-        
-        if (debugMode) {
-          addDebugInfo('Search Results', `Found ${data.companies.length} companies`, 'success')
-        }
-      } else {
-        setKvkSearchResults([])
-        setShowKvkResults(false)
-        
-        if (debugMode) {
-          addDebugInfo('Search Failed', data.error || 'No companies found', 'warning')
-        }
-      }
-    } catch (error) {
-      setKvkSearchResults([])
-      setShowKvkResults(false)
-      
-      if (debugMode) {
-        addDebugInfo('Search Error', error instanceof Error ? error.message : 'Network error', 'error')
-      }
-    } finally {
-      setKvkLoading(false)
-    }
-  }
-
-  const selectKvKCompany = (company: KvKCompany) => {
-    setFormData(prev => ({
-      ...prev,
-      companyName: company.name,
-      companyAddress: company.address,
-      companyCity: company.city,
-      companyPostalCode: company.postalCode,
-      kvkNumber: company.kvkNumber
-    }))
-    setShowKvkResults(false)
-    
-    if (debugMode) {
-      addDebugInfo('Company Selected', `Selected: ${company.name}`, 'success')
-    }
   }
 
   const validateField = (name: string, value: string): string | undefined => {
@@ -198,31 +70,6 @@ export default function SignUp() {
       case 'confirmPassword':
         if (!value) return 'Please confirm your password'
         if (value !== formData.password) return 'Passwords do not match'
-        return undefined
-      
-      case 'companyName':
-        if (!value.trim()) return 'Company name is required'
-        if (value.trim().length < 2) return 'Company name must be at least 2 characters'
-        return undefined
-      
-      case 'companyAddress':
-        if (value && value.trim().length < 5) return 'Please enter a complete address'
-        return undefined
-      
-      case 'companyCity':
-        if (value && !/^[a-zA-Z\s]+$/.test(value)) return 'City name can only contain letters and spaces'
-        return undefined
-      
-      case 'companyPostalCode':
-        if (value && !/^\d{4}[A-Z]{2}$/.test(value.replace(/\s/g, ''))) {
-          return 'Dutch postal code format: 1234AB'
-        }
-        return undefined
-      
-      case 'kvkNumber':
-        if (value && !/^\d{8}$/.test(value.replace(/\s/g, ''))) {
-          return 'KvK number must be 8 digits'
-        }
         return undefined
       
       default:
@@ -261,25 +108,6 @@ export default function SignUp() {
         ...prev,
         [name]: error
       }))
-    }
-
-    // KvK auto-lookup when KvK number is entered
-    if (name === 'kvkNumber' && value.replace(/\s/g, '').length === 8) {
-      const cleanKvkNumber = value.replace(/\s/g, '')
-      lookupKvKNumber(cleanKvkNumber)
-    }
-
-    // KvK search when company name is typed (with debounce)
-    if (name === 'companyName' && value.length >= 3) {
-      // Clear previous timeout
-      if (window.kvkSearchTimeout) {
-        clearTimeout(window.kvkSearchTimeout)
-      }
-      
-      // Set new timeout for search
-      window.kvkSearchTimeout = setTimeout(() => {
-        searchKvKByName(value)
-      }, 1000) // 1 second debounce
     }
 
     if (debugMode) {
@@ -333,12 +161,7 @@ export default function SignUp() {
       const requestBody = {
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
-        password: formData.password,
-        companyName: formData.companyName.trim(),
-        companyAddress: formData.companyAddress.trim(),
-        companyCity: formData.companyCity.trim(),
-        companyPostalCode: formData.companyPostalCode.replace(/\s/g, '').toUpperCase(),
-        kvkNumber: formData.kvkNumber.replace(/\s/g, '')
+        password: formData.password
       }
 
       if (debugMode) {
@@ -415,21 +238,14 @@ export default function SignUp() {
               </svg>
             </div>
             <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-              Registration Successful! 🎉
+              Account Created Successfully! 🎉
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              Welcome to SalarySync! Your account has been created.
+              Welcome to SalarySync! Your personal account has been created.
             </p>
             <div className="mt-6 bg-white rounded-lg shadow p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">What's Next:</h3>
               <div className="text-left space-y-4">
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-sm font-medium mr-3">✓</div>
-                  <div>
-                    <p className="font-medium text-gray-900">14-Day Free Trial Started</p>
-                    <p className="text-sm text-gray-600">Full access to all payroll features</p>
-                  </div>
-                </div>
                 <div className="flex items-start">
                   <div className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium mr-3">1</div>
                   <div>
@@ -440,8 +256,15 @@ export default function SignUp() {
                 <div className="flex items-start">
                   <div className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium mr-3">2</div>
                   <div>
-                    <p className="font-medium text-gray-900">Sign In & Start Using</p>
-                    <p className="text-sm text-gray-600">Access your dashboard immediately</p>
+                    <p className="font-medium text-gray-900">Sign In & Set Up Company</p>
+                    <p className="text-sm text-gray-600">Complete your company setup and start your free trial</p>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium mr-3">3</div>
+                  <div>
+                    <p className="font-medium text-gray-900">Add Employees & Start Payroll</p>
+                    <p className="text-sm text-gray-600">Begin managing your Dutch payroll immediately</p>
                   </div>
                 </div>
               </div>
@@ -629,142 +452,6 @@ export default function SignUp() {
                         {validationErrors.confirmPassword}
                       </p>
                     )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Company Information */}
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                  <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                  </svg>
-                  Company Information
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-1">
-                      Company Name *
-                    </label>
-                    <input
-                      id="companyName"
-                      name="companyName"
-                      type="text"
-                      required
-                      className={getFieldClassName('companyName')}
-                      placeholder="Enter your company name"
-                      value={formData.companyName}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                    />
-                    {validationErrors.companyName && (
-                      <p className="mt-1 text-sm text-red-600 flex items-center">
-                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        {validationErrors.companyName}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label htmlFor="companyAddress" className="block text-sm font-medium text-gray-700 mb-1">
-                      Company Address
-                    </label>
-                    <input
-                      id="companyAddress"
-                      name="companyAddress"
-                      type="text"
-                      className={getFieldClassName('companyAddress')}
-                      placeholder="Street address"
-                      value={formData.companyAddress}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                    />
-                    {validationErrors.companyAddress && (
-                      <p className="mt-1 text-sm text-red-600 flex items-center">
-                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        {validationErrors.companyAddress}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="companyCity" className="block text-sm font-medium text-gray-700 mb-1">
-                        City
-                      </label>
-                      <input
-                        id="companyCity"
-                        name="companyCity"
-                        type="text"
-                        className={getFieldClassName('companyCity')}
-                        placeholder="City"
-                        value={formData.companyCity}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                      />
-                      {validationErrors.companyCity && (
-                        <p className="mt-1 text-sm text-red-600 flex items-center">
-                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                          {validationErrors.companyCity}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <label htmlFor="companyPostalCode" className="block text-sm font-medium text-gray-700 mb-1">
-                        Postal Code
-                      </label>
-                      <input
-                        id="companyPostalCode"
-                        name="companyPostalCode"
-                        type="text"
-                        className={getFieldClassName('companyPostalCode')}
-                        placeholder="1234AB"
-                        value={formData.companyPostalCode}
-                        onChange={handleChange}
-                        onBlur={handleBlur}
-                      />
-                      {validationErrors.companyPostalCode && (
-                        <p className="mt-1 text-sm text-red-600 flex items-center">
-                          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                          {validationErrors.companyPostalCode}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="kvkNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                      KvK Number (Optional)
-                    </label>
-                    <input
-                      id="kvkNumber"
-                      name="kvkNumber"
-                      type="text"
-                      className={getFieldClassName('kvkNumber')}
-                      placeholder="12345678"
-                      value={formData.kvkNumber}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                    />
-                    {validationErrors.kvkNumber && (
-                      <p className="mt-1 text-sm text-red-600 flex items-center">
-                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        {validationErrors.kvkNumber}
-                      </p>
-                    )}
-                    <div className="mt-1 text-xs text-gray-500">
-                      8-digit Chamber of Commerce number
-                    </div>
                   </div>
                 </div>
               </div>
