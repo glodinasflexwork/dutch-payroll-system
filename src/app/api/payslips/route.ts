@@ -82,8 +82,8 @@ export async function GET(request: NextRequest) {
     const holidayAllowance = payrollResult.holidayAllowanceGross / 12 // Monthly portion
     
     // Loonheffing = only social insurance contributions (AOW + WLZ + ZVW)
-    const loonheffing = payrollResult.totalTaxAndInsurance / 12 // Monthly portion
-    const netPay = payrollResult.netMonthlySalary
+    const loonheffing = payrollResult.totalEmployeeContributions / 12 // Monthly portion
+    const grossPayAfterContributions = payrollResult.netMonthlySalary
 
     // Individual components for display (monthly amounts)
     const aowContribution = payrollResult.aowContribution / 12
@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
       },
       deductions: {
         // NO income tax in monthly payroll - handled annually
-        incomeTax: 0,
+        // incomeTax (handled by tax advisors): 0,
         aowContribution: Math.round(aowContribution * 100) / 100,
         wlzContribution: Math.round(wlzContribution * 100) / 100,
         zvwContribution: Math.round(zvwContribution * 100) / 100,
@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
         wiaContribution: 0,
         totalDeductions: Math.round(loonheffing * 100) / 100
       },
-      netPay: Math.round(netPay * 100) / 100,
+      grossPayAfterContributions: Math.round(grossPayAfterContributions * 100) / 100,
       taxRates: {
         // Rates for reference only
         aowRate: 17.90,
@@ -223,8 +223,8 @@ export async function POST(request: NextRequest) {
     const holidayAllowance = payrollResult.holidayAllowanceGross / 12 // Monthly portion
     
     // Loonheffing = only social insurance contributions (AOW + WLZ + ZVW)
-    const loonheffing = payrollResult.totalTaxAndInsurance / 12 // Monthly portion
-    const netPay = payrollResult.netMonthlySalary
+    const loonheffing = payrollResult.totalEmployeeContributions / 12 // Monthly portion
+    const grossPayAfterContributions = payrollResult.netMonthlySalary
 
     // Individual components for display (monthly amounts)
     const aowContribution = payrollResult.aowContribution / 12
@@ -265,7 +265,7 @@ export async function POST(request: NextRequest) {
       },
       deductions: {
         // NO income tax in monthly payroll - handled annually
-        incomeTax: 0,
+        // incomeTax (handled by tax advisors): 0,
         aowContribution: Math.round(aowContribution * 100) / 100,
         wlzContribution: Math.round(wlzContribution * 100) / 100,
         zvwContribution: Math.round(zvwContribution * 100) / 100,
@@ -274,7 +274,7 @@ export async function POST(request: NextRequest) {
         wiaContribution: 0,
         totalDeductions: Math.round(loonheffing * 100) / 100
       },
-      netPay: Math.round(netPay * 100) / 100,
+      grossPayAfterContributions: Math.round(grossPayAfterContributions * 100) / 100,
       taxRates: {
         // Rates for reference only
         aowRate: 17.90,
@@ -364,7 +364,7 @@ export async function POST(request: NextRequest) {
                 </tr>
                 <tr class="total-row">
                     <td><strong>Netto uitbetaling</strong></td>
-                    <td class="amount"><strong>${payslipData.netPay.toFixed(2)}</strong></td>
+                    <td class="amount"><strong>${payslipData.grossPayAfterContributions.toFixed(2)}</strong></td>
                 </tr>
             </tbody>
         </table>

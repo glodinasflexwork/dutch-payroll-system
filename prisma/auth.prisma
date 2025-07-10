@@ -35,20 +35,23 @@ model Session {
 }
 
 model User {
-  id            String        @id @default(cuid())
-  name          String?
-  email         String        @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  role          String        @default("admin")
-  companyId     String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  Account       Account[]
-  Session       Session[]
-  Company       Company?      @relation(fields: [companyId], references: [id])
-  UserCompany   UserCompany[]
+  id                      String        @id @default(cuid())
+  name                    String?
+  email                   String        @unique
+  emailVerified           DateTime?
+  image                   String?
+  password                String?
+  role                    String        @default("admin")
+  companyId               String?
+  emailVerificationToken  String?       @unique
+  passwordResetToken      String?       @unique
+  passwordResetExpires    DateTime?
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+  Account                 Account[]
+  Session                 Session[]
+  Company                 Company?      @relation(fields: [companyId], references: [id])
+  UserCompany             UserCompany[]
 }
 
 model Company {

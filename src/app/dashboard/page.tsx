@@ -44,11 +44,19 @@ export default function Dashboard() {
   }, [status, router])
 
   useEffect(() => {
-    if (session?.user?.companyId) {
+    if (status === "authenticated") {
+      // Check if user has a company
+      if (!session?.user?.companyId) {
+        // Redirect to company setup if no company
+        router.push("/setup/company")
+        return
+      }
+      
+      // User has a company, fetch dashboard stats
       setLoading(true)
       fetchDashboardStats()
     }
-  }, [session?.user?.companyId])
+  }, [session, status, router])
 
   const fetchDashboardStats = async () => {
     try {

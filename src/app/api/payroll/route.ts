@@ -3,6 +3,7 @@ import { validateAuth } from "@/lib/auth-utils"
 import { payrollClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { calculateDutchPayroll, generatePayrollBreakdown, formatCurrency } from "@/lib/payroll-calculations"
+import { ensurePayrollInitialized } from "@/lib/lazy-initialization"
 
 // POST /api/payroll/calculate - Calculate payroll for specific employee
 export async function POST(request: NextRequest) {
@@ -17,6 +18,11 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Authentication successful for payroll calculation')
+
+    // Ensure Payroll database is initialized for this company (lazy initialization)
+    console.log('Ensuring Payroll database is initialized for company:', context.companyId)
+    await ensurePayrollInitialized(context.companyId)
+    console.log('Payroll database initialization complete')
 
     // Validate subscription
     const subscriptionValidation = await validateSubscription(context.companyId)
@@ -246,14 +252,14 @@ export async function PUT(request: NextRequest) {
           overtimePay: overtimePay,
           holidayAllowance: payrollResult.holidayAllowanceGross / 12, // Monthly portion
           grossPay: grossPay,
-          incomeTax: payrollResult.incomeTaxAfterCredits / 12, // Monthly portion
+          // Note: Income tax not calculated in payroll software - handled by tax advisors
           aowContribution: payrollResult.aowContribution / 12,
           wlzContribution: payrollResult.wlzContribution / 12,
           wwContribution: payrollResult.wwContribution / 12,
           wiaContribution: payrollResult.wiaContribution / 12,
-          totalDeductions: payrollResult.totalTaxAndInsurance / 12,
-          netPay: payrollResult.netMonthlySalary,
-          employerCosts: payrollResult.totalEmployerCosts / 12,
+          totalDeductions: payrollResult.totalEmployeeContributions / 12,
+          grossPayAfterContributions: payrollResult.grossSalaryAfterEmployeeContributions / 12,
+          employerCosts: payrollResult.totalEmployerContributions / 12,
           processedDate: new Date()
         }
       })
@@ -280,14 +286,14 @@ export async function PUT(request: NextRequest) {
           overtimePay: overtimePay,
           holidayAllowance: payrollResult.holidayAllowanceGross / 12, // Monthly portion
           grossPay: grossPay,
-          incomeTax: payrollResult.incomeTaxAfterCredits / 12, // Monthly portion
+          // Note: Income tax not calculated in payroll software - handled by tax advisors
           aowContribution: payrollResult.aowContribution / 12,
           wlzContribution: payrollResult.wlzContribution / 12,
           wwContribution: payrollResult.wwContribution / 12,
           wiaContribution: payrollResult.wiaContribution / 12,
-          totalDeductions: payrollResult.totalTaxAndInsurance / 12,
-          netPay: payrollResult.netMonthlySalary,
-          employerCosts: payrollResult.totalEmployerCosts / 12,
+          totalDeductions: payrollResult.totalEmployeeContributions / 12,
+          grossPayAfterContributions: payrollResult.grossSalaryAfterEmployeeContributions / 12,
+          employerCosts: payrollResult.totalEmployerContributions / 12,
           processedDate: new Date()
         }
       })

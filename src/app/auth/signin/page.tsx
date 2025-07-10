@@ -1,21 +1,40 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { signIn, getSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle, CheckCircle, Info } from "lucide-react"
 
-export default function SignIn() {
+function SignInForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [message, setMessage] = useState("")
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    // Check for URL parameters for messages
+    const errorParam = searchParams.get('error')
+    const messageParam = searchParams.get('message')
+
+    if (errorParam === 'invalid-token') {
+      setError("Invalid or expired verification link. Please request a new one.")
+    } else if (errorParam === 'verification-failed') {
+      setError("Email verification failed. Please try again.")
+    } else if (messageParam === 'already-verified') {
+      setMessage("Your email is already verified. You can sign in below.")
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError("")
+    setMessage("")
 
     try {
       const result = await signIn("credentials", {
@@ -25,7 +44,15 @@ export default function SignIn() {
       })
 
       if (result?.error) {
-        setError("Invalid email or password")
+        if (result.error.includes("verify your email")) {
+          setError("Please verify your email before signing in.")
+          // Show link to resend verification
+          setTimeout(() => {
+            router.push("/auth/unverified")
+          }, 2000)
+        } else {
+          setError("Invalid email or password")
+        }
       } else {
         // Get the session to check user role
         const session = await getSession()
@@ -91,10 +118,27 @@ export default function SignIn() {
             </div>
           </div>
 
+          {message && (
+            <Alert>
+              <CheckCircle className="h-4 w-4" />
+              <AlertDescription>{message}</AlertDescription>
+            </Alert>
+          )}
+
           {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="text-sm text-red-700">{error}</div>
-            </div>
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {error}
+                {error.includes("verify your email") && (
+                  <div className="mt-2">
+                    <Link href="/auth/unverified" className="text-sm underline">
+                      Resend verification email
+                    </Link>
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
           )}
 
           <div>
@@ -113,17 +157,40 @@ export default function SignIn() {
             </button>
           </div>
 
-          <div className="text-center">
-            <span className="text-sm text-gray-600">
-              Don't have an account?{" "}
-              <Link href="/auth/signup" className="font-medium text-indigo-600 hover:text-indigo-500">
-                Sign up
+          <div className="text-center space-y-2">
+            <div>
+              <Link href="/auth/reset" className="text-sm text-indigo-600 hover:text-indigo-500">
+                Forgot your password?
               </Link>
-            </span>
+            </div>
+            <div>
+              <span className="text-sm text-gray-600">
+                Don't have an account?{" "}
+                <Link href="/auth/signup" className="font-medium text-indigo-600 hover:text-indigo-500">
+                  Sign up
+                </Link>
+              </span>
+            </div>
           </div>
         </form>
       </div>
     </div>
+  )
+}
+
+
+export default function SignIn() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-2 text-sm text-gray-600">Loading...</p>
+        </div>
+      </div>
+    }>
+      <SignInForm />
+    </Suspense>
   )
 }
 

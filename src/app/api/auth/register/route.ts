@@ -1,25 +1,47 @@
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
-import { authClient } from "@/lib/database-clients"
-import { createTrial } from "@/lib/trial"
-import { EmailService } from "@/lib/email-service"
-import { generateVerificationToken } from "@/app/api/auth/verify-email/route"
+import { prisma } from "@/lib/prisma"
+import crypto from "crypto"
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, password, companyName, companyAddress, companyCity, companyPostalCode, kvkNumber } = await request.json()
+    const { name, email, password } = await request.json()
 
-    // Validate required fields
-    if (!name || !email || !password || !companyName) {
+    // Validate required fields (only personal information)
+    if (!name || !email || !password) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing required fields: name, email, and password are required" },
+        { status: 400 }
+      )
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: "Invalid email format" },
+        { status: 400 }
+      )
+    }
+
+    // Validate password strength
+    if (password.length < 8) {
+      return NextResponse.json(
+        { error: "Password must be at least 8 characters long" },
+        { status: 400 }
+      )
+    }
+
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      return NextResponse.json(
+        { error: "Password must contain uppercase, lowercase, and number" },
         { status: 400 }
       )
     }
 
     // Check if user already exists
-    const existingUser = await authClient.user.findUnique({
-      where: { email }
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() }
     })
 
     if (existingUser) {
@@ -32,98 +54,149 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Create company, user, and trial in a transaction
-    const result = await authClient.$transaction(async (tx) => {
-      // Create company first
-      const company = await tx.company.create({
-        data: {
-          name: companyName,
-          address: companyAddress || undefined,
-          city: companyCity || undefined,
-          postalCode: companyPostalCode || undefined,
-          kvkNumber: kvkNumber || undefined
-        }
-      })
+    // Generate email verification token
+    const verificationToken = crypto.randomBytes(32).toString("hex")
 
-      // Create user (not verified yet) - no global role, only company-specific roles
-      const user = await tx.user.create({
-        data: {
-          name,
-          email,
-          password: hashedPassword,
-          companyId: company.id, // Legacy field for backward compatibility
-          emailVerified: null // Not verified yet
-        }
-      })
-
-      // Create UserCompany relationship for multi-company support
-      await tx.userCompany.create({
-        data: {
-          userId: user.id,
-          companyId: company.id,
-          role: "owner" // First user is always the owner
-        }
-      })
-
-      // Create default tax settings for the company
-      await tx.taxSettings.create({
-        data: {
-          companyId: company.id,
-          taxYear: new Date().getFullYear(),
-          incomeTaxRate1: 36.93,
-          incomeTaxRate2: 49.50,
-          incomeTaxBracket1Max: 75518,
-          aowRate: 17.90,
-          wlzRate: 9.65,
-          wwRate: 2.70,
-          wiaRate: 0.60,
-          aowMaxBase: 40000,
-          wlzMaxBase: 40000,
-          wwMaxBase: 69000,
-          wiaMaxBase: 69000,
-          holidayAllowanceRate: 8.0,
-          minimumWage: 12.83,
-          isActive: true,
-          updatedAt: new Date()
-        }
-      })
-
-      return { user, company }
+    // Create user account only (no company information)
+    const user = await prisma.user.create({
+      data: {
+        name: name.trim(),
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        emailVerified: null, // Not verified yet
+        emailVerificationToken: verificationToken
+        // No companyId - user will set up company after login
+      }
     })
 
-    // Create 14-day trial for the new company (outside transaction to avoid conflicts)
+    // Send verification email
     try {
-      await createTrial(result.company.id)
-    } catch (trialError) {
-      console.error("Error creating trial:", trialError)
-      // Don't fail registration if trial creation fails
-    }
-
-    // Generate verification token and send email
-    try {
-      const verificationToken = await generateVerificationToken(email)
-      const baseUrl = process.env.NEXTAUTH_URL || request.nextUrl.origin
+      const verificationUrl = `${process.env.NEXTAUTH_URL}/api/auth/verify-email/${verificationToken}`
       
-      await EmailService.sendVerificationEmail(email, verificationToken, baseUrl)
+      const emailResponse = await fetch(process.env.MAILTRAP_API_URL!, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.MAILTRAP_API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: {
+            email: process.env.EMAIL_FROM!,
+            name: process.env.EMAIL_FROM_NAME!
+          },
+          to: [{ email: user.email }],
+          subject: "Welcome to SalarySync - Verify Your Email",
+          html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Welcome to SalarySync</title>
+            </head>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                <h1 style="color: white; margin: 0; font-size: 28px;">🎉 Welcome to SalarySync!</h1>
+                <p style="color: #f0f0f0; margin: 10px 0 0 0;">Professional Dutch Payroll Management</p>
+              </div>
+              
+              <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+                <h2 style="color: #333; margin-top: 0;">Hello ${user.name}!</h2>
+                
+                <p>Thank you for joining SalarySync! You're just one step away from accessing the most comprehensive Dutch payroll management platform.</p>
+                
+                <p>To complete your registration and activate your account, please verify your email address by clicking the button below:</p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="${verificationUrl}" 
+                     style="background: #4F46E5; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                    Verify My Email & Activate Account
+                  </a>
+                </div>
+                
+                <p style="font-size: 14px; color: #666;">
+                  If the button doesn't work, copy and paste this link into your browser:<br>
+                  <a href="${verificationUrl}" style="color: #4F46E5; word-break: break-all;">${verificationUrl}</a>
+                </p>
+                
+                <div style="background: #e8f4fd; border: 1px solid #bee5eb; padding: 20px; border-radius: 5px; margin: 25px 0;">
+                  <h3 style="margin: 0 0 15px 0; color: #0c5460; font-size: 16px;">🚀 What's waiting for you:</h3>
+                  <ul style="margin: 0; padding-left: 20px; color: #0c5460;">
+                    <li><strong>Company Setup:</strong> Quick KvK integration and company configuration</li>
+                    <li><strong>14-Day Free Trial:</strong> Full access to all premium features</li>
+                    <li><strong>Employee Management:</strong> Add unlimited employees during trial</li>
+                    <li><strong>Dutch Compliance:</strong> Automatic tax calculations and social security</li>
+                    <li><strong>Payroll Processing:</strong> Generate compliant payslips and reports</li>
+                    <li><strong>Expert Support:</strong> Dutch payroll specialists ready to help</li>
+                  </ul>
+                </div>
+                
+                <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                  <p style="margin: 0; font-size: 14px; color: #856404;">
+                    💡 <strong>Pro Tip:</strong> Have your KvK number ready for quick company setup after verification!
+                  </p>
+                </div>
+                
+                <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+                
+                <p style="font-size: 12px; color: #999; text-align: center;">
+                  This email was sent by SalarySync. If you didn't create an account, you can safely ignore this email.<br>
+                  Need help? Contact our support team at hello@salarysync.online
+                </p>
+              </div>
+            </body>
+            </html>
+          `,
+          text: `
+            Welcome to SalarySync!
+            
+            Hello ${user.name}!
+            
+            Thank you for joining SalarySync! You're just one step away from accessing the most comprehensive Dutch payroll management platform.
+            
+            To complete your registration and activate your account, please verify your email address by clicking this link:
+            ${verificationUrl}
+            
+            What's waiting for you:
+            - Company Setup: Quick KvK integration and company configuration
+            - 14-Day Free Trial: Full access to all premium features
+            - Employee Management: Add unlimited employees during trial
+            - Dutch Compliance: Automatic tax calculations and social security
+            - Payroll Processing: Generate compliant payslips and reports
+            - Expert Support: Dutch payroll specialists ready to help
+            
+            Pro Tip: Have your KvK number ready for quick company setup after verification!
+            
+            If you didn't create an account, you can safely ignore this email.
+            Need help? Contact our support team at hello@salarysync.online
+            
+            Best regards,
+            The SalarySync Team
+          `
+        })
+      })
+
+      if (!emailResponse.ok) {
+        console.error("Failed to send verification email:", await emailResponse.text())
+        // Don't fail registration if email fails, but log the error
+        console.error("User created but verification email failed to send")
+      }
+
     } catch (emailError) {
-      console.error("Error sending verification email:", emailError)
-      // Don't fail registration if email sending fails
+      console.error("Email sending error:", emailError)
+      // Don't fail registration if email fails
     }
 
     return NextResponse.json({
       message: "Registration successful! Please check your email to verify your account.",
       user: {
-        id: result.user.id,
-        name: result.user.name,
-        email: result.user.email,
-        role: result.user.role,
-        companyId: result.user.companyId,
+        id: user.id,
+        name: user.name,
+        email: user.email,
         emailVerified: false
       },
-      trial: {
-        active: true,
-        daysRemaining: 14,
-        message: "Your 14-day free trial will start after email verification!"
+      nextSteps: {
+        message: "After email verification, you'll set up your company information and start your free trial!"
       }
     })
 

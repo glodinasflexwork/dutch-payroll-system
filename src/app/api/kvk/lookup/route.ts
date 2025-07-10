@@ -1,286 +1,188 @@
 import { NextRequest, NextResponse } from "next/server"
 
-interface KvKCompanyData {
-  kvkNumber: string
-  name: string
-  address?: string
-  postalCode?: string
-  city?: string
-  status?: string
-  registrationDate?: string
-  activities?: string[]
-}
-
-interface KvKOpenDataResponse {
-  kvkNummer: string
-  naam: string
-  adres?: {
-    volledigAdres?: string
-    postcode?: string
-    plaats?: string
+// Mock KvK data for demonstration
+// In production, this would connect to the actual KvK API
+const mockKvKData = [
+  {
+    kvkNumber: "12345678",
+    name: "Tech Solutions B.V.",
+    address: "Techniekstraat 123",
+    city: "Amsterdam",
+    postalCode: "1012AB",
+    status: "active"
+  },
+  {
+    kvkNumber: "87654321",
+    name: "Digital Innovations B.V.",
+    address: "Innovatielaan 456",
+    city: "Utrecht",
+    postalCode: "3511AB",
+    status: "active"
+  },
+  {
+    kvkNumber: "11223344",
+    name: "Green Energy Solutions",
+    address: "Duurzaamheidsweg 789",
+    city: "Rotterdam",
+    postalCode: "3011AB",
+    status: "active"
+  },
+  {
+    kvkNumber: "44332211",
+    name: "Creative Design Studio",
+    address: "Kunstlaan 321",
+    city: "Den Haag",
+    postalCode: "2511AB",
+    status: "active"
+  },
+  {
+    kvkNumber: "55667788",
+    name: "Healthcare Partners B.V.",
+    address: "Zorgstraat 654",
+    city: "Eindhoven",
+    postalCode: "5611AB",
+    status: "active"
   }
-  status?: string
-  datumAanvang?: string
-  hoofdactiviteit?: string
-  nevenactiviteiten?: string[]
-}
+]
 
-// Free KvK Open Dataset API (no authentication required)
-const KVK_OPEN_DATA_BASE_URL = "https://api.kvk.nl/api/v1/basisprofielen"
-
-// Validate Dutch KvK number format
-function validateKvKNumber(kvkNumber: string): boolean {
-  // Remove spaces and convert to string
-  const cleaned = kvkNumber.replace(/\s/g, '')
-  
-  // Must be exactly 8 digits
-  if (!/^\d{8}$/.test(cleaned)) {
-    return false
-  }
-  
-  // KvK numbers should not start with 0
-  if (cleaned.startsWith('0')) {
-    return false
-  }
-  
-  return true
-}
-
-// Format KvK number for display (12345678 -> 12 34 56 78)
-function formatKvKNumber(kvkNumber: string): string {
-  const cleaned = kvkNumber.replace(/\s/g, '')
-  return cleaned.replace(/(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4')
-}
-
-// Search companies by name using KvK Open Data
-async function searchCompaniesByName(query: string): Promise<KvKCompanyData[]> {
+export async function GET(req: NextRequest) {
   try {
-    // Use the free search endpoint
-    const searchUrl = `https://api.kvk.nl/api/v1/zoeken?naam=${encodeURIComponent(query)}&aantal=10`
-    
-    const response = await fetch(searchUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'SalarySync-Payroll-System'
-      }
-    })
-    
-    if (!response.ok) {
-      console.error('KvK search API error:', response.status, response.statusText)
-      return []
-    }
-    
-    const data = await response.json()
-    
-    if (!data.resultaten || !Array.isArray(data.resultaten)) {
-      return []
-    }
-    
-    return data.resultaten.map((item: any) => ({
-      kvkNumber: item.kvkNummer || '',
-      name: item.naam || '',
-      address: item.adres?.volledigAdres || '',
-      postalCode: item.adres?.postcode || '',
-      city: item.adres?.plaats || '',
-      status: item.status || 'Unknown'
-    }))
-  } catch (error) {
-    console.error('Error searching companies by name:', error)
-    return []
-  }
-}
+    const { searchParams } = new URL(req.url)
+    const kvkNumber = searchParams.get("kvkNumber")
+    const name = searchParams.get("name")
+    const action = searchParams.get("action")
 
-// Get company details by KvK number using Open Data API
-async function getCompanyByKvKNumber(kvkNumber: string): Promise<KvKCompanyData | null> {
-  try {
-    const cleanedKvK = kvkNumber.replace(/\s/g, '')
-    
-    // Try the free Open Dataset API first
-    const openDataUrl = `${KVK_OPEN_DATA_BASE_URL}/${cleanedKvK}`
-    
-    const response = await fetch(openDataUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'SalarySync-Payroll-System'
-      }
-    })
-    
-    if (response.ok) {
-      const data: KvKOpenDataResponse = await response.json()
-      
-      return {
-        kvkNumber: formatKvKNumber(data.kvkNummer),
-        name: data.naam,
-        address: data.adres?.volledigAdres || '',
-        postalCode: data.adres?.postcode || '',
-        city: data.adres?.plaats || '',
-        status: data.status || 'Active',
-        registrationDate: data.datumAanvang || '',
-        activities: data.nevenactiviteiten || []
-      }
-    }
-    
-    // If Open Data API fails, we could implement fallback to paid API here
-    // For now, return null to indicate company not found
-    console.error('KvK Open Data API error:', response.status, response.statusText)
-    return null
-    
-  } catch (error) {
-    console.error('Error fetching company by KvK number:', error)
-    return null
-  }
-}
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500))
 
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const kvkNumber = searchParams.get('kvkNumber')
-    const companyName = searchParams.get('name')
-    const action = searchParams.get('action') || 'lookup'
-    
-    // Validate KvK number lookup
-    if (action === 'lookup' && kvkNumber) {
-      if (!validateKvKNumber(kvkNumber)) {
-        return NextResponse.json(
-          { 
-            error: "Invalid KvK number format. Must be 8 digits and not start with 0.",
-            valid: false
-          },
-          { status: 400 }
-        )
-      }
+    if (kvkNumber) {
+      // Lookup by KvK number
+      const company = mockKvKData.find(c => c.kvkNumber === kvkNumber)
       
-      const company = await getCompanyByKvKNumber(kvkNumber)
-      
-      if (!company) {
-        return NextResponse.json(
-          { 
-            error: "Company not found with this KvK number.",
-            valid: true,
-            found: false
-          },
-          { status: 404 }
-        )
-      }
-      
-      return NextResponse.json({
-        success: true,
-        valid: true,
-        found: true,
-        company,
-        source: 'kvk_open_data'
-      })
-    }
-    
-    // Search companies by name
-    if (action === 'search' && companyName) {
-      if (companyName.length < 3) {
-        return NextResponse.json(
-          { 
-            error: "Company name must be at least 3 characters long.",
-            companies: []
-          },
-          { status: 400 }
-        )
-      }
-      
-      const companies = await searchCompaniesByName(companyName)
-      
-      return NextResponse.json({
-        success: true,
-        companies,
-        count: companies.length,
-        source: 'kvk_search'
-      })
-    }
-    
-    // Validate KvK number format only
-    if (action === 'validate' && kvkNumber) {
-      const isValid = validateKvKNumber(kvkNumber)
-      
-      return NextResponse.json({
-        valid: isValid,
-        formatted: isValid ? formatKvKNumber(kvkNumber) : kvkNumber,
-        message: isValid ? "Valid KvK number format" : "Invalid KvK number format"
-      })
-    }
-    
-    return NextResponse.json(
-      { error: "Missing required parameters. Use ?kvkNumber=12345678 or ?name=CompanyName&action=search" },
-      { status: 400 }
-    )
-    
-  } catch (error) {
-    console.error("KvK API error:", error)
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    )
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const { kvkNumber, companyName, action } = await request.json()
-    
-    // Handle batch lookup for multiple companies
-    if (action === 'batch' && Array.isArray(kvkNumber)) {
-      const results = await Promise.all(
-        kvkNumber.map(async (kvk: string) => {
-          if (!validateKvKNumber(kvk)) {
-            return { kvkNumber: kvk, error: "Invalid format", valid: false }
-          }
-          
-          const company = await getCompanyByKvKNumber(kvk)
-          return {
-            kvkNumber: kvk,
-            company,
-            found: !!company,
-            valid: true
+      if (company) {
+        return NextResponse.json({
+          success: true,
+          company: {
+            name: company.name,
+            address: company.address,
+            city: company.city,
+            postalCode: company.postalCode,
+            kvkNumber: company.kvkNumber,
+            status: company.status
           }
         })
-      )
-      
-      return NextResponse.json({
-        success: true,
-        results,
-        processed: results.length
-      })
-    }
-    
-    // Single company lookup (same as GET)
-    if (kvkNumber) {
-      if (!validateKvKNumber(kvkNumber)) {
-        return NextResponse.json(
-          { 
-            error: "Invalid KvK number format",
-            valid: false
-          },
-          { status: 400 }
-        )
+      } else {
+        return NextResponse.json({
+          success: false,
+          error: "Company not found with this KvK number"
+        }, { status: 404 })
       }
-      
-      const company = await getCompanyByKvKNumber(kvkNumber)
-      
+    }
+
+    if (name && action === "search") {
+      // Search by company name
+      const companies = mockKvKData.filter(c => 
+        c.name.toLowerCase().includes(name.toLowerCase())
+      )
+
       return NextResponse.json({
         success: true,
-        valid: true,
-        found: !!company,
-        company
+        companies: companies.map(c => ({
+          name: c.name,
+          address: c.address,
+          city: c.city,
+          postalCode: c.postalCode,
+          kvkNumber: c.kvkNumber,
+          status: c.status
+        }))
       })
     }
-    
-    return NextResponse.json(
-      { error: "Missing kvkNumber in request body" },
-      { status: 400 }
-    )
-    
+
+    return NextResponse.json({
+      success: false,
+      error: "Please provide either kvkNumber or name parameter"
+    }, { status: 400 })
+
   } catch (error) {
-    console.error("KvK API POST error:", error)
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    )
+    console.error("KvK lookup error:", error)
+    return NextResponse.json({
+      success: false,
+      error: "Failed to lookup company information"
+    }, { status: 500 })
   }
 }
+
+// For production use with actual KvK API:
+/*
+async function lookupKvKCompany(kvkNumber: string) {
+  const KVK_API_KEY = process.env.KVK_API_KEY
+  const KVK_API_URL = "https://api.kvk.nl/api/v1/zoeken"
+  
+  if (!KVK_API_KEY) {
+    throw new Error("KvK API key not configured")
+  }
+
+  const response = await fetch(`${KVK_API_URL}?kvkNummer=${kvkNumber}`, {
+    headers: {
+      'apikey': KVK_API_KEY,
+      'Accept': 'application/json'
+    }
+  })
+
+  if (!response.ok) {
+    throw new Error(`KvK API error: ${response.status}`)
+  }
+
+  const data = await response.json()
+  
+  if (data.resultaten && data.resultaten.length > 0) {
+    const company = data.resultaten[0]
+    return {
+      name: company.naam,
+      address: company.adres?.volledigAdres,
+      city: company.adres?.plaats,
+      postalCode: company.adres?.postcode,
+      kvkNumber: company.kvkNummer,
+      status: company.status
+    }
+  }
+  
+  return null
+}
+
+async function searchKvKCompanies(name: string) {
+  const KVK_API_KEY = process.env.KVK_API_KEY
+  const KVK_API_URL = "https://api.kvk.nl/api/v1/zoeken"
+  
+  if (!KVK_API_KEY) {
+    throw new Error("KvK API key not configured")
+  }
+
+  const response = await fetch(`${KVK_API_URL}?naam=${encodeURIComponent(name)}`, {
+    headers: {
+      'apikey': KVK_API_KEY,
+      'Accept': 'application/json'
+    }
+  })
+
+  if (!response.ok) {
+    throw new Error(`KvK API error: ${response.status}`)
+  }
+
+  const data = await response.json()
+  
+  if (data.resultaten) {
+    return data.resultaten.map((company: any) => ({
+      name: company.naam,
+      address: company.adres?.volledigAdres,
+      city: company.adres?.plaats,
+      postalCode: company.adres?.postcode,
+      kvkNumber: company.kvkNummer,
+      status: company.status
+    }))
+  }
+  
+  return []
+}
+*/
 

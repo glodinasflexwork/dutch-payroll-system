@@ -700,7 +700,7 @@ export default function TaxSettingsPage() {
           </CardHeader>
           <CardContent className="text-blue-700">
             <div className="space-y-2 text-sm">
-              <p><strong>Income Tax:</strong> Progressive tax with two brackets (2025: 36.93% up to €75,518, then 49.50%)</p>
+              <p><strong>Income Tax:</strong> NOT calculated in payroll software - handled by tax advisors annually</p>
               <p><strong>AOW:</strong> Old-age pension contribution, typically around 17.90%</p>
               <p><strong>WLZ:</strong> Long-term care insurance, typically around 9.65%</p>
               <p><strong>WW:</strong> Unemployment insurance, varies by sector (around 2.94%)</p>

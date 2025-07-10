@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { validateAuth, createCompanyFilter } from "@/lib/auth-utils"
 import { DatabaseClients, hrClient, authClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
+import { ensureHRInitialized } from "@/lib/lazy-initialization"
 
 // GET /api/employees - Get all employees for the current company
 export async function GET(request: NextRequest) {
@@ -66,6 +67,11 @@ export async function POST(request: NextRequest) {
     if (!context || error) {
       return NextResponse.json({ error }, { status })
     }
+
+    // Ensure HR database is initialized for this company (lazy initialization)
+    console.log('Ensuring HR database is initialized for company:', context.companyId)
+    await ensureHRInitialized(context.companyId)
+    console.log('HR database initialization complete')
 
     // Check subscription and employee limits
     const currentEmployeeCount = await hrClient.employee.count({
@@ -226,7 +232,9 @@ export async function POST(request: NextRequest) {
         
         // Personal information
         phone: data.phone || null,
-        address: data.address || null,
+        streetName: data.streetName || null,
+        houseNumber: data.houseNumber || null,
+        houseNumberAddition: data.houseNumberAddition || null,
         city: data.city || null,
         postalCode: data.postalCode || null,
         country: data.country || 'Netherlands',

@@ -1,11 +1,11 @@
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@next-auth/prisma-adapter"
-import { authClient } from "@/lib/database-clients"
+import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(authClient),
+  adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({
       name: "credentials",
@@ -18,12 +18,16 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        const user = await authClient.user.findUnique({
+        const user = await prisma.user.findUnique({
           where: {
             email: credentials.email
           },
           include: {
-            Company: true
+            UserCompany: {
+              include: {
+                company: true
+              }
+            }
           }
         })
 
@@ -40,13 +44,23 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
+        // Check if email is verified
+        if (!user.emailVerified) {
+          throw new Error("Please verify your email before signing in")
+        }
+
+        // Get the user's primary company (first active company)
+        const primaryUserCompany = user.UserCompany.find(uc => uc.isActive)
+        const companyId = primaryUserCompany?.companyId || null
+        const company = primaryUserCompany?.company || null
+
         return {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role || 'admin',
-          companyId: user.companyId,
-          company: user.Company
+          role: user.role || 'user',
+          companyId: companyId,
+          company: company
         }
       }
     })
@@ -67,7 +81,7 @@ export const authOptions: NextAuthOptions = {
       if (token) {
         session.user.id = token.sub!
         session.user.role = token.role as string
-        session.user.companyId = token.companyId as string
+        session.user.companyId = token.companyId as string | null
         session.user.company = token.company as any
       }
       return session

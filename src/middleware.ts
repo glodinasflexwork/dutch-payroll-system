@@ -5,14 +5,17 @@ import { getToken } from 'next-auth/jwt'
 export async function middleware(request: NextRequest) {
   // Only apply middleware to API routes and dashboard pages
   if (!request.nextUrl.pathname.startsWith('/api/') && 
-      !request.nextUrl.pathname.startsWith('/dashboard/')) {
+      !request.nextUrl.pathname.startsWith('/dashboard/') &&
+      !request.nextUrl.pathname.startsWith('/setup/')) {
     return NextResponse.next()
   }
 
-  // Skip middleware for auth-related endpoints
+  // Skip middleware for auth-related endpoints and company setup
   if (request.nextUrl.pathname.startsWith('/api/auth/') ||
       request.nextUrl.pathname.startsWith('/api/user/companies') ||
-      request.nextUrl.pathname.startsWith('/api/companies/switch')) {
+      request.nextUrl.pathname.startsWith('/api/companies/') ||
+      request.nextUrl.pathname.startsWith('/api/kvk/') ||
+      request.nextUrl.pathname.startsWith('/setup/company')) {
     return NextResponse.next()
   }
 
@@ -20,13 +23,22 @@ export async function middleware(request: NextRequest) {
     const token = await getToken({ req: request })
     
     if (!token) {
-      // Redirect to login for dashboard pages
-      if (request.nextUrl.pathname.startsWith('/dashboard/')) {
+      // Redirect to login for dashboard and setup pages
+      if (request.nextUrl.pathname.startsWith('/dashboard/') ||
+          request.nextUrl.pathname.startsWith('/setup/')) {
         return NextResponse.redirect(new URL('/auth/signin', request.url))
       }
       
       // Return 401 for API routes
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    // Check if user has a company for dashboard routes
+    if (request.nextUrl.pathname.startsWith('/dashboard/')) {
+      if (!token.companyId) {
+        // Redirect to company setup if user doesn't have a company
+        return NextResponse.redirect(new URL('/setup/company', request.url))
+      }
     }
 
     // Get current company from session or headers
@@ -64,8 +76,9 @@ export async function middleware(request: NextRequest) {
   } catch (error) {
     console.error('Middleware error:', error)
     
-    // For dashboard pages, redirect to login
-    if (request.nextUrl.pathname.startsWith('/dashboard/')) {
+    // For dashboard and setup pages, redirect to login
+    if (request.nextUrl.pathname.startsWith('/dashboard/') ||
+        request.nextUrl.pathname.startsWith('/setup/')) {
       return NextResponse.redirect(new URL('/auth/signin', request.url))
     }
     
