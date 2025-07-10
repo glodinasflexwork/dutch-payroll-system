@@ -4,11 +4,6 @@
 
 Add these environment variables in your Vercel project settings:
 
-### Authentication Database (Required for NextAuth PrismaAdapter)
-```
-DATABASE_URL=postgresql://neondb_owner:***REMOVED***@ep-spring-bread-a2zggns1-pooler.eu-central-1.aws.neon.tech/salarysync_auth?sslmode=require&channel_binding=require
-```
-
 ### Three-Database Architecture
 ```
 AUTH_DATABASE_URL=postgresql://neondb_owner:***REMOVED***@ep-spring-bread-a2zggns1-pooler.eu-central-1.aws.neon.tech/salarysync_auth?sslmode=require&channel_binding=require
@@ -37,15 +32,19 @@ NEXTAUTH_SECRET=dutch-payroll-2025-super-secret-key-for-production-change-this-r
 NODE_ENV=production
 ```
 
-## Why DATABASE_URL is Required
+## Clean Three-Database Architecture
 
-Even though we use a three-database architecture, NextAuth's PrismaAdapter requires the `DATABASE_URL` environment variable. This should point to the auth database to maintain compatibility.
+The application now uses a clean three-database architecture without requiring DATABASE_URL:
+
+- **NextAuth**: Uses dedicated auth Prisma client with AUTH_DATABASE_URL
+- **Application Logic**: Uses specific database clients for each domain
+- **No Legacy Dependencies**: No DATABASE_URL environment variable needed
 
 ## Steps to Add in Vercel
 
 1. Go to your Vercel project dashboard
 2. Navigate to Settings → Environment Variables
-3. Add each variable above
+3. Add each variable above (NO DATABASE_URL needed)
 4. Redeploy the application
 
-This will resolve the "Internal server error" during registration.
+This maintains the clean three-database architecture while ensuring NextAuth works correctly.
