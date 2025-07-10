@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
 // POST /api/employees - Create a new employee with comprehensive Dutch payroll fields
 export async function POST(request: NextRequest) {
   try {
-    const { context, error, status } = await validateCompanyAccess(request, ['admin', 'hr', 'manager'])
+    const { context, error, status } = await validateAuth(request, ['admin', 'hr', 'manager'])
     
     if (!context || error) {
       return NextResponse.json({ error }, { status })
@@ -302,7 +302,7 @@ export async function POST(request: NextRequest) {
 // PUT /api/employees/[id] - Update employee information
 export async function PUT(request: NextRequest) {
   try {
-    const { context, error, status } = await validateCompanyAccess(request, ['admin', 'hr', 'manager'])
+    const { context, error, status } = await validateAuth(request, ['admin', 'hr', 'manager'])
     
     if (!context || error) {
       return NextResponse.json({ error }, { status })
@@ -393,7 +393,7 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/employees/[id] - Soft delete employee
 export async function DELETE(request: NextRequest) {
   try {
-    const { context, error, status } = await validateCompanyAccess(request, ['admin', 'hr', 'manager'])
+    const { context, error, status } = await validateAuth(request, ['admin', 'hr', 'manager'])
     
     if (!context || error) {
       return NextResponse.json({ error }, { status })
