@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { authClient } from "@/lib/database-clients"
 import { stripe } from "@/lib/stripe"
 import { z } from "zod"
 
@@ -28,7 +28,7 @@ export async function PUT(request: NextRequest) {
     const validatedData = updateSubscriptionSchema.parse(body)
 
     // Get current subscription
-    const currentSubscription = await prisma.subscription.findUnique({
+    const currentSubscription = await authClient.subscription.findUnique({
       where: { companyId: session.user.companyId },
       include: { Plan: true }
     })
@@ -40,7 +40,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Get new plan details
-    const newPlan = await prisma.plan.findUnique({
+    const newPlan = await authClient.plan.findUnique({
       where: { id: validatedData.planId }
     })
 
@@ -79,7 +79,7 @@ export async function PUT(request: NextRequest) {
     )
 
     // Update subscription in database
-    const subscription = await prisma.subscription.update({
+    const subscription = await authClient.subscription.update({
       where: { companyId: session.user.companyId },
       data: {
         planId: newPlan.id,
@@ -133,7 +133,7 @@ export async function DELETE(request: NextRequest) {
     const validatedData = cancelSubscriptionSchema.parse(body)
 
     // Get current subscription
-    const currentSubscription = await prisma.subscription.findUnique({
+    const currentSubscription = await authClient.subscription.findUnique({
       where: { companyId: session.user.companyId },
       include: { Plan: true }
     })
@@ -172,7 +172,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Update subscription in database
-    const subscription = await prisma.subscription.update({
+    const subscription = await authClient.subscription.update({
       where: { companyId: session.user.companyId },
       data: {
         status: stripeSubscription.status,

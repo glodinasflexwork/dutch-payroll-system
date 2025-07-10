@@ -1,7 +1,7 @@
 import { getRequestConfig } from 'next-intl/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { authClient } from '@/lib/database-clients'
 
 export default getRequestConfig(async () => {
   // Get user's language preference from database
@@ -11,7 +11,7 @@ export default getRequestConfig(async () => {
     const session = await getServerSession(authOptions)
     
     if (session?.user?.email) {
-      const user = await prisma.user.findUnique({
+      const user = await authClient.user.findUnique({
         where: { email: session.user.email },
         select: { language: true }
       })

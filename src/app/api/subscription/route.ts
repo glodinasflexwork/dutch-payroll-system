@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { PrismaClient } from '@prisma/client';
+import { authClient } from "@/lib/database-clients";
 
-const prisma = new PrismaClient();
+
 
 // Helper function to convert feature array to boolean object (same as in subscription.ts)
 function convertFeaturesToObject(features: any): Record<string, boolean> {
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     console.log('Company ID:', session.user.companyId);
 
     // Fetch current subscription for the user's company using correct schema
-    const company = await prisma.company.findUnique({
+    const company = await authClient.company.findUnique({
       where: { id: session.user.companyId },
       include: {
         Subscription: {
@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await prisma.$disconnect();
+    await authClient.$disconnect();
   }
 }
 

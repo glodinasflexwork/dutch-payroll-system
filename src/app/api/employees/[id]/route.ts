@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { hrClient } from "@/lib/database-clients"
 
 // GET /api/employees/[id] - Get specific employee details
 export async function GET(
@@ -15,7 +15,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const employee = await prisma.employee.findFirst({
+    const employee = await hrClient.employee.findFirst({
       where: {
         id: params.id,
         companyId: session.user.companyId
@@ -62,7 +62,7 @@ export async function PUT(
     const data = await request.json()
     
     // Check if employee exists and belongs to the company
-    const existingEmployee = await prisma.employee.findFirst({
+    const existingEmployee = await hrClient.employee.findFirst({
       where: {
         id: params.id,
         companyId: session.user.companyId
@@ -82,7 +82,7 @@ export async function PUT(
         }, { status: 400 })
       }
       
-      const existingBSN = await prisma.employee.findFirst({
+      const existingBSN = await hrClient.employee.findFirst({
         where: { 
           bsn: data.bsn,
           companyId: session.user.companyId,
@@ -100,7 +100,7 @@ export async function PUT(
     
     // Validate employee number if being updated
     if (data.employeeNumber && data.employeeNumber !== existingEmployee.employeeNumber) {
-      const existingEmployeeNumber = await prisma.employee.findFirst({
+      const existingEmployeeNumber = await hrClient.employee.findFirst({
         where: { 
           employeeNumber: data.employeeNumber,
           companyId: session.user.companyId,
@@ -140,7 +140,7 @@ export async function PUT(
     })
     
     // Update employee
-    const updatedEmployee = await prisma.employee.update({
+    const updatedEmployee = await hrClient.employee.update({
       where: { id: params.id },
       data: updateData
     })
@@ -173,7 +173,7 @@ export async function DELETE(
     }
     
     // Check if employee exists and belongs to the company
-    const existingEmployee = await prisma.employee.findFirst({
+    const existingEmployee = await hrClient.employee.findFirst({
       where: {
         id: params.id,
         companyId: session.user.companyId
@@ -185,13 +185,13 @@ export async function DELETE(
     }
     
     // Check if employee has payroll records
-    const payrollCount = await prisma.payrollRecord.count({
+    const payrollCount = await hrClient.payrollRecord.count({
       where: { employeeId: params.id }
     })
     
     if (payrollCount > 0) {
       // Soft delete by setting isActive to false and endDate to now
-      await prisma.employee.update({
+      await hrClient.employee.update({
         where: { id: params.id },
         data: {
           isActive: false,
@@ -205,7 +205,7 @@ export async function DELETE(
       })
     } else {
       // Hard delete if no payroll records exist
-      await prisma.employee.delete({
+      await hrClient.employee.delete({
         where: { id: params.id }
       })
       

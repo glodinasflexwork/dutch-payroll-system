@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
-import { prisma } from "@/lib/prisma"
+import { authClient } from "@/lib/database-clients"
 import { createTrial } from "@/lib/trial"
 import { EmailService } from "@/lib/email-service"
 import { generateVerificationToken } from "@/app/api/auth/verify-email/route"
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await authClient.user.findUnique({
       where: { email }
     })
 
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 12)
 
     // Create company, user, and trial in a transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await authClient.$transaction(async (tx) => {
       // Create company first
       const company = await tx.company.create({
         data: {

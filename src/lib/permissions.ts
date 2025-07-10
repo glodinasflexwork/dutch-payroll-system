@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { authClient } from '@/lib/database-clients'
 
 export type UserRole = 'owner' | 'admin' | 'manager' | 'employee' | 'viewer'
 
@@ -74,7 +74,7 @@ export function hasPermissions(userRole: UserRole, requiredPermissions: string[]
  */
 export async function getUserCompanyRole(userId: string, companyId: string): Promise<UserRole | null> {
   try {
-    const userCompany = await prisma.userCompany.findFirst({
+    const userCompany = await authClient.userCompany.findFirst({
       where: {
         userId,
         companyId,
@@ -162,7 +162,7 @@ export async function canAccessEmployee(
   
   // Employees can only access their own data
   if (userRole === 'employee') {
-    const employee = await prisma.employee.findFirst({
+    const employee = await authClient.employee.findFirst({
       where: {
         id: targetEmployeeId,
         companyId,

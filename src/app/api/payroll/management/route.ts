@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { payrollClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { calculateDutchPayroll, generatePayrollBreakdown } from "@/lib/payroll-calculations"
 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     console.log("Query params:", { payPeriodStart, payPeriodEnd })
 
     // Fetch active employees for the company
-    const employees = await prisma.employee.findMany({
+    const employees = await payrollClient.employee.findMany({
       where: {
         companyId: session.user.companyId,
         isActive: true
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     // If pay period is specified, check for existing payroll records
     let existingRecords: any[] = []
     if (payPeriodStart && payPeriodEnd) {
-      existingRecords = await prisma.payrollRecord.findMany({
+      existingRecords = await payrollClient.payrollRecord.findMany({
         where: {
           companyId: session.user.companyId,
           payPeriodStart: new Date(payPeriodStart),
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get company data for calculations
-    const company = await prisma.company.findFirst({
+    const company = await payrollClient.company.findFirst({
       where: { id: session.user.companyId }
     })
 
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
     console.log("Dry run:", dryRun)
 
     // Fetch employees
-    const employees = await prisma.employee.findMany({
+    const employees = await payrollClient.employee.findMany({
       where: {
         id: { in: employeeIds },
         companyId: session.user.companyId,
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch company data
-    const company = await prisma.company.findFirst({
+    const company = await payrollClient.company.findFirst({
       where: { id: session.user.companyId }
     })
 
@@ -243,7 +243,7 @@ export async function POST(request: NextRequest) {
 
         if (!dryRun) {
           // Check if record already exists
-          const existingRecord = await prisma.payrollRecord.findFirst({
+          const existingRecord = await payrollClient.payrollRecord.findFirst({
             where: {
               employeeId: employee.id,
               payPeriodStart: new Date(payPeriodStart),
@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
 
           if (existingRecord) {
             // Update existing record
-            const updatedRecord = await prisma.payrollRecord.update({
+            const updatedRecord = await payrollClient.payrollRecord.update({
               where: { id: existingRecord.id },
               data: {
                 baseSalary: employee.salary,
@@ -288,7 +288,7 @@ export async function POST(request: NextRequest) {
             })
           } else {
             // Create new payroll record
-            const payrollRecord = await prisma.payrollRecord.create({
+            const payrollRecord = await payrollClient.payrollRecord.create({
               data: {
                 employeeId: employee.id,
                 companyId: session.user.companyId,

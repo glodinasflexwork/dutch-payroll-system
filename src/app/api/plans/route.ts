@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { PrismaClient } from '@prisma/client';
+import { authClient } from "@/lib/database-clients";
 
-const prisma = new PrismaClient();
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all available plans
-    const plans = await prisma.plan.findMany({
+    const plans = await authClient.plan.findMany({
       orderBy: {
         price: 'asc'
       }
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await prisma.$disconnect();
+    await authClient.$disconnect();
   }
 }
 

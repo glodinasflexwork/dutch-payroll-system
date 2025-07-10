@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { authClient } from "@/lib/database-clients"
 import { z } from "zod"
 
 // Dutch business number validation patterns
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
     }
 
     console.log("Fetching company with ID:", session.user.companyId)
-    const company = await prisma.company.findUnique({
+    const company = await authClient.company.findUnique({
       where: {
         id: session.user.companyId
       },
@@ -141,7 +141,7 @@ export async function PUT(request: NextRequest) {
     console.log("Validated data:", validatedData)
 
     // Check if company exists
-    const existingCompany = await prisma.company.findUnique({
+    const existingCompany = await authClient.company.findUnique({
       where: {
         id: session.user.companyId
       }
@@ -152,7 +152,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update the company
-    const updatedCompany = await prisma.company.update({
+    const updatedCompany = await authClient.company.update({
       where: { id: session.user.companyId },
       data: validatedData
     })

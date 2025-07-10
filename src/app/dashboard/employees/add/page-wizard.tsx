@@ -344,8 +344,8 @@ export default function AddEmployeeWizardPage() {
     const validation = validateField(field, value)
     setValidations(prev => ({ ...prev, [field]: validation }))
     
-    // Clear error when user starts typing
-    if (errors[field]) {
+    // Clear error when field becomes valid or user starts typing
+    if (errors[field] && (validation.isValid || !validation.isRequired)) {
       setErrors(prev => ({ ...prev, [field]: '' }))
     }
   }

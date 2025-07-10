@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
-import { prisma } from '@/lib/prisma'
+import { authClient } from '@/lib/database-clients'
 
 export interface SubscriptionLimits {
   maxEmployees?: number
@@ -69,7 +69,7 @@ function convertFeaturesToObject(features: any): Record<string, boolean> {
 
 export async function validateSubscription(companyId: string) {
   try {
-    const company = await prisma.company.findUnique({
+    const company = await authClient.company.findUnique({
       where: { id: companyId },
       include: {
         Subscription: {

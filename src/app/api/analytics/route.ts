@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { validateAuth } from "@/lib/auth-utils"
-import { prisma } from "@/lib/prisma"
+import { hrClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 
 export async function GET(request: NextRequest) {
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     console.log("Analytics API - Fetching data for company:", companyId, "from", startDate, "to", endDate)
 
     // Fetch payroll records for the company within date range
-    const payrollRecords = await prisma.payrollRecord.findMany({
+    const payrollRecords = await hrClient.payrollRecord.findMany({
       where: {
         companyId: companyId,
         payPeriodStart: {
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
     console.log("Analytics API - Found payroll records:", payrollRecords.length)
 
     // Fetch active employees count
-    const activeEmployees = await prisma.employee.count({
+    const activeEmployees = await hrClient.employee.count({
       where: {
         companyId: companyId,
         isActive: true
@@ -181,7 +181,7 @@ export async function GET(request: NextRequest) {
 
     // Employee distribution by employment type
     const employmentTypeData = new Map<string, number>()
-    const allEmployees = await prisma.employee.findMany({
+    const allEmployees = await hrClient.employee.findMany({
       where: {
         companyId: companyId,
         isActive: true

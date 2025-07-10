@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { authClient } from "@/lib/database-clients"
 
 // GET /api/subscription/status - Get subscription status and usage
 export async function GET(request: NextRequest) {
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const company = await prisma.company.findUnique({
+    const company = await authClient.company.findUnique({
       where: { id: session.user.companyId },
       include: {
         subscription: {
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get current usage
-    const employeeCount = await prisma.employee.count({
+    const employeeCount = await authClient.employee.count({
       where: { 
         companyId: session.user.companyId,
         isActive: true 
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     currentMonth.setDate(1)
     currentMonth.setHours(0, 0, 0, 0)
     
-    const payrollCount = await prisma.payrollRecord.count({
+    const payrollCount = await authClient.payrollRecord.count({
       where: {
         companyId: session.user.companyId,
         createdAt: {

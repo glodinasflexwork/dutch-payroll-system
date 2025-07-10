@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { payrollClient } from "@/lib/database-clients"
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { calculateDutchPayroll, type EmployeeData, type CompanyData } from "@/lib/payroll-calculations"
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Get employee information
-    const employee = await prisma.employee.findFirst({
+    const employee = await payrollClient.employee.findFirst({
       where: {
         id: validatedData.employeeId,
         companyId: session.user.companyId,
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get company information
-    const company = await prisma.company.findUnique({
+    const company = await payrollClient.company.findUnique({
       where: { id: session.user.companyId }
     })
 
@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
     const validatedData = payslipSchema.parse(body)
 
     // Get employee information
-    const employee = await prisma.employee.findFirst({
+    const employee = await payrollClient.employee.findFirst({
       where: {
         id: validatedData.employeeId,
         companyId: session.user.companyId,
@@ -193,7 +193,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get company information
-    const company = await prisma.company.findUnique({
+    const company = await payrollClient.company.findUnique({
       where: { id: session.user.companyId }
     })
 

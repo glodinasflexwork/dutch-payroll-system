@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateCompanyAccess } from '@/lib/company-context'
-import { prisma } from '@/lib/prisma'
+import { authClient } from '@/lib/database-clients'
 
 export interface SubscriptionLimits {
   maxEmployees: number
@@ -23,7 +23,7 @@ export interface SubscriptionValidation {
 export async function validateSubscription(companyId: string): Promise<SubscriptionValidation> {
   try {
     // Get company's subscription
-    const company = await prisma.company.findUnique({
+    const company = await authClient.company.findUnique({
       where: { id: companyId },
       include: {
         subscription: {
@@ -144,7 +144,7 @@ export async function validateSubscription(companyId: string): Promise<Subscript
 export async function validateCompanyCreation(userId: string): Promise<SubscriptionValidation> {
   try {
     // Get user's companies and their subscriptions
-    const userCompanies = await prisma.userCompany.findMany({
+    const userCompanies = await authClient.userCompany.findMany({
       where: {
         userId,
         role: 'owner' // Only count companies where user is owner
@@ -273,7 +273,7 @@ export async function checkOperationLimits(
       case 'employee':
         limit = limits.maxEmployees
         if (count === undefined) {
-          count = await prisma.employee.count({
+          count = await authClient.employee.count({
             where: { companyId, isActive: true }
           })
         }
@@ -305,7 +305,7 @@ export async function checkOperationLimits(
       case 'payroll':
         limit = limits.maxPayrolls
         if (count === undefined) {
-          count = await prisma.payrollRecord.count({
+          count = await authClient.payrollRecord.count({
             where: { companyId }
           })
         }

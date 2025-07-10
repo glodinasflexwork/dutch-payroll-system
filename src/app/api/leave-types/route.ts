@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { hrClient } from "@/lib/database-clients"
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const leaveTypes = await prisma.leaveType.findMany({
+    const leaveTypes = await hrClient.leaveType.findMany({
       where: {
         companyId,
         isActive: true
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if code already exists for this company
-    const existingType = await prisma.leaveType.findUnique({
+    const existingType = await hrClient.leaveType.findUnique({
       where: {
         companyId_code: {
           companyId,
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const leaveType = await prisma.leaveType.create({
+    const leaveType = await hrClient.leaveType.create({
       data: {
         companyId,
         name,

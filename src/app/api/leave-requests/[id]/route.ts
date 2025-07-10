@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { hrClient } from "@/lib/database-clients"
 
 export async function PUT(
   request: NextRequest,
@@ -24,7 +24,7 @@ export async function PUT(
     }
 
     // Check if leave request exists
-    const existingRequest = await prisma.leaveRequest.findUnique({
+    const existingRequest = await hrClient.leaveRequest.findUnique({
       where: { id: leaveRequestId },
       include: {
         Employee: true,
@@ -58,7 +58,7 @@ export async function PUT(
       updateData.approvedAt = new Date()
     }
 
-    const updatedRequest = await prisma.leaveRequest.update({
+    const updatedRequest = await hrClient.leaveRequest.update({
       where: { id: leaveRequestId },
       data: updateData,
       include: {
@@ -88,7 +88,7 @@ export async function PUT(
     // If approved, update leave balance
     if (action === 'approve') {
       try {
-        await prisma.leaveBalance.updateMany({
+        await hrClient.leaveBalance.updateMany({
           where: {
             employeeId: existingRequest.employeeId,
             leaveTypeId: existingRequest.leaveTypeId,

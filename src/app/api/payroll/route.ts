@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { validateAuth } from "@/lib/auth-utils"
-import { prisma } from "@/lib/prisma"
+import { payrollClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { calculateDutchPayroll, generatePayrollBreakdown, formatCurrency } from "@/lib/payroll-calculations"
 
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch employee data
-    const employee = await prisma.employee.findFirst({
+    const employee = await payrollClient.employee.findFirst({
       where: {
         id: employeeId,
         companyId: session.user.companyId,
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch company data
-    const company = await prisma.company.findFirst({
+    const company = await payrollClient.company.findFirst({
       where: { id: session.user.companyId }
     })
 
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     const breakdown = generatePayrollBreakdown(payrollResult)
 
     // Check if payroll record already exists for this period
-    const existingRecord = await prisma.payrollRecord.findFirst({
+    const existingRecord = await payrollClient.payrollRecord.findFirst({
       where: {
         employeeId: employeeId,
         payPeriodStart: new Date(payPeriodStart),
@@ -169,7 +169,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Fetch employee data
-    const employee = await prisma.employee.findFirst({
+    const employee = await payrollClient.employee.findFirst({
       where: {
         id: employeeId,
         companyId: session.user.companyId,
@@ -182,7 +182,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Fetch company data
-    const company = await prisma.company.findFirst({
+    const company = await payrollClient.company.findFirst({
       where: { id: session.user.companyId }
     })
 
@@ -225,7 +225,7 @@ export async function PUT(request: NextRequest) {
     const payrollResult = calculateDutchPayroll(employeeData, companyData)
 
     // Check if record already exists
-    const existingRecord = await prisma.payrollRecord.findFirst({
+    const existingRecord = await payrollClient.payrollRecord.findFirst({
       where: {
         employeeId: employeeId,
         payPeriodStart: new Date(payPeriodStart),
@@ -235,7 +235,7 @@ export async function PUT(request: NextRequest) {
 
     if (existingRecord) {
       // Update existing record
-      const updatedRecord = await prisma.payrollRecord.update({
+      const updatedRecord = await payrollClient.payrollRecord.update({
         where: { id: existingRecord.id },
         data: {
           baseSalary: baseSalary,
@@ -266,7 +266,7 @@ export async function PUT(request: NextRequest) {
       })
     } else {
       // Create new payroll record
-      const payrollRecord = await prisma.payrollRecord.create({
+      const payrollRecord = await payrollClient.payrollRecord.create({
         data: {
           employeeId: employeeId,
           companyId: session.user.companyId,
@@ -353,7 +353,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch payroll records
-    const payrollRecords = await prisma.payrollRecord.findMany({
+    const payrollRecords = await payrollClient.payrollRecord.findMany({
       where: whereClause,
       include: {
         Employee: {
@@ -375,12 +375,12 @@ export async function GET(request: NextRequest) {
     })
 
     // Get total count
-    const totalCount = await prisma.payrollRecord.count({
+    const totalCount = await payrollClient.payrollRecord.count({
       where: whereClause
     })
 
     // Calculate summary statistics
-    const summary = await prisma.payrollRecord.aggregate({
+    const summary = await payrollClient.payrollRecord.aggregate({
       where: whereClause,
       _sum: {
         grossPay: true,
@@ -453,7 +453,7 @@ export async function DELETE(request: NextRequest) {
 
     if (deleteAll && payPeriodStart && payPeriodEnd) {
       // Delete all payroll records for a specific pay period
-      const deleteResult = await prisma.payrollRecord.deleteMany({
+      const deleteResult = await payrollClient.payrollRecord.deleteMany({
         where: {
           companyId: session.user.companyId,
           payPeriodStart: new Date(payPeriodStart),
@@ -470,7 +470,7 @@ export async function DELETE(request: NextRequest) {
       })
     } else if (payrollRecordId) {
       // Delete specific payroll record
-      const payrollRecord = await prisma.payrollRecord.findFirst({
+      const payrollRecord = await payrollClient.payrollRecord.findFirst({
         where: {
           id: payrollRecordId,
           companyId: session.user.companyId
@@ -481,7 +481,7 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ error: "Payroll record not found" }, { status: 404 })
       }
 
-      await prisma.payrollRecord.delete({
+      await payrollClient.payrollRecord.delete({
         where: { id: payrollRecordId }
       })
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { authClient } from '@/lib/database-clients'
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await authClient.user.findUnique({
       where: { email: session.user.email },
       select: {
         id: true,
@@ -62,7 +62,7 @@ export async function PUT(request: NextRequest) {
     if (language) updateData.language = language
     if (name) updateData.name = name
 
-    const user = await prisma.user.update({
+    const user = await authClient.user.update({
       where: { email: session.user.email },
       data: updateData,
       select: {

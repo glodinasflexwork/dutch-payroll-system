@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateCompanyAccess, auditLog, createCompanyFilter } from '@/lib/company-context'
-import { prisma } from '@/lib/prisma'
+import { hrClient } from '@/lib/database-clients'
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error }, { status })
     }
 
-    const leaveRequests = await prisma.leaveRequest.findMany({
+    const leaveRequests = await hrClient.leaveRequest.findMany({
       where: createCompanyFilter(context.companyId),
       include: {
         Employee: {
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify employee belongs to the same company
-    const employee = await prisma.employee.findFirst({
+    const employee = await hrClient.employee.findFirst({
       where: {
         id: employeeId,
         ...createCompanyFilter(context.companyId)
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify leave type belongs to the same company
-    const leaveType = await prisma.leaveType.findFirst({
+    const leaveType = await hrClient.leaveType.findFirst({
       where: {
         id: leaveTypeId,
         ...createCompanyFilter(context.companyId)
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create leave request
-    const leaveRequest = await prisma.leaveRequest.create({
+    const leaveRequest = await hrClient.leaveRequest.create({
       data: {
         employeeId,
         leaveTypeId,
