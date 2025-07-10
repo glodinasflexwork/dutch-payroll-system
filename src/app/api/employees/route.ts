@@ -180,6 +180,7 @@ export async function POST(request: NextRequest) {
     // Parse dates
     const startDate = new Date(data.startDate)
     const dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth) : new Date('1990-01-01')
+    const probationEndDate = data.probationEndDate ? new Date(data.probationEndDate) : null
     
     // Validate dates
     if (isNaN(startDate.getTime())) {
@@ -235,6 +236,7 @@ export async function POST(request: NextRequest) {
         
         // Employment information
         startDate: startDate,
+        probationEndDate: probationEndDate,
         position: data.position,
         department: data.department || null,
         
@@ -356,6 +358,7 @@ export async function PUT(request: NextRequest) {
     const updateData: any = { ...data }
     if (data.startDate) updateData.startDate = new Date(data.startDate)
     if (data.dateOfBirth) updateData.dateOfBirth = new Date(data.dateOfBirth)
+    if (data.probationEndDate) updateData.probationEndDate = new Date(data.probationEndDate)
     
     // Convert numeric fields
     if (data.salary) updateData.salary = parseFloat(data.salary)
