@@ -6,16 +6,18 @@ Add these environment variables in your Vercel project settings:
 
 ### Three-Database Architecture
 ```
-AUTH_DATABASE_URL=postgresql://neondb_owner:***REMOVED***@ep-spring-bread-a2zggns1-pooler.eu-central-1.aws.neon.tech/salarysync_auth?sslmode=require&channel_binding=require
+AUTH_DATABASE_URL=postgresql://neondb_owner:[PASSWORD]@ep-spring-bread-a2zggns1-pooler.eu-central-1.aws.neon.tech/salarysync_auth?sslmode=require&channel_binding=require
 
-HR_DATABASE_URL=postgresql://neondb_owner:***REMOVED***@ep-sweet-cell-a2sb5v58-pooler.eu-central-1.aws.neon.tech/salarysync_hr?sslmode=require&channel_binding=require
+HR_DATABASE_URL=postgresql://neondb_owner:[PASSWORD]@ep-sweet-cell-a2sb5v58-pooler.eu-central-1.aws.neon.tech/salarysync_hr?sslmode=require&channel_binding=require
 
-PAYROLL_DATABASE_URL=postgresql://neondb_owner:***REMOVED***@ep-fancy-haze-a25vlf52-pooler.eu-central-1.aws.neon.tech/salarysync_payroll?sslmode=require&channel_binding=require
+PAYROLL_DATABASE_URL=postgresql://neondb_owner:[PASSWORD]@ep-fancy-haze-a25vlf52-pooler.eu-central-1.aws.neon.tech/salarysync_payroll?sslmode=require&channel_binding=require
 ```
+
+**Note:** Replace `[PASSWORD]` with the actual database passwords from your Neon dashboard.
 
 ### Email Service (Mailtrap)
 ```
-MAILTRAP_API_TOKEN=8f07f19cb8eb0d93c18f144cc1941e47
+MAILTRAP_API_TOKEN=[YOUR_MAILTRAP_TOKEN]
 MAILTRAP_API_URL=https://send.api.mailtrap.io/api/send
 EMAIL_FROM=hello@salarysync.online
 EMAIL_FROM_NAME=SalarySync
@@ -24,7 +26,7 @@ EMAIL_FROM_NAME=SalarySync
 ### NextAuth Configuration
 ```
 NEXTAUTH_URL=https://www.salarysync.nl
-NEXTAUTH_SECRET=dutch-payroll-2025-super-secret-key-for-production-change-this-random-string
+NEXTAUTH_SECRET=[GENERATE_RANDOM_SECRET]
 ```
 
 ### Other Required Variables
@@ -45,6 +47,15 @@ The application now uses a clean three-database architecture without requiring D
 1. Go to your Vercel project dashboard
 2. Navigate to Settings → Environment Variables
 3. Add each variable above (NO DATABASE_URL needed)
-4. Redeploy the application
+4. Replace placeholder values with actual credentials
+5. Redeploy the application
 
 This maintains the clean three-database architecture while ensuring NextAuth works correctly.
+
+## Security Notes
+
+- Never commit actual passwords or API keys to version control
+- Use placeholder values in documentation
+- Rotate credentials regularly
+- Use environment variables for all sensitive data
+
