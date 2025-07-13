@@ -262,7 +262,8 @@ export const DatabaseClients = {
   }
 }
 
-// Export individual clients for direct use (already exported above where declared)
+// Export individual clients for direct use
+export { auth as authClient }
 
 // Health check function to verify database connections
 export async function checkDatabaseConnections() {
