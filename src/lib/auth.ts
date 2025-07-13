@@ -26,7 +26,7 @@ export const authOptions: NextAuthOptions = {
           include: {
             UserCompany: {
               include: {
-                company: true
+                Company: true
               }
             }
           }
@@ -53,7 +53,7 @@ export const authOptions: NextAuthOptions = {
         // Get the user's primary company (first active company)
         const primaryUserCompany = user.UserCompany.find(uc => uc.isActive)
         const companyId = primaryUserCompany?.companyId || null
-        const company = primaryUserCompany?.company || null
+        const company = primaryUserCompany?.Company || null
 
         return {
           id: user.id,
