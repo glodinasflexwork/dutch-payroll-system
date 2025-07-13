@@ -1,0 +1,12 @@
+{
+  "buildCommand": "npm run build:vercel",
+  "functions": {
+    "app/**/*.js": {
+      "includeFiles": "node_modules/@prisma/*/libquery_engine-rhel-openssl-3.0.x.so.node"
+    }
+  },
+  "env": {
+    "PRISMA_CLI_BINARY_TARGETS": "rhel-openssl-3.0.x"
+  }
+}
+
