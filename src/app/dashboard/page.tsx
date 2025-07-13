@@ -45,26 +45,47 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      // Check if user has a company
-      if (!session?.user?.companyId) {
-        // Redirect to company setup if no company
+      // Check if user has a company using API instead of session
+      checkUserCompanyAndLoadDashboard()
+    }
+  }, [session, status, router])
+
+  const checkUserCompanyAndLoadDashboard = async () => {
+    try {
+      setLoading(true)
+      
+      // Check user company status
+      const response = await fetch('/api/user/company-status')
+      const data = await response.json()
+      
+      console.log('=== DASHBOARD COMPANY CHECK ===')
+      console.log('Company status response:', data)
+      
+      if (!data.hasCompany || data.companies.length === 0) {
+        // User has no companies, redirect to setup
+        console.log('No companies found, redirecting to setup')
         router.push("/setup/company")
         return
       }
       
-      // User has a company, fetch dashboard stats
-      setLoading(true)
-      fetchDashboardStats()
+      // User has companies, load dashboard
+      console.log(`User has ${data.companies.length} company(ies), loading dashboard`)
+      await fetchDashboardStats(data.primaryCompany)
+      
+    } catch (error) {
+      console.error('Error checking company status:', error)
+      // On error, redirect to setup to be safe
+      router.push("/setup/company")
     }
-  }, [session, status, router])
+  }
 
-  const fetchDashboardStats = async () => {
+  const fetchDashboardStats = async (primaryCompany?: any) => {
     try {
       console.log('=== DASHBOARD DEBUG ===')
       console.log('Session object:', session)
       console.log('Session user:', session?.user)
-      console.log('Session companyId:', session?.user?.companyId)
-      console.log('Fetching dashboard stats for company:', session?.user?.companyId)
+      console.log('Primary company:', primaryCompany)
+      console.log('Fetching dashboard stats for company:', primaryCompany?.id)
       
       // Fetch company info with employee counts
       const companyResponse = await fetch("/api/companies")
@@ -92,7 +113,7 @@ export default function Dashboard() {
         monthlyEmployees,
         hourlyEmployees,
         totalPayrollRecords: payrollData.length,
-        companyName: companyData.name || "Your Company"
+        companyName: primaryCompany?.name || companyData.name || "Your Company"
       }
       
       console.log('Setting dashboard stats:', dashboardStats)
