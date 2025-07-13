@@ -64,10 +64,35 @@ export default function CompanySetup() {
 
   // Check if user already has a company
   useEffect(() => {
-    if (session?.user?.companyId) {
-      router.push("/dashboard")
+    const checkUserCompanyStatus = async () => {
+      if (!session?.user?.email) return
+      
+      try {
+        const response = await fetch('/api/user/company-status')
+        const data = await response.json()
+        
+        if (debugMode) {
+          addDebugInfo('Company Status Check', JSON.stringify(data, null, 2), 'info')
+        }
+        
+        if (data.hasCompany) {
+          if (debugMode) {
+            addDebugInfo('Redirect', `User has company: ${data.primaryCompany?.name}. Redirecting to dashboard.`, 'info')
+          }
+          router.push('/dashboard')
+        }
+      } catch (error) {
+        console.error('Error checking company status:', error)
+        if (debugMode) {
+          addDebugInfo('Company Status Error', error.message, 'error')
+        }
+      }
     }
-  }, [session, router])
+    
+    if (session?.user) {
+      checkUserCompanyStatus()
+    }
+  }, [session, router, debugMode])
 
   const addDebugInfo = (step: string, details: string, status: DebugInfo['status'] = 'info') => {
     const newDebugInfo: DebugInfo = {
