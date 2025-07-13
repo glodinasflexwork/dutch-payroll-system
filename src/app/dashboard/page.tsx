@@ -16,10 +16,13 @@ import {
   FileText, 
   TrendingUp,
   Building2,
+  Building,
   Euro,
   Clock,
   CheckCircle,
-  Play
+  Play,
+  Settings,
+  Plus
 } from "lucide-react"
 
 interface DashboardStats {
@@ -286,29 +289,112 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Company Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Company Information</CardTitle>
-            <CardDescription>
-              Current company details and settings
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-lg">{stats?.companyName}</p>
-                <p className="text-sm text-muted-foreground">Netherlands</p>
-                <Badge variant="secondary" className="mt-2">
-                  Dutch Tax Compliant
-                </Badge>
-              </div>
-              <Button variant="outline" onClick={() => router.push("/dashboard/company")}>
-                Manage Company
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Multi-Company Management */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Current Company Card */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Building2 className="w-5 h-5 text-primary" />
+                  <span>Current Company</span>
+                </CardTitle>
+                <CardDescription>
+                  Active company and quick management options
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-lg">{stats?.companyName}</p>
+                      <p className="text-sm text-muted-foreground">Netherlands • Owner</p>
+                      <div className="flex items-center space-x-2 mt-2">
+                        <Badge variant="secondary">Dutch Tax Compliant</Badge>
+                        <Badge variant="outline">{stats?.totalEmployees || 0} Employees</Badge>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/company")}>
+                        <Settings className="w-4 h-4 mr-2" />
+                        Settings
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Quick Actions */}
+                  <div className="border-t pt-4">
+                    <p className="text-sm font-medium text-muted-foreground mb-3">Quick Actions</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/employees")}>
+                        <Users className="w-4 h-4 mr-2" />
+                        Manage Employees
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/payroll")}>
+                        <Calculator className="w-4 h-4 mr-2" />
+                        Process Payroll
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/reports")}>
+                        <FileText className="w-4 h-4 mr-2" />
+                        View Reports
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Multi-Company Actions */}
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <Building className="w-5 h-5 text-blue-600" />
+                  <span>Enterprise</span>
+                </CardTitle>
+                <CardDescription>
+                  Manage multiple companies
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <Building2 className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-blue-900">Multi-Company Ready</p>
+                    <p className="text-xs text-blue-700 mt-1">
+                      Manage multiple businesses from one account
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Button 
+                      className="w-full" 
+                      onClick={() => router.push("/dashboard/companies")}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add New Company
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => router.push("/dashboard/companies")}
+                    >
+                      <Building2 className="w-4 h-4 mr-2" />
+                      Manage Companies
+                    </Button>
+                  </div>
+                  
+                  <div className="text-center pt-2 border-t">
+                    <p className="text-xs text-muted-foreground">
+                      Switch between companies using the selector in the navigation
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
 
       {/* Tutorial Modal */}
