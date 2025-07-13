@@ -64,9 +64,8 @@ export async function POST(req: NextRequest) {
           city: city?.trim() || null,
           postalCode: postalCode || null,
           kvkNumber: kvkNumber || null,
-          industry: industry,
-          isDGA: isDGA || false,
-          isActive: true
+          industry: industry
+          // Note: isDGA field doesn't exist in schema - removed
         }
       })
 
@@ -80,22 +79,43 @@ export async function POST(req: NextRequest) {
         }
       })
 
-      // Start trial subscription
-      const trial = await tx.trial.create({
-        data: {
-          companyId: company.id,
-          startDate: new Date(),
-          endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
-          isActive: true
+      // Get the trial plan
+      const trialPlan = await tx.plan.findFirst({
+        where: { 
+          name: "Free Trial",
+          isActive: true 
         }
       })
 
-      return { company, userCompany, trial }
+      if (!trialPlan) {
+        throw new Error("Trial plan not found")
+      }
+
+      // Start trial subscription
+      const subscription = await tx.subscription.create({
+        data: {
+          companyId: company.id,
+          planId: trialPlan.id,
+          status: "trialing",
+          stripeSubscriptionId: null,
+          stripeCustomerId: null,
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
+          cancelAtPeriodEnd: false,
+          trialEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+          isTrialActive: true,
+          trialStart: new Date(),
+          trialExtensions: 0
+        }
+      })
+
+      return { company, userCompany, subscription, trialPlan }
     })
 
     // Initialize HR database with lazy initialization
     try {
       await initializeHRDatabase(result.company.id)
+      console.log(`HR database initialized successfully for company ${result.company.id}`)
     } catch (error) {
       console.error("Failed to initialize HR database:", error)
       // Don't fail the company creation if HR initialization fails
@@ -107,13 +127,15 @@ export async function POST(req: NextRequest) {
       company: {
         id: result.company.id,
         name: result.company.name,
-        industry: result.company.industry,
-        isDGA: result.company.isDGA
+        industry: result.company.industry
+        // Note: isDGA field doesn't exist in schema - removed
       },
-      trial: {
-        startDate: result.trial.startDate,
-        endDate: result.trial.endDate,
-        daysRemaining: Math.ceil((result.trial.endDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+      subscription: {
+        planName: result.trialPlan.name,
+        status: result.subscription.status,
+        trialStart: result.subscription.trialStart,
+        trialEnd: result.subscription.trialEnd,
+        daysRemaining: Math.ceil((result.subscription.trialEnd!.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
       }
     })
 

@@ -9,6 +9,46 @@ datasource db {
   url      = env("HR_DATABASE_URL")
 }
 
+model Company {
+  id                      String          @id @default(cuid())
+  name                    String
+  address                 String?
+  city                    String?
+  postalCode              String?
+  country                 String          @default("Netherlands")
+  phone                   String?
+  email                   String?
+  website                 String?
+  kvkNumber               String?
+  taxNumber               String?
+  vatNumber               String?
+  bankAccount             String?
+  contactEmail            String?
+  contactPhone            String?
+  description             String?
+  industry                String?
+  foundedYear             Int?
+  employeeCount           Int?
+  // HR-specific settings
+  workingHoursPerWeek     Float           @default(40)
+  holidayAllowancePercentage Float        @default(8.33)
+  probationPeriodMonths   Int             @default(2)
+  noticePeriodDays        Int             @default(30)
+  annualLeaveEntitlement  Int             @default(25)
+  sickLeavePolicy         String          @default("STATUTORY")
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+  // Relations
+  employees               Employee[]
+  departments             Department[]
+  positions               Position[]
+  leaveTypes              LeaveType[]
+  leaveRequests           LeaveRequest[]
+  timeEntries             TimeEntry[]
+  employeeHistories       EmployeeHistory[]
+  performanceReviews      PerformanceReview[]
+}
+
 model Employee {
   id               String          @id @default(cuid())
   employeeNumber   String
@@ -47,6 +87,7 @@ model Employee {
   LeaveRequest     LeaveRequest[]
   TimeEntry        TimeEntry[]
   EmployeeHistory  EmployeeHistory[]
+  Company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, bsn])
   @@unique([companyId, employeeNumber])
@@ -61,6 +102,7 @@ model Department {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  Company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, name])
 }
@@ -75,6 +117,7 @@ model Position {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  Company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, title])
 }
@@ -82,15 +125,17 @@ model Position {
 model LeaveType {
   id           String         @id @default(cuid())
   name         String
+  code         String
   description  String?
   isPaid       Boolean        @default(true)
-  maxDays      Int?
-  requiresApproval Boolean    @default(true)
+  maxDaysPerYear Int?
+  carryOverDays Int           @default(0)
   companyId    String
   isActive     Boolean        @default(true)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   LeaveRequest LeaveRequest[]
+  Company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@unique([companyId, name])
 }
@@ -108,38 +153,36 @@ model LeaveRequest {
   approvedAt  DateTime?
   rejectedBy  String?
   rejectedAt  DateTime?
-  rejectionReason String?
   companyId   String
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   Employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   LeaveType   LeaveType @relation(fields: [leaveTypeId], references: [id])
+  Company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
 model TimeEntry {
   id          String   @id @default(cuid())
   employeeId  String
   date        DateTime
-  startTime   DateTime?
-  endTime     DateTime?
-  breakTime   Float?   @default(0)
-  totalHours  Float?
+  hoursWorked Float
   description String?
-  status      String   @default("draft")
+  projectCode String?
+  isApproved  Boolean  @default(false)
   approvedBy  String?
   approvedAt  DateTime?
   companyId   String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   Employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@unique([employeeId, date])
+  Company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
 model EmployeeHistory {
   id          String   @id @default(cuid())
   employeeId  String
-  field       String
+  changeType  String
+  fieldName   String
   oldValue    String?
   newValue    String?
   changedBy   String
@@ -147,22 +190,24 @@ model EmployeeHistory {
   companyId   String
   createdAt   DateTime @default(now())
   Employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  Company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
 model PerformanceReview {
-  id          String   @id @default(cuid())
-  employeeId  String
-  reviewerId  String
-  period      String
-  startDate   DateTime
-  endDate     DateTime
-  goals       Json?
-  achievements Json?
-  feedback    String?
-  rating      Float?
-  status      String   @default("draft")
-  companyId   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  employeeId     String
+  reviewPeriod   String
+  overallRating  Float
+  goals          String?
+  achievements   String?
+  areasForImprovement String?
+  reviewerComments String?
+  employeeComments String?
+  reviewDate     DateTime
+  reviewerId     String
+  companyId      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  Company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
