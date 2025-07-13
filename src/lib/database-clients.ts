@@ -262,10 +262,7 @@ export const DatabaseClients = {
   }
 }
 
-// Export individual clients for direct use
-export { auth as authClient }
-export { hrClient }
-export { payrollClient }
+// Export individual clients for direct use (already exported above where declared)
 
 // Health check function to verify database connections
 export async function checkDatabaseConnections() {
