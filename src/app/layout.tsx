@@ -10,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "SalarySync - Professional Dutch Payroll Management",
-  description: "Professional payroll management system designed specifically for Dutch companies",
+  title: "SalarySync - Professional Dutch Payroll Solutions",
+  description: "Streamline your payroll process with our comprehensive platform designed for Dutch businesses. Automated calculations, compliance, and employee self-service.",
   icons: {
     icon: '/logo-icon-only.png',
     apple: '/logo-icon-only.png',
