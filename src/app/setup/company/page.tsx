@@ -259,8 +259,9 @@ export default function CompanySetup() {
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }))
 
-    // Real-time validation for touched fields
-    if (fieldTouched[name]) {
+    // Always validate required fields, and validate touched optional fields
+    const requiredFields = ['companyName', 'industry']
+    if (requiredFields.includes(name) || fieldTouched[name]) {
       const error = validateField(name, value)
       setValidationErrors(prev => ({
         ...prev,
