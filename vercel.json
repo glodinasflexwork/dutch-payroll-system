@@ -1,0 +1,22 @@
+{
+  "buildCommand": "npm run build",
+  "env": {
+    "AUTH_DATABASE_URL": "@auth_database_url",
+    "HR_DATABASE_URL": "@hr_database_url", 
+    "PAYROLL_DATABASE_URL": "@payroll_database_url",
+    "NEXTAUTH_SECRET": "@nextauth_secret",
+    "NEXTAUTH_URL": "@nextauth_url",
+    "MAILTRAP_API_TOKEN": "@mailtrap_api_token",
+    "EMAIL_FROM": "@email_from",
+    "STRIPE_SECRET_KEY": "@stripe_secret_key",
+    "STRIPE_PUBLISHABLE_KEY": "@stripe_publishable_key"
+  },
+  "build": {
+    "env": {
+      "AUTH_DATABASE_URL": "@auth_database_url",
+      "HR_DATABASE_URL": "@hr_database_url",
+      "PAYROLL_DATABASE_URL": "@payroll_database_url"
+    }
+  }
+}
+

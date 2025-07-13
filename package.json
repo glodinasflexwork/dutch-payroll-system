@@ -4,12 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "npx prisma generate --schema=prisma/auth.prisma && npx prisma generate --schema=prisma/hr.prisma && npx prisma generate --schema=prisma/payroll.prisma && next build",
+    "build": "npm run prisma:generate && next build",
+    "build:vercel": "npm run prisma:generate && npm run build:check-env && next build",
+    "build:check-env": "node -e \"console.log('Checking environment variables...'); console.log('AUTH_DATABASE_URL:', process.env.AUTH_DATABASE_URL ? 'SET' : 'MISSING'); console.log('HR_DATABASE_URL:', process.env.HR_DATABASE_URL ? 'SET' : 'MISSING'); console.log('PAYROLL_DATABASE_URL:', process.env.PAYROLL_DATABASE_URL ? 'SET' : 'MISSING');\"",
+    "prisma:generate": "npx prisma generate --schema=prisma/auth.prisma && npx prisma generate --schema=prisma/hr.prisma && npx prisma generate --schema=prisma/payroll.prisma",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "npx prisma generate --schema=prisma/auth.prisma && npx prisma generate --schema=prisma/hr.prisma && npx prisma generate --schema=prisma/payroll.prisma",
+    "postinstall": "npm run prisma:generate",
     "setup-stripe": "node scripts/setup-stripe-production.js",
-    "test-webhooks": "stripe listen --forward-to localhost:3000/api/webhooks/stripe"
+    "test-webhooks": "stripe listen --forward-to localhost:3000/api/webhooks/stripe",
+    "db:health": "node -e \"require('./src/lib/database-clients.js').checkDatabaseConnections().then(console.log).catch(console.error)\""
   },
   "dependencies": {
     "@next-auth/prisma-adapter": "^1.0.7",
@@ -54,3 +58,4 @@
     "typescript": "^5"
   }
 }
+
