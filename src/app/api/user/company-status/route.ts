@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { authClient } from '@/lib/database-clients'
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,8 +12,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    console.log('Checking company status for user:', session.user.email)
+
     // Check if user has any companies
-    const user = await prisma.user.findUnique({
+    const user = await authClient.user.findUnique({
       where: {
         email: session.user.email
       },
@@ -27,6 +27,9 @@ export async function GET(request: NextRequest) {
         }
       }
     })
+
+    console.log('User found:', !!user)
+    console.log('User companies count:', user?.UserCompany?.length || 0)
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
@@ -40,6 +43,8 @@ export async function GET(request: NextRequest) {
       createdAt: uc.createdAt
     }))
 
+    console.log('Company status result:', { hasCompany, companiesCount: companies.length })
+
     return NextResponse.json({
       hasCompany,
       companies,
@@ -52,8 +57,6 @@ export async function GET(request: NextRequest) {
       { error: 'Internal server error' },
       { status: 500 }
     )
-  } finally {
-    await prisma.$disconnect()
   }
 }
 
