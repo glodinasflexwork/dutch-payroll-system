@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     const employee = await payrollClient.employee.findFirst({
       where: {
         id: employeeId,
-        companyId: session.user.companyId,
+        companyId: context.companyId,
         isActive: true
       }
     })
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch company data
     const company = await payrollClient.company.findFirst({
-      where: { id: session.user.companyId }
+      where: { id: context.companyId }
     })
 
     if (!company) {
@@ -140,7 +140,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Validate subscription
-    const subscriptionValidation = await validateSubscription(session.user.companyId)
+    const subscriptionValidation = await validateSubscription(context.companyId)
     console.log("Subscription validation:", subscriptionValidation)
     if (!subscriptionValidation.isValid) {
       return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
@@ -178,7 +178,7 @@ export async function PUT(request: NextRequest) {
     const employee = await payrollClient.employee.findFirst({
       where: {
         id: employeeId,
-        companyId: session.user.companyId,
+        companyId: context.companyId,
         isActive: true
       }
     })
@@ -189,7 +189,7 @@ export async function PUT(request: NextRequest) {
 
     // Fetch company data
     const company = await payrollClient.company.findFirst({
-      where: { id: session.user.companyId }
+      where: { id: context.companyId }
     })
 
     if (!company) {
@@ -275,7 +275,7 @@ export async function PUT(request: NextRequest) {
       const payrollRecord = await payrollClient.payrollRecord.create({
         data: {
           employeeId: employeeId,
-          companyId: session.user.companyId,
+          companyId: context.companyId,
           payPeriodStart: new Date(payPeriodStart),
           payPeriodEnd: new Date(payPeriodEnd),
           baseSalary: baseSalary,
@@ -330,7 +330,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Validate subscription
-    const subscriptionValidation = await validateSubscription(session.user.companyId)
+    const subscriptionValidation = await validateSubscription(context.companyId)
     if (!subscriptionValidation.isValid) {
       return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
     }
@@ -344,7 +344,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const whereClause: any = {
-      companyId: session.user.companyId
+      companyId: context.companyId
     }
 
     if (employeeId) {
@@ -443,7 +443,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Validate subscription
-    const subscriptionValidation = await validateSubscription(session.user.companyId)
+    const subscriptionValidation = await validateSubscription(context.companyId)
     console.log("Subscription validation:", subscriptionValidation)
     if (!subscriptionValidation.isValid) {
       return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
@@ -461,7 +461,7 @@ export async function DELETE(request: NextRequest) {
       // Delete all payroll records for a specific pay period
       const deleteResult = await payrollClient.payrollRecord.deleteMany({
         where: {
-          companyId: session.user.companyId,
+          companyId: context.companyId,
           payPeriodStart: new Date(payPeriodStart),
           payPeriodEnd: new Date(payPeriodEnd)
         }
@@ -479,7 +479,7 @@ export async function DELETE(request: NextRequest) {
       const payrollRecord = await payrollClient.payrollRecord.findFirst({
         where: {
           id: payrollRecordId,
-          companyId: session.user.companyId
+          companyId: context.companyId
         }
       })
 

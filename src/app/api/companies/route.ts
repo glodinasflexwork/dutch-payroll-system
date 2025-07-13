@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth"
+import { validateAuth } from "@/lib/auth-utils"
 import { authClient } from "@/lib/database-clients"
 import { z } from "zod"
 
@@ -69,18 +68,18 @@ function preprocessCompanyData(data: any) {
 export async function GET(request: NextRequest) {
   try {
     console.log("GET /api/companies - Starting request")
-    const session = await getServerSession(authOptions)
-    console.log("Session:", session?.user?.email, "CompanyId:", session?.user?.companyId)
     
-    if (!session?.user?.companyId) {
-      console.log("No session or companyId found")
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const { context, error, status } = await validateAuth(request, ['employee'])
+    
+    if (!context || error) {
+      console.log('Authentication failed:', error)
+      return NextResponse.json({ error }, { status })
     }
 
-    console.log("Fetching company with ID:", session.user.companyId)
+    console.log("Fetching company with ID:", context.companyId)
     const company = await authClient.company.findUnique({
       where: {
-        id: session.user.companyId
+        id: context.companyId
       },
       include: {
         _count: {
@@ -123,10 +122,10 @@ export async function GET(request: NextRequest) {
 // PUT /api/companies - Update the user's company information
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const { context, error, status } = await validateAuth(request, ['admin', 'owner'])
     
-    if (!session?.user?.companyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!context || error) {
+      return NextResponse.json({ error }, { status })
     }
 
     const body = await request.json()
@@ -143,7 +142,7 @@ export async function PUT(request: NextRequest) {
     // Check if company exists
     const existingCompany = await authClient.company.findUnique({
       where: {
-        id: session.user.companyId
+        id: context.companyId
       }
     })
 
@@ -153,7 +152,7 @@ export async function PUT(request: NextRequest) {
 
     // Update the company
     const updatedCompany = await authClient.company.update({
-      where: { id: session.user.companyId },
+      where: { id: context.companyId },
       data: validatedData
     })
 
