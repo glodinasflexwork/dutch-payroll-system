@@ -1,6 +1,15 @@
-import { PrismaClient as AuthClient } from '@prisma/auth-client'
+import { PrismaClient as AuthClient } from '@prisma/client'
 import { PrismaClient as HRClient } from '@prisma/hr-client'
 import { PrismaClient as PayrollClient } from '@prisma/payroll-client'
+
+// Configure auth client with AUTH_DATABASE_URL
+const authClient = new AuthClient({
+  datasources: {
+    db: {
+      url: process.env.AUTH_DATABASE_URL
+    }
+  }
+})
 
 // Global variable to store database clients
 declare global {
@@ -9,10 +18,10 @@ declare global {
   var __payrollClient: PayrollClient | undefined
 }
 
-// Auth Database Client
-export const authClient = globalThis.__authClient ?? new AuthClient()
+// Auth Database Client (using default @prisma/client with AUTH_DATABASE_URL)
+export const auth = globalThis.__authClient ?? authClient
 if (process.env.NODE_ENV !== 'production') {
-  globalThis.__authClient = authClient
+  globalThis.__authClient = auth
 }
 
 // HR Database Client
@@ -29,13 +38,13 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Helper functions for database operations
 export const DatabaseClients = {
-  auth: authClient,
+  auth,
   hr: hrClient,
   payroll: payrollClient,
   
   // Helper to get user with company information
   async getUserWithCompany(userId: string) {
-    return await authClient.user.findUnique({
+    return await auth.user.findUnique({
       where: { id: userId },
       include: {
         Company: true,
@@ -50,7 +59,7 @@ export const DatabaseClients = {
 
   // Helper to get company subscription
   async getCompanySubscription(companyId: string) {
-    return await authClient.subscription.findUnique({
+    return await auth.subscription.findUnique({
       where: { companyId },
       include: {
         Plan: true,
@@ -105,7 +114,7 @@ export const DatabaseClients = {
 
   // Helper to validate company access
   async validateCompanyAccess(userId: string, companyId: string) {
-    const userCompany = await authClient.userCompany.findFirst({
+    const userCompany = await auth.userCompany.findFirst({
       where: {
         userId,
         companyId,
