@@ -22,13 +22,6 @@ export const authOptions: NextAuthOptions = {
         const user = await prisma.user.findUnique({
           where: {
             email: credentials.email
-          },
-          include: {
-            UserCompany: {
-              include: {
-                Company: true
-              }
-            }
           }
         })
 
@@ -50,18 +43,11 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Please verify your email before signing in")
         }
 
-        // Get the user's primary company (first active company)
-        const primaryUserCompany = user.UserCompany.find(uc => uc.isActive)
-        const companyId = primaryUserCompany?.companyId || null
-        const company = primaryUserCompany?.Company || null
-
         return {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role || 'user',
-          companyId: companyId,
-          company: company
+          role: user.role || 'user'
         }
       }
     })
@@ -73,8 +59,6 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.role = user.role
-        token.companyId = user.companyId
-        token.company = user.company
       }
       return token
     },
@@ -82,8 +66,6 @@ export const authOptions: NextAuthOptions = {
       if (token) {
         session.user.id = token.sub!
         session.user.role = token.role as string
-        session.user.companyId = token.companyId as string | null
-        session.user.company = token.company as any
       }
       return session
     }
