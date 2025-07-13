@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "npm run prisma:generate && next build",
-    "build:vercel": "npm run prisma:generate && npm run build:check-env && next build",
+    "build": "npm run prisma:generate:vercel && next build",
+    "build:vercel": "npm run prisma:generate:vercel && npm run build:check-env && next build",
     "build:check-env": "node -e \"console.log('Checking environment variables...'); console.log('AUTH_DATABASE_URL:', process.env.AUTH_DATABASE_URL ? 'SET' : 'MISSING'); console.log('HR_DATABASE_URL:', process.env.HR_DATABASE_URL ? 'SET' : 'MISSING'); console.log('PAYROLL_DATABASE_URL:', process.env.PAYROLL_DATABASE_URL ? 'SET' : 'MISSING');\"",
     "prisma:generate": "npx prisma generate --schema=prisma/auth.prisma && npx prisma generate --schema=prisma/hr.prisma && npx prisma generate --schema=prisma/payroll.prisma",
+    "prisma:generate:vercel": "PRISMA_CLI_BINARY_TARGETS=rhel-openssl-3.0.x npx prisma generate --schema=prisma/auth.prisma && PRISMA_CLI_BINARY_TARGETS=rhel-openssl-3.0.x npx prisma generate --schema=prisma/hr.prisma && PRISMA_CLI_BINARY_TARGETS=rhel-openssl-3.0.x npx prisma generate --schema=prisma/payroll.prisma",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "npm run prisma:generate",
@@ -36,6 +37,7 @@
     "next-auth": "^4.24.11",
     "next-intl": "^4.3.1",
     "nodemailer": "^6.10.1",
+    "pg": "^8.16.3",
     "prisma": "^6.10.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -58,4 +60,3 @@
     "typescript": "^5"
   }
 }
-
