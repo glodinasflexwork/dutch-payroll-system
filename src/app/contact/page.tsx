@@ -1,97 +1,89 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { UnifiedNavigation } from "@/components/layout/unified-navigation"
+import { UnifiedFooter } from "@/components/layout/unified-footer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { 
-  Calculator, 
   ArrowRight,
-  Menu,
-  X,
   Mail,
   Phone,
   MapPin,
   Clock,
-  MessageSquare
+  MessageSquare,
+  CheckCircle,
+  AlertCircle
 } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 
 export default function ContactPage() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    company: '',
+    phone: '',
+    message: ''
+  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle')
+  const [submitMessage, setSubmitMessage] = useState('')
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    setSubmitStatus('idle')
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        setSubmitStatus('success')
+        setSubmitMessage(result.message)
+        setFormData({
+          firstName: '',
+          lastName: '',
+          email: '',
+          company: '',
+          phone: '',
+          message: ''
+        })
+      } else {
+        setSubmitStatus('error')
+        setSubmitMessage(result.error || 'Failed to send message. Please try again.')
+      }
+    } catch (error) {
+      setSubmitStatus('error')
+      setSubmitMessage('Network error. Please check your connection and try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
-                <Calculator className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-2xl font-bold text-gray-900">SalarySync</span>
-            </Link>
+      <UnifiedNavigation />
 
-            <nav className="hidden md:flex items-center space-x-8">
-              <Link href="/features" className="text-gray-700 hover:text-blue-600 transition-colors duration-200 font-medium text-sm">
-                Features
-              </Link>
-              <Link href="/solutions" className="text-gray-700 hover:text-blue-600 transition-colors duration-200 font-medium text-sm">
-                Solutions
-              </Link>
-              <Link href="/pricing" className="text-gray-700 hover:text-blue-600 transition-colors duration-200 font-medium text-sm">
-                Pricing
-              </Link>
-              <Link href="/about" className="text-gray-700 hover:text-blue-600 transition-colors duration-200 font-medium text-sm">
-                About
-              </Link>
-            </nav>
-
-            <div className="hidden md:flex items-center space-x-3">
-              <Link href="/auth/signin">
-                <Button variant="ghost" size="sm" className="text-gray-700 hover:text-blue-600 font-medium">
-                  Login
-                </Button>
-              </Link>
-              <Link href="/auth/signup">
-                <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white px-6 font-medium shadow-sm">
-                  Start Free Trial
-                </Button>
-              </Link>
-            </div>
-
-            <button 
-              className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
-
-          {mobileMenuOpen && (
-            <div className="md:hidden py-4 border-t border-gray-100">
-              <nav className="flex flex-col space-y-4">
-                <Link href="/features" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Features</Link>
-                <Link href="/solutions" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Solutions</Link>
-                <Link href="/pricing" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Pricing</Link>
-                <Link href="/about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">About</Link>
-                <div className="flex flex-col space-y-2 pt-4 border-t border-gray-100">
-                  <Link href="/auth/signin">
-                    <Button variant="ghost" size="sm" className="w-full justify-start">Login</Button>
-                  </Link>
-                  <Link href="/auth/signup">
-                    <Button size="sm" className="w-full bg-blue-600 hover:bg-blue-700 text-white">Start Free Trial</Button>
-                  </Link>
-                </div>
-              </nav>
-            </div>
-          )}
-        </div>
-      </header>
-
-      <main className="pt-16">
+      <main>
         {/* Hero Section */}
         <section className="bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 py-20 lg:py-32 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500 rounded-full opacity-20 transform translate-x-32 -translate-y-32"></div>
@@ -123,48 +115,107 @@ export default function ContactPage() {
                   <CardHeader>
                     <CardTitle className="text-3xl font-bold text-gray-900">Send us a message</CardTitle>
                     <CardDescription className="text-lg text-gray-600">
-                      Fill out the form below and we will get back to you within 24 hours.
+                      Fill out the form below and we will get back to you within 48 hours.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
-                        <Input placeholder="John" className="w-full" />
+                    {/* Success/Error Messages */}
+                    {submitStatus === 'success' && (
+                      <div className="flex items-center space-x-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                        <p className="text-green-800">{submitMessage}</p>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
-                        <Input placeholder="Doe" className="w-full" />
+                    )}
+                    
+                    {submitStatus === 'error' && (
+                      <div className="flex items-center space-x-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                        <p className="text-red-800">{submitMessage}</p>
                       </div>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                      <Input type="email" placeholder="john@company.com" className="w-full" />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Company</label>
-                      <Input placeholder="Your Company Name" className="w-full" />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Phone (Optional)</label>
-                      <Input placeholder="+31 6 1234 5678" className="w-full" />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
-                      <Textarea 
-                        placeholder="Tell us about your payroll needs and how we can help..."
-                        className="w-full h-32"
-                      />
-                    </div>
-                    
-                    <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 text-lg font-semibold">
-                      Send Message
-                      <ArrowRight className="ml-2 w-5 h-5" />
-                    </Button>
+                    )}
+
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
+                          <Input 
+                            name="firstName"
+                            value={formData.firstName}
+                            onChange={handleInputChange}
+                            placeholder="John" 
+                            className="w-full" 
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Last Name *</label>
+                          <Input 
+                            name="lastName"
+                            value={formData.lastName}
+                            onChange={handleInputChange}
+                            placeholder="Doe" 
+                            className="w-full" 
+                            required
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                        <Input 
+                          type="email" 
+                          name="email"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          placeholder="john@company.com" 
+                          className="w-full" 
+                          required
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Company</label>
+                        <Input 
+                          name="company"
+                          value={formData.company}
+                          onChange={handleInputChange}
+                          placeholder="Your Company Name" 
+                          className="w-full" 
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Phone (Optional)</label>
+                        <Input 
+                          name="phone"
+                          value={formData.phone}
+                          onChange={handleInputChange}
+                          placeholder="+31 6 1234 5678" 
+                          className="w-full" 
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Message *</label>
+                        <Textarea 
+                          name="message"
+                          value={formData.message}
+                          onChange={handleInputChange}
+                          placeholder="Tell us about your payroll needs and how we can help..."
+                          className="w-full h-32"
+                          required
+                        />
+                      </div>
+                      
+                      <Button 
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 text-lg font-semibold disabled:opacity-50"
+                      >
+                        {isSubmitting ? 'Sending...' : 'Send Message'}
+                        {!isSubmitting && <ArrowRight className="ml-2 w-5 h-5" />}
+                      </Button>
+                    </form>
                   </CardContent>
                 </Card>
               </div>
@@ -188,8 +239,8 @@ export default function ContactPage() {
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900 mb-1">Email</h3>
                           <p className="text-gray-600 mb-2">Send us an email anytime</p>
-                          <a href="mailto:hello@salarysync.nl" className="text-blue-600 hover:text-blue-700 font-medium">
-                            hello@salarysync.nl
+                          <a href="mailto:info@salarysync.nl" className="text-blue-600 hover:text-blue-700 font-medium">
+                            info@salarysync.nl
                           </a>
                         </div>
                       </div>
@@ -221,10 +272,10 @@ export default function ContactPage() {
                         </div>
                         <div>
                           <h3 className="text-lg font-semibold text-gray-900 mb-1">Office</h3>
-                          <p className="text-gray-600 mb-2">Visit us in Amsterdam</p>
+                          <p className="text-gray-600 mb-2">Visit us at Schiphol</p>
                           <address className="text-purple-600 not-italic">
-                            Herengracht 123<br />
-                            1015 BG Amsterdam<br />
+                            Schiphol Boulevard 127<br />
+                            Schiphol 1118 BG<br />
                             Netherlands
                           </address>
                         </div>
@@ -257,54 +308,7 @@ export default function ContactPage() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-            <div className="col-span-1 md:col-span-2">
-              <Link href="/" className="flex items-center space-x-3 mb-4">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center">
-                  <Calculator className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-2xl font-bold">SalarySync</span>
-              </Link>
-              <p className="text-gray-400 mb-6 max-w-md">
-                Professional Dutch payroll solutions for modern businesses. 
-                Streamline your payroll process with confidence and compliance.
-              </p>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold text-white mb-4">Products</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><Link href="/features" className="hover:text-white transition-colors">Features</Link></li>
-                <li><Link href="/solutions" className="hover:text-white transition-colors">Solutions</Link></li>
-                <li><Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold text-white mb-4">Company</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><Link href="/about" className="hover:text-white transition-colors">About</Link></li>
-                <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>
-                <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link></li>
-                <li><Link href="/terms" className="hover:text-white transition-colors">Terms</Link></li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center">
-            <div className="text-gray-400 text-sm">
-              © 2024 SalarySync. All rights reserved.
-            </div>
-            <div className="flex space-x-6 mt-4 md:mt-0">
-              <Link href="/privacy" className="text-gray-400 hover:text-white transition-colors text-sm">Privacy Policy</Link>
-              <Link href="/terms" className="text-gray-400 hover:text-white transition-colors text-sm">Terms of Service</Link>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <UnifiedFooter />
     </div>
   )
 }
