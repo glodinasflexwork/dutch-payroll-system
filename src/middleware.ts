@@ -3,6 +3,30 @@ import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
 export async function middleware(request: NextRequest) {
+  // Define public pages that should be accessible to everyone
+  const publicPages = [
+    '/features',
+    '/pricing', 
+    '/about',
+    '/contact',
+    '/solutions',
+    '/privacy',
+    '/terms',
+    '/auth/signin',
+    '/auth/signup',
+    '/auth/signout'
+  ]
+  
+  // Check if current path is a public page
+  const isPublicPage = publicPages.some(page => 
+    request.nextUrl.pathname.startsWith(page)
+  )
+  
+  // Allow access to public pages without authentication checks
+  if (isPublicPage) {
+    return NextResponse.next()
+  }
+
   // Only apply middleware to API routes and dashboard pages
   if (!request.nextUrl.pathname.startsWith('/api/') && 
       !request.nextUrl.pathname.startsWith('/dashboard/') &&
