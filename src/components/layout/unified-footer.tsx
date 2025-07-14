@@ -94,6 +94,9 @@ export function UnifiedFooter() {
             <Link href="/terms" className="text-gray-400 hover:text-white transition-colors text-sm">
               Terms of Service
             </Link>
+            <Link href="/cookie-policy" className="text-gray-400 hover:text-white transition-colors text-sm">
+              Cookie Policy
+            </Link>
           </div>
         </div>
       </div>

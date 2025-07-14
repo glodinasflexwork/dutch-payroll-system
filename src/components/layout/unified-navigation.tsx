@@ -10,11 +10,11 @@ export function UnifiedNavigation() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-600">
-              <Building2 className="h-5 w-5 text-white" />
+          <Link href="/" className="flex items-center space-x-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
+              <Building2 className="h-7 w-7 text-white" />
             </div>
-            <span className="text-xl font-bold text-gray-900">SalarySync</span>
+            <span className="text-2xl font-bold text-gray-900">SalarySync</span>
           </Link>
 
           {/* Desktop Navigation */}
