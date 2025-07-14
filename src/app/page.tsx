@@ -33,10 +33,13 @@ export default function LandingPage() {
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  // Redirect authenticated users to dashboard
+  // Only redirect authenticated users from the root page to dashboard
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
-      router.push("/dashboard")
+      // Check if we're on the exact root path
+      if (window.location.pathname === "/") {
+        router.push("/dashboard")
+      }
     }
   }, [status, session, router])
 
