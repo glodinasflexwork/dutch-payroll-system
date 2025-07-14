@@ -1,44 +1,51 @@
 const { PrismaClient } = require('@prisma/client')
 
-async function main() {
+async function checkUserCompany() {
   const prisma = new PrismaClient()
   
   try {
-    console.log('=== USER CURRENT COMPANY ===')
+    console.log('🔍 Checking user company associations...')
+    
+    // Find the user
     const user = await prisma.user.findUnique({
-      where: { email: 'cihatkaya@glodinas.nl' },
-      select: { 
-        id: true, 
-        email: true, 
-        companyId: true,
-        company: { select: { name: true } }
-      }
-    })
-    console.log('Current user company:', user)
-    
-    console.log('\n=== USER ACCESS TO COMPANIES ===')
-    const userCompanies = await prisma.userCompany.findMany({
-      where: { userId: user.id },
+      where: {
+        email: 'glodinas@icloud.com'
+      },
       include: {
-        company: { select: { id: true, name: true } }
+        UserCompany: {
+          include: {
+            Company: true
+          }
+        }
       }
     })
-    console.log('User has access to:', userCompanies)
     
-    console.log('\n=== EMPLOYEES PER COMPANY ===')
-    for (const uc of userCompanies) {
-      const employees = await prisma.employee.findMany({
-        where: { companyId: uc.company.id },
-        select: { firstName: true, lastName: true, email: true }
-      })
-      console.log(`${uc.company.name} (${uc.company.id}):`, employees)
+    if (!user) {
+      console.log('❌ User not found')
+      return
     }
     
+    console.log('✅ User found:', {
+      id: user.id,
+      email: user.email,
+      name: user.name
+    })
+    
+    console.log('🏢 User companies:', user.UserCompany.length)
+    
+    user.UserCompany.forEach((userCompany, index) => {
+      console.log(`\n📊 Company ${index + 1}:`)
+      console.log('  - Company ID:', userCompany.Company.id)
+      console.log('  - Company Name:', userCompany.Company.name)
+      console.log('  - User Role:', userCompany.role)
+      console.log('  - Created:', userCompany.createdAt)
+    })
+    
   } catch (error) {
-    console.error('Error:', error)
+    console.error('❌ Error:', error.message)
   } finally {
     await prisma.$disconnect()
   }
 }
 
-main()
+checkUserCompany()
