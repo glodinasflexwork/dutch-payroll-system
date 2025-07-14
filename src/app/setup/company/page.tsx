@@ -75,11 +75,20 @@ export default function CompanySetup() {
           addDebugInfo('Company Status Check', JSON.stringify(data, null, 2), 'info')
         }
         
-        if (data.hasCompany) {
+        // Multi-company logic:
+        // - 0 companies: Stay on setup page (first company creation)
+        // - 1+ companies: Redirect to dashboard (existing user with companies)
+        if (data.hasCompany && data.companies.length > 0) {
           if (debugMode) {
-            addDebugInfo('Redirect', `User has company: ${data.primaryCompany?.name}. Redirecting to dashboard.`, 'info')
+            addDebugInfo('Redirect', `User has ${data.companies.length} company(ies). Redirecting to dashboard.`, 'info')
           }
-          router.push('/dashboard')
+          // Add company info to URL for dashboard to know which company to show
+          const primaryCompanyId = data.primaryCompany?.id
+          router.push(`/dashboard?company=${primaryCompanyId}`)
+        } else {
+          if (debugMode) {
+            addDebugInfo('First Company Setup', 'User has no companies. Showing setup form for first company.', 'info')
+          }
         }
       } catch (error) {
         console.error('Error checking company status:', error)

@@ -70,18 +70,18 @@ export default function LandingPage() {
 
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-gray-700 hover:text-blue-600 transition-colors duration-200 font-medium text-sm">
+              <Link href="/features" className="text-gray-700 hover:text-blue-600 transition-colors duration-200 font-medium text-sm">
                 Features
-              </a>
-              <a href="#solutions" className="text-gray-700 hover:text-blue-600 transition-colors duration-200 font-medium text-sm">
+              </Link>
+              <Link href="/solutions" className="text-gray-700 hover:text-blue-600 transition-colors duration-200 font-medium text-sm">
                 Solutions
-              </a>
+              </Link>
               <Link href="/pricing" className="text-gray-700 hover:text-blue-600 transition-colors duration-200 font-medium text-sm">
                 Pricing
               </Link>
-              <a href="#about" className="text-gray-700 hover:text-blue-600 transition-colors duration-200 font-medium text-sm">
+              <Link href="/about" className="text-gray-700 hover:text-blue-600 transition-colors duration-200 font-medium text-sm">
                 About
-              </a>
+              </Link>
             </nav>
 
             {/* CTA Buttons */}
@@ -111,10 +111,11 @@ export default function LandingPage() {
           {mobileMenuOpen && (
             <div className="md:hidden py-4 border-t border-gray-100">
               <nav className="flex flex-col space-y-4">
-                <a href="#features" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Features</a>
-                <a href="#solutions" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Solutions</a>
+                <Link href="/features" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Features</Link>
+                <Link href="/solutions" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Solutions</Link>
                 <Link href="/pricing" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Pricing</Link>
-                <a href="#about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">About</a>
+                <Link href="/about" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">About</Link>
+                <Link href="/contact" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">Contact</Link>
                 <div className="flex flex-col space-y-2 pt-4 border-t border-gray-100">
                   <Link href="/auth/signin">
                     <Button variant="ghost" size="sm" className="w-full justify-start">Login</Button>
