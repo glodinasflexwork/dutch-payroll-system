@@ -31,15 +31,8 @@ export default function LandingPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
 
-  // Only redirect authenticated users from the root page to dashboard
-  useEffect(() => {
-    if (status === "authenticated" && session?.user) {
-      // Check if we're on the exact root path
-      if (window.location.pathname === "/") {
-        router.push("/dashboard")
-      }
-    }
-  }, [status, session, router])
+  // Allow homepage access for all users - no automatic redirect
+  // Users can manually navigate to dashboard if needed
 
   // Show loading state while checking authentication
   if (status === "loading") {
