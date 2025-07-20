@@ -24,32 +24,26 @@ const fallbackBackgrounds = [
   },
   {
     background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-  },
-  {
-    background: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
-  },
-  {
-    background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
   }
 ]
 
-export const useDynamicBackground = () => {
+export const useDailyBackground = () => {
   // Initialize with a daily rotating fallback immediately
-  const getDailyBackground = () => {
+  const getDailyFallback = () => {
     const today = new Date().getDate()
     const backgroundIndex = today % fallbackBackgrounds.length
     return fallbackBackgrounds[backgroundIndex]
   }
 
-  const [backgroundStyle, setBackgroundStyle] = useState<BackgroundStyle>(getDailyBackground())
-  const [isLoading, setIsLoading] = useState(false)
+  const [backgroundStyle, setBackgroundStyle] = useState<BackgroundStyle>(getDailyFallback())
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const loadBackground = async () => {
       try {
         setIsLoading(true)
         
-        // Try to fetch from API first
+        // Try to fetch office background from API
         const response = await fetch('/api/daily-background', {
           method: 'GET',
           headers: {
@@ -59,9 +53,9 @@ export const useDynamicBackground = () => {
 
         if (response.ok) {
           const data = await response.json()
-          if (data.background) {
+          if (data.backgroundUrl) {
             setBackgroundStyle({
-              background: `url(${data.background})`,
+              background: `url(${data.backgroundUrl})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat'
@@ -78,7 +72,7 @@ export const useDynamicBackground = () => {
       }
     }
 
-    // Only try to load from API, fallback is already set
+    // Try to load office background from API, fallback is already set
     loadBackground()
   }, [])
 
