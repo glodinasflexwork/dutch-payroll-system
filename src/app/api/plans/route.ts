@@ -13,15 +13,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Fetch all available plans
+    // Fetch only active plans in the correct order
     const plans = await authClient.plan.findMany({
-      orderBy: {
-        price: 'asc'
-      }
+      where: {
+        isActive: true
+      },
+      orderBy: [
+        { name: 'asc' } // This will put Enterprise, Free Trial, Professional, Starter in order
+      ]
+    });
+
+    // Define the correct order for plans
+    const planOrder = ['Free Trial', 'Starter', 'Professional', 'Enterprise'];
+    
+    // Sort plans according to the defined order
+    const sortedPlans = plans.sort((a, b) => {
+      const aIndex = planOrder.indexOf(a.name);
+      const bIndex = planOrder.indexOf(b.name);
+      return aIndex - bIndex;
     });
 
     // Ensure features are properly formatted as arrays
-    const formattedPlans = plans.map(plan => ({
+    const formattedPlans = sortedPlans.map(plan => ({
       ...plan,
       features: Array.isArray(plan.features) ? plan.features : 
                 typeof plan.features === 'string' ? JSON.parse(plan.features) :
