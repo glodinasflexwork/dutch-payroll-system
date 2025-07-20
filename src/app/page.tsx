@@ -31,12 +31,23 @@ export default function LandingPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
 
-  // Only redirect authenticated users from the root page to dashboard
+  // Smart redirect logic for authenticated users
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
       // Check if we're on the exact root path
       if (window.location.pathname === "/") {
-        router.push("/dashboard")
+        // Check if user intentionally visited (via URL parameter or sessionStorage)
+        const urlParams = new URLSearchParams(window.location.search)
+        const intentionalVisit = urlParams.get('public') === 'true' || 
+                                sessionStorage.getItem('intentional-public-visit') === 'true'
+        
+        if (!intentionalVisit) {
+          // First time visit or direct navigation - redirect to dashboard
+          router.push("/dashboard")
+        } else {
+          // User intentionally wants to see the public site - clear the flag
+          sessionStorage.removeItem('intentional-public-visit')
+        }
       }
     }
   }, [status, session, router])
@@ -48,11 +59,6 @@ export default function LandingPage() {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     )
-  }
-
-  // Only show landing page to unauthenticated users
-  if (status === "authenticated") {
-    return null
   }
 
   return (
