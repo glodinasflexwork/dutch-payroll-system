@@ -31,7 +31,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { CompanySwitcher } from "@/components/ui/company-switcher"
+import { CompanySwitcherTrigger } from "@/components/ui/modern-company-switcher"
 import { TutorialSystem } from "@/components/tutorial/TutorialSystem"
 import { cn } from "@/lib/utils"
 
@@ -243,7 +243,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           
           <div className="flex items-center space-x-2">
             <div className="hidden sm:block">
-              <CompanySwitcher />
+              <CompanySwitcherTrigger />
             </div>
             <Button
               variant="ghost"
@@ -258,7 +258,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         
         {/* Mobile Company Switcher - Show on small screens */}
         <div className="sm:hidden mt-3">
-          <CompanySwitcher />
+          <CompanySwitcherTrigger />
         </div>
       </div>
 
@@ -433,7 +433,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <p className="text-sm text-gray-500">{groupName}</p>
             </div>
             <div className="flex items-center space-x-4">
-              <CompanySwitcher />
+              <CompanySwitcherTrigger />
               <Button
                 variant="outline"
                 size="sm"

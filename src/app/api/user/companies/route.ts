@@ -39,7 +39,8 @@ export async function GET(request: NextRequest) {
       role: uc.role,
       isActive: uc.isActive,
       industry: uc.Company.industry,
-      employeeCount: uc.Company.employeeCount
+      employeeCount: uc.Company.employeeCount || 0,
+      isCurrentCompany: false // Will be set below
     }))
 
     // Always fetch current company from database, not from session
@@ -51,6 +52,11 @@ export async function GET(request: NextRequest) {
 
     const currentCompanyId = user?.companyId || companies[0]?.id
     const currentCompany = companies.find(c => c.id === currentCompanyId) || companies[0]
+
+    // Mark the current company
+    companies.forEach(company => {
+      company.isCurrentCompany = company.id === currentCompanyId
+    })
 
     return NextResponse.json({
       companies,
