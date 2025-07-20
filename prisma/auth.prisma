@@ -80,6 +80,7 @@ model Company {
   UserCompany   UserCompany[]
   Subscription  Subscription?
   TenantConfig  TenantConfig?
+  CompanyPoints CompanyPoints?
 }
 
 model UserCompany {
@@ -150,5 +151,43 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+
+// Points system for Enterprise users
+model CompanyPoints {
+  id              String   @id @default(cuid())
+  companyId       String   @unique
+  pointsBalance   Int      @default(0)  // Current points balance
+  totalPurchased  Int      @default(0)  // Total points ever purchased
+  totalUsed       Int      @default(0)  // Total points ever used
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  Company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  PointsTransaction PointsTransaction[]
+}
+
+model PointsTransaction {
+  id              String        @id @default(cuid())
+  companyPointsId String
+  type            String        // 'purchase', 'usage', 'refund'
+  amount          Int           // Points amount (positive for purchase/refund, negative for usage)
+  description     String?       // Description of the transaction
+  payrollRunId    String?       // Reference to payroll run if used for payroll
+  stripePaymentId String?       // Stripe payment ID for purchases
+  createdAt       DateTime      @default(now())
+  CompanyPoints   CompanyPoints @relation(fields: [companyPointsId], references: [id], onDelete: Cascade)
+}
+
+model PointsPackage {
+  id          String   @id @default(cuid())
+  name        String   // e.g., "10 Payroll Credits", "50 Payroll Credits"
+  points      Int      // Number of points in this package
+  price       Float    // Price in cents (e.g., 3000 for €30.00)
+  currency    String   @default("EUR")
+  stripePriceId String? // Stripe price ID for this package
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
