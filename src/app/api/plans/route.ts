@@ -13,18 +13,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Fetch only active plans in the correct order
+    // Fetch only active plans excluding Free Trial (which is auto-assigned)
     const plans = await authClient.plan.findMany({
       where: {
-        isActive: true
+        isActive: true,
+        NOT: {
+          name: 'Free Trial' // Hide Free Trial from user selection
+        }
       },
       orderBy: [
-        { name: 'asc' } // This will put Enterprise, Free Trial, Professional, Starter in order
+        { name: 'asc' }
       ]
     });
 
-    // Define the correct order for plans
-    const planOrder = ['Free Trial', 'Starter', 'Professional', 'Enterprise'];
+    // Define the correct order for user-selectable plans
+    const planOrder = ['Starter', 'Professional', 'Enterprise'];
     
     // Sort plans according to the defined order
     const sortedPlans = plans.sort((a, b) => {
