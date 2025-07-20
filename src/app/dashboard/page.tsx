@@ -61,18 +61,13 @@ export default function Dashboard() {
       const response = await fetch('/api/user/company-status')
       const data = await response.json()
       
-      console.log('=== DASHBOARD COMPANY CHECK ===')
-      console.log('Company status response:', data)
-      
       if (!data.hasCompany || data.companies.length === 0) {
         // User has no companies, redirect to setup
-        console.log('No companies found, redirecting to setup')
         router.push("/setup/company")
         return
       }
       
       // User has companies, load dashboard
-      console.log(`User has ${data.companies.length} company(ies), loading dashboard`)
       await fetchDashboardStats(data.primaryCompany)
       
     } catch (error) {
@@ -84,24 +79,14 @@ export default function Dashboard() {
 
   const fetchDashboardStats = async (primaryCompany?: any) => {
     try {
-      console.log('=== DASHBOARD DEBUG ===')
-      console.log('Session object:', session)
-      console.log('Session user:', session?.user)
-      console.log('Primary company:', primaryCompany)
-      console.log('Fetching dashboard stats for company:', primaryCompany?.id)
-      
       // Fetch company info with employee counts
       const companyResponse = await fetch("/api/companies")
       const companyData = await companyResponse.json()
-      console.log('Company API response:', companyData)
 
       // Fetch employees to get detailed counts
       const employeesResponse = await fetch("/api/employees")
       const employeesResult = await employeesResponse.json()
       const employeesData = employeesResult.success ? employeesResult.employees : []
-      
-      console.log('Employees API response:', employeesResult)
-      console.log('Dashboard employees data:', employeesData)
 
       // Fetch payroll records
       const payrollResponse = await fetch("/api/payroll")

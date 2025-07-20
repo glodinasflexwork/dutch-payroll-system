@@ -67,47 +67,26 @@ function preprocessCompanyData(data: any) {
 // GET /api/companies - Get the user's company information
 export async function GET(request: NextRequest) {
   try {
-    console.log("GET /api/companies - Starting request")
-    
     const { context, error, status } = await validateAuth(request, ['employee'])
     
     if (!context || error) {
-      console.log('Authentication failed:', error)
       return NextResponse.json({ error }, { status })
     }
 
-    console.log("Fetching company with ID:", context.companyId)
     const company = await authClient.company.findUnique({
       where: {
         id: context.companyId
-      },
-      include: {
-        _count: {
-          select: {
-            Employee: {
-              where: { isActive: true }
-            }
-          }
-        }
       }
     })
 
-    console.log("Company found:", !!company)
     if (!company) {
-      console.log("Company not found in database")
       return NextResponse.json({ error: "Company not found" }, { status: 404 })
     }
 
-    // Add employee count to the company object
-    const companyWithStats = {
-      ...company,
-      employeeCount: company._count?.Employee || 0
-    }
-
-    console.log("Returning company data successfully")
+    // Return company information
     return NextResponse.json({
       success: true,
-      companies: [companyWithStats]
+      companies: [company]
     })
 
   } catch (error) {
