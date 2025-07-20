@@ -1,4 +1,4 @@
-import { Headset, BookOpen, MessageSquare, Phone, Mail, HelpCircle, Search, ArrowRight } from 'lucide-react';
+import { Headset, BookOpen, MessageSquare, Phone, Mail, HelpCircle, Search } from 'lucide-react';
 import Link from 'next/link';
 
 export default function SupportPage() {
