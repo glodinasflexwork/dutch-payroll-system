@@ -57,7 +57,7 @@ export function ModernCompanySwitcher({ isOpen, onClose, className }: ModernComp
     
     setLoading(true)
     try {
-      const response = await fetch('/api/user/companies/switch', {
+      const response = await fetch('/api/companies/switch', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -66,21 +66,25 @@ export function ModernCompanySwitcher({ isOpen, onClose, className }: ModernComp
       })
 
       if (response.ok) {
+        const data = await response.json()
+        
         // Update session to reflect the company change
         await update()
         
-        // Refresh the page to load new company data
-        router.refresh()
-        
-        // Update local state
+        // Update local state immediately for better UX
         setCompanies(prev => prev.map(company => ({
           ...company,
           isCurrentCompany: company.id === companyId
         })))
         
+        // Close the modal
         onClose()
+        
+        // Refresh the page to load new company data
+        window.location.reload()
       } else {
         const error = await response.json()
+        console.error('Switch error:', error)
         alert(error.error || 'Failed to switch company')
       }
     } catch (error) {
@@ -134,7 +138,7 @@ export function ModernCompanySwitcher({ isOpen, onClose, className }: ModernComp
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black bg-opacity-50 z-40"
+        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
         onClick={onClose}
       />
       
