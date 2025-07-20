@@ -223,8 +223,18 @@ export default function SubscriptionPage() {
                   {getPlanIcon(plan.name)}
                   <h3 className="mt-4 text-2xl font-bold text-gray-900">{plan.name}</h3>
                   <div className="mt-4">
-                    <span className="text-4xl font-bold text-gray-900">€{plan.price / 100}</span>
-                    <span className="text-gray-600">/month</span>
+                    {plan.name === 'Enterprise' ? (
+                      <div>
+                        <span className="text-4xl font-bold text-gray-900">€{plan.price / 100}</span>
+                        <span className="text-gray-600">/payroll run</span>
+                        <div className="text-sm text-gray-500 mt-1">Pay-per-use pricing</div>
+                      </div>
+                    ) : (
+                      <div>
+                        <span className="text-4xl font-bold text-gray-900">€{plan.price / 100}</span>
+                        <span className="text-gray-600">/month</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -257,6 +267,23 @@ export default function SubscriptionPage() {
                     >
                       ✓ Current Plan
                     </button>
+                  ) : plan.name === 'Enterprise' ? (
+                    <button
+                      onClick={() => handleSubscribe(plan.id, plan.stripePriceId)}
+                      disabled={processingPlan === plan.id}
+                      className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${getButtonColor(plan.name)} ${
+                        processingPlan === plan.id ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                    >
+                      {processingPlan === plan.id ? (
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Processing...
+                        </div>
+                      ) : (
+                        'Switch to Pay-per-Use'
+                      )}
+                    </button>
                   ) : (
                     <button
                       onClick={() => handleSubscribe(plan.id, plan.stripePriceId)}
@@ -284,6 +311,87 @@ export default function SubscriptionPage() {
             );
           })}
         </div>
+
+        {/* Points Purchase Section for Enterprise Users */}
+        {currentSubscription?.plan?.name === 'Enterprise' && (
+          <div className="mt-16 max-w-4xl mx-auto">
+            <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-2xl p-8 shadow-sm">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4 text-center">
+                💳 Purchase Payroll Credits
+              </h3>
+              <p className="text-gray-700 text-center mb-8">
+                Buy payroll credits in bulk and save money. Each credit allows you to run one payroll.
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-white rounded-xl p-6 border-2 border-gray-200 hover:border-yellow-400 transition-colors">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">10 Credits</div>
+                    <div className="text-3xl font-bold text-yellow-600 mt-2">€30.00</div>
+                    <div className="text-sm text-gray-500">€3.00 per credit</div>
+                    <button className="w-full mt-4 py-2 px-4 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors">
+                      Purchase
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="bg-white rounded-xl p-6 border-2 border-yellow-400 relative">
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                    <span className="bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-medium">
+                      5% OFF
+                    </span>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">25 Credits</div>
+                    <div className="text-3xl font-bold text-yellow-600 mt-2">€71.25</div>
+                    <div className="text-sm text-gray-500">€2.85 per credit</div>
+                    <button className="w-full mt-4 py-2 px-4 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors">
+                      Purchase
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="bg-white rounded-xl p-6 border-2 border-yellow-400 relative">
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                    <span className="bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-medium">
+                      10% OFF
+                    </span>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">50 Credits</div>
+                    <div className="text-3xl font-bold text-yellow-600 mt-2">€135.00</div>
+                    <div className="text-sm text-gray-500">€2.70 per credit</div>
+                    <button className="w-full mt-4 py-2 px-4 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors">
+                      Purchase
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="bg-white rounded-xl p-6 border-2 border-yellow-400 relative">
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                    <span className="bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-medium">
+                      15% OFF
+                    </span>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-gray-900">100 Credits</div>
+                    <div className="text-3xl font-bold text-yellow-600 mt-2">€255.00</div>
+                    <div className="text-sm text-gray-500">€2.55 per credit</div>
+                    <button className="w-full mt-4 py-2 px-4 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors">
+                      Purchase
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-6 text-center">
+                <div className="text-sm text-gray-600">
+                  💡 <strong>Current Balance:</strong> 0 credits • <strong>Credits never expire</strong> • Instant activation
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Trial Upgrade Banner */}
         {currentSubscription?.status === 'trialing' && (
