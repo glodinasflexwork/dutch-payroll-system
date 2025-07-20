@@ -34,8 +34,15 @@ const fallbackBackgrounds = [
 ]
 
 export const useDynamicBackground = () => {
-  const [backgroundStyle, setBackgroundStyle] = useState<BackgroundStyle>(fallbackBackgrounds[0])
-  const [isLoading, setIsLoading] = useState(true)
+  // Initialize with a daily rotating fallback immediately
+  const getDailyBackground = () => {
+    const today = new Date().getDate()
+    const backgroundIndex = today % fallbackBackgrounds.length
+    return fallbackBackgrounds[backgroundIndex]
+  }
+
+  const [backgroundStyle, setBackgroundStyle] = useState<BackgroundStyle>(getDailyBackground())
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     const loadBackground = async () => {
@@ -59,29 +66,19 @@ export const useDynamicBackground = () => {
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat'
             })
-          } else {
-            // Use daily rotating fallback
-            const today = new Date().getDate()
-            const backgroundIndex = today % fallbackBackgrounds.length
-            setBackgroundStyle(fallbackBackgrounds[backgroundIndex])
           }
-        } else {
-          // API failed, use daily rotating fallback
-          const today = new Date().getDate()
-          const backgroundIndex = today % fallbackBackgrounds.length
-          setBackgroundStyle(fallbackBackgrounds[backgroundIndex])
+          // If API returns but no background, keep the fallback we already set
         }
+        // If API fails, keep the fallback we already set
       } catch (error) {
         console.log('Background API unavailable, using fallback')
-        // Use daily rotating fallback
-        const today = new Date().getDate()
-        const backgroundIndex = today % fallbackBackgrounds.length
-        setBackgroundStyle(fallbackBackgrounds[backgroundIndex])
+        // Keep the fallback we already set
       } finally {
         setIsLoading(false)
       }
     }
 
+    // Only try to load from API, fallback is already set
     loadBackground()
   }, [])
 
