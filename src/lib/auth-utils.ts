@@ -151,17 +151,21 @@ export function hasRequiredRole(userRole: string, requiredRoles: string[]): bool
     'owner': 5,
     'admin': 4,
     'manager': 3,
+    'hr manager': 2,
     'hr': 2,
     'accountant': 2,
     'employee': 1,
     'viewer': 0
   }
 
-  const userLevel = roleHierarchy[userRole as keyof typeof roleHierarchy] || 0
+  // Normalize roles to lowercase for comparison
+  const normalizedUserRole = userRole.toLowerCase()
+  const userLevel = roleHierarchy[normalizedUserRole as keyof typeof roleHierarchy] || 0
   const requiredLevel = Math.max(...requiredRoles.map(role => 
-    roleHierarchy[role as keyof typeof roleHierarchy] || 0
+    roleHierarchy[role.toLowerCase() as keyof typeof roleHierarchy] || 0
   ))
 
+  console.log('Role check:', { userRole, normalizedUserRole, userLevel, requiredRoles, requiredLevel })
   return userLevel >= requiredLevel
 }
 
