@@ -80,8 +80,13 @@ export function ModernCompanySwitcher({ isOpen, onClose, className }: ModernComp
         // Close the modal
         onClose()
         
-        // Refresh the page to load new company data
-        window.location.reload()
+        // Emit custom event to notify other components
+        window.dispatchEvent(new CustomEvent('companyChanged', { 
+          detail: { companyId, companyName: data.company?.name } 
+        }))
+        
+        // Force router refresh to update all components
+        router.refresh()
       } else {
         const error = await response.json()
         console.error('Switch error:', error)
