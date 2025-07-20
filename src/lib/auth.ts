@@ -89,8 +89,8 @@ export const authOptions: NextAuthOptions = {
             })
 
             if (userCompany && userCompany.isActive) {
-              token.companyId = userCompany.company.id
-              token.companyName = userCompany.company.name
+              token.companyId = userCompany.Company.id
+              token.companyName = userCompany.Company.name
               token.companyRole = userCompany.role
               token.hasCompany = true
             }
@@ -118,11 +118,11 @@ export const authOptions: NextAuthOptions = {
               // Update user's companyId and cache in token
               await authClient.user.update({
                 where: { id: user.id },
-                data: { companyId: firstUserCompany.company.id }
+                data: { companyId: firstUserCompany.Company.id }
               })
 
-              token.companyId = firstUserCompany.company.id
-              token.companyName = firstUserCompany.company.name
+              token.companyId = firstUserCompany.Company.id
+              token.companyName = firstUserCompany.Company.name
               token.companyRole = firstUserCompany.role
               token.hasCompany = true
             } else {
