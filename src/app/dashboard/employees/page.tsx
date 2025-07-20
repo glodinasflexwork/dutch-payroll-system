@@ -55,11 +55,26 @@ export default function EmployeesPage() {
   }, [status, router])
 
   useEffect(() => {
-    if (session?.user?.companyId) {
+    if (session?.user) {
       setLoading(true)
       fetchEmployees()
     }
-  }, [session?.user?.companyId]) // Add companyId as dependency to trigger on company switch
+  }, [session?.user]) // Remove companyId dependency and rely on API to get current company
+
+  // Listen for company change events
+  useEffect(() => {
+    const handleCompanyChange = (event: CustomEvent) => {
+      console.log('Company changed event received:', event.detail)
+      setLoading(true)
+      fetchEmployees()
+    }
+
+    window.addEventListener('companyChanged', handleCompanyChange as EventListener)
+    
+    return () => {
+      window.removeEventListener('companyChanged', handleCompanyChange as EventListener)
+    }
+  }, [])
 
   const fetchEmployees = async () => {
     try {
