@@ -16,34 +16,16 @@ export interface AuthContext {
  */
 export async function getAuthContext(request: NextRequest): Promise<AuthContext | null> {
   try {
-    console.log('=== AUTH CONTEXT DEBUG ===')
-    console.log('Environment:', process.env.NODE_ENV)
-    console.log('NEXTAUTH_URL:', process.env.NEXTAUTH_URL)
-    console.log('NEXTAUTH_SECRET exists:', !!process.env.NEXTAUTH_SECRET)
-    
     // Try to get session with enhanced error handling
     let session
     try {
       session = await getServerSession(authOptions)
-      console.log('Session retrieved successfully:', !!session)
-      console.log('Session user:', session?.user?.id)
     } catch (sessionError) {
       console.error('Error getting session:', sessionError)
-      
-      // Fallback: Try to get user from Authorization header
-      const authHeader = request.headers.get('authorization')
-      if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.substring(7)
-        console.log('Trying fallback auth with token:', token.substring(0, 10) + '...')
-        // In a real implementation, you'd verify the JWT token here
-        // For now, we'll continue with the session approach
-      }
-      
       return null
     }
     
     if (!session?.user?.id) {
-      console.log('No valid session user found')
       return null
     }
 
@@ -58,14 +40,12 @@ export async function getAuthContext(request: NextRequest): Promise<AuthContext 
           role: true
         }
       })
-      console.log('User from database:', user)
     } catch (dbError) {
       console.error('Database error fetching user:', dbError)
       return null
     }
 
     if (!user) {
-      console.log('User not found in database')
       return null
     }
 

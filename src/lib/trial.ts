@@ -26,13 +26,13 @@ export async function createTrial(companyId: string): Promise<void> {
   const now = new Date();
   const trialEnd = new Date(now.getTime() + (TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000));
 
-  // Find the Trial Plan (note: it's named "Trial Plan" not "Trial")
+  // Find the Free Trial Plan
   const trialPlan = await authClient.plan.findFirst({
-    where: { name: 'Trial Plan' }
+    where: { name: 'Free Trial' }
   });
 
   if (!trialPlan) {
-    throw new Error('Trial Plan not found in database');
+    throw new Error('Free Trial Plan not found in database');
   }
 
   // Check if subscription already exists for this company

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
+import { authClient } from '@/lib/database-clients';
 import { getTrialStatus } from '@/lib/trial';
 import { validateSubscription } from '@/lib/subscription';
 
@@ -8,11 +9,25 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.id || !session?.user?.companyId) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const companyId = session.user.companyId;
+    // Get companyId from session token or user record
+    let companyId = session.user.companyId;
+    
+    if (!companyId) {
+      // Fallback: get companyId from user record if not in session
+      const user = await authClient.user.findUnique({
+        where: { id: session.user.id },
+        select: { companyId: true }
+      });
+      companyId = user?.companyId;
+    }
+
+    if (!companyId) {
+      return NextResponse.json({ error: 'No company associated with user' }, { status: 400 });
+    }
 
     // Get subscription validation (includes trial status)
     const subscriptionValidation = await validateSubscription(companyId);
