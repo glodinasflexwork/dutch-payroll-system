@@ -48,12 +48,12 @@ export async function POST(request: NextRequest) {
     })
     
     const company = {
-      id: userCompany.company.id,
-      name: userCompany.company.name,
+      id: userCompany.Company.id,
+      name: userCompany.Company.name,
       role: userCompany.role,
       isActive: userCompany.isActive,
-      industry: userCompany.company.industry,
-      employeeCount: userCompany.company.employeeCount
+      industry: userCompany.Company.industry,
+      employeeCount: userCompany.Company.employeeCount
     }
 
     return NextResponse.json({
@@ -66,8 +66,8 @@ export async function POST(request: NextRequest) {
         companyId: companyId,
         role: userCompany.role,
         Company: {
-          id: userCompany.company.id,
-          name: userCompany.company.name
+          id: userCompany.Company.id,
+          name: userCompany.Company.name
         }
       }
     })
