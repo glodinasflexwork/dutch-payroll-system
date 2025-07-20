@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, CheckCircle, Info } from "lucide-react"
-import { useDynamicBackground } from "@/hooks/useDynamicBackground"
 
 function SignInForm() {
   const [email, setEmail] = useState("")
@@ -16,7 +15,20 @@ function SignInForm() {
   const [message, setMessage] = useState("")
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { backgroundStyle, isLoading: backgroundLoading } = useDynamicBackground()
+  // Simple daily background rotation without API dependency
+  const getDailyBackground = () => {
+    const backgrounds = [
+      'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+      'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+      'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+      'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+      'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+      'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)'
+    ]
+    const today = new Date().getDate()
+    return backgrounds[today % backgrounds.length]
+  }
 
   useEffect(() => {
     // Check for URL parameters for messages
@@ -71,17 +83,10 @@ function SignInForm() {
   return (
     <div 
       className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative"
-      style={backgroundStyle}
+      style={{
+        background: getDailyBackground()
+      }}
     >
-      {/* Background overlay for better text readability */}
-      <div className="absolute inset-0 bg-black bg-opacity-20"></div>
-      
-      {/* Background loading indicator */}
-      {backgroundLoading && (
-        <div className="absolute top-4 right-4 z-10">
-          <div className="w-3 h-3 bg-white bg-opacity-60 rounded-full animate-pulse"></div>
-        </div>
-      )}
 
       <div className="max-w-md w-full space-y-8 relative z-10">
         <div className="bg-white bg-opacity-95 backdrop-blur-sm rounded-2xl shadow-2xl p-8">
