@@ -57,18 +57,22 @@ export async function middleware(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
+    // OPTIMIZED: Use company info from token (cached during login) instead of database queries
+    const hasCompany = token.hasCompany as boolean
+    const companyId = token.companyId as string
+
     // Check if user has a company for dashboard routes
     if (request.nextUrl.pathname.startsWith('/dashboard/')) {
-      if (!token.companyId) {
+      if (!hasCompany || !companyId) {
         // Redirect to company setup if user doesn't have a company
         return NextResponse.redirect(new URL('/setup/company', request.url))
       }
     }
 
-    // Get current company from session or headers
+    // Get current company from session, headers, or cookies (in that order)
     const currentCompanyId = request.headers.get('x-company-id') || 
                             request.cookies.get('current-company-id')?.value ||
-                            token.companyId
+                            companyId
 
     // Clone the request headers and add company context
     const requestHeaders = new Headers(request.headers)
@@ -76,6 +80,14 @@ export async function middleware(request: NextRequest) {
     if (currentCompanyId) {
       requestHeaders.set('x-company-id', currentCompanyId)
       requestHeaders.set('x-user-id', token.sub || '')
+      
+      // OPTIMIZED: Add company info from session to avoid database lookups
+      if (token.companyName) {
+        requestHeaders.set('x-company-name', token.companyName as string)
+      }
+      if (token.companyRole) {
+        requestHeaders.set('x-company-role', token.companyRole as string)
+      }
     }
 
     // Create response with updated headers
@@ -85,8 +97,8 @@ export async function middleware(request: NextRequest) {
       },
     })
 
-    // Set company ID in cookie for persistence
-    if (currentCompanyId) {
+    // Set company ID in cookie for persistence (only if different)
+    if (currentCompanyId && currentCompanyId !== request.cookies.get('current-company-id')?.value) {
       response.cookies.set('current-company-id', currentCompanyId, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',

@@ -12,8 +12,7 @@ export interface CompanyContext {
 }
 
 /**
- * Get company context from request headers or session
- * This ensures all operations are scoped to the correct company
+ * Optimized company context that uses session data first, falls back to database only when necessary
  */
 export async function getCompanyContext(
   request: NextRequest,
@@ -22,110 +21,131 @@ export async function getCompanyContext(
   try {
     const session = await getServerSession(authOptions)
     
-    console.log('=== COMPANY CONTEXT DEBUG ===')
-    console.log('Session in API:', session)
-    console.log('Session user ID:', session?.user?.id)
-    console.log('Session user companyId:', session?.user?.companyId)
-    
     if (!session?.user?.id) {
-      console.log('No session user ID, returning null')
       return null
     }
 
-    let companyId = requiredCompanyId || 
-                   request.headers.get('x-company-id') ||
-                   request.nextUrl.searchParams.get('companyId')
-
-    console.log('CompanyId from headers/params:', companyId)
-
-    if (!companyId) {
-      // Always fetch current company from database, not from session
-      // This ensures we get the latest company selection after switching
-      console.log('Fetching companyId from database for user:', session.user.id)
-      const user = await authClient.user.findUnique({
-        where: { id: session.user.id },
-        select: { companyId: true }
-      })
-
-      console.log('User from database:', user)
-      companyId = user?.companyId
-
-      if (!companyId) {
-        // If no company in user record, get user's first company
-        const firstUserCompany = await authClient.userCompany.findFirst({
-          where: {
-            userId: session.user.id,
-            isActive: true
-          },
-          include: {
-            Company: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
-          },
-          orderBy: {
-            createdAt: 'asc'
-          }
-        })
-
-        if (!firstUserCompany) {
-          return null
-        }
-
-        companyId = firstUserCompany.company.id
-        
-        // Update user's companyId if it was null
-        await authClient.user.update({
-          where: { id: session.user.id },
-          data: { companyId: companyId }
-        })
+    // OPTIMIZED: Use company info from session if available (cached from login)
+    if (session.user.hasCompany && session.user.companyId && !requiredCompanyId) {
+      return {
+        userId: session.user.id,
+        companyId: session.user.companyId,
+        userRole: session.user.companyRole || 'employee',
+        companyName: session.user.companyName || 'Unknown',
+        hasAccess: true
       }
     }
 
-    console.log('Final companyId to use:', companyId)
+    // OPTIMIZED: Try to get company info from headers first (set by middleware)
+    const headerCompanyId = request.headers.get('x-company-id')
+    const headerCompanyName = request.headers.get('x-company-name')
+    const headerCompanyRole = request.headers.get('x-company-role')
 
-    // Verify user has access to this company
-    const userCompany = await authClient.userCompany.findUnique({
-      where: {
-        userId_companyId: {
-          userId: session.user.id,
-          companyId: companyId
-        }
-      },
-      include: {
-        Company: {
-          select: {
-            name: true
-          }
-        }
+    if (headerCompanyId && headerCompanyName && headerCompanyRole && !requiredCompanyId) {
+      return {
+        userId: session.user.id,
+        companyId: headerCompanyId,
+        userRole: headerCompanyRole,
+        companyName: headerCompanyName,
+        hasAccess: true
       }
-    })
+    }
 
-    console.log('UserCompany from database:', userCompany)
+    // Only query database if:
+    // 1. Session doesn't have company info
+    // 2. A specific company is required
+    // 3. Company switching is happening
+    let companyId = requiredCompanyId || 
+                   request.headers.get('x-company-id') ||
+                   request.nextUrl.searchParams.get('companyId') ||
+                   session.user.companyId
 
-    if (!userCompany || !userCompany.isActive) {
-      console.log('User does not have access to company or company is inactive')
+    if (!companyId) {
+      // Fallback: get user's first company (only if session doesn't have it)
+      const firstUserCompany = await authClient.userCompany.findFirst({
+        where: {
+          userId: session.user.id,
+          isActive: true
+        },
+        include: {
+          Company: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: 'asc'
+        }
+      })
+
+      if (!firstUserCompany) {
+        return null
+      }
+
+      companyId = firstUserCompany.company.id
+      
+      // Update user's companyId for future requests
+      await authClient.user.update({
+        where: { id: session.user.id },
+        data: { companyId: companyId }
+      })
+
       return {
         userId: session.user.id,
         companyId: companyId,
-        userRole: 'none',
-        companyName: 'Unknown',
-        hasAccess: false
+        userRole: firstUserCompany.role,
+        companyName: firstUserCompany.company.name,
+        hasAccess: true
       }
     }
 
-    const context = {
-      userId: session.user.id,
-      companyId: companyId,
-      userRole: userCompany.role,
-      companyName: userCompany.company.name,
-      hasAccess: true
+    // If we have a companyId but need to verify access (only when switching companies)
+    if (requiredCompanyId || request.headers.get('x-company-id')) {
+      const userCompany = await authClient.userCompany.findUnique({
+        where: {
+          userId_companyId: {
+            userId: session.user.id,
+            companyId: companyId
+          }
+        },
+        include: {
+          Company: {
+            select: {
+              name: true
+            }
+          }
+        }
+      })
+
+      if (!userCompany || !userCompany.isActive) {
+        return {
+          userId: session.user.id,
+          companyId: companyId,
+          userRole: 'none',
+          companyName: 'Unknown',
+          hasAccess: false
+        }
+      }
+
+      return {
+        userId: session.user.id,
+        companyId: companyId,
+        userRole: userCompany.role,
+        companyName: userCompany.company.name,
+        hasAccess: true
+      }
     }
 
-    console.log('Final company context:', context)
-    return context
+    // Use session data (most common case)
+    return {
+      userId: session.user.id,
+      companyId: companyId,
+      userRole: session.user.companyRole || 'employee',
+      companyName: session.user.companyName || 'Unknown',
+      hasAccess: true
+    }
 
   } catch (error) {
     console.error('Error getting company context:', error)
@@ -156,7 +176,7 @@ export function hasRequiredRole(userRole: string, requiredRoles: string[]): bool
 }
 
 /**
- * Validate company access and role permissions
+ * Optimized company access validation
  */
 export async function validateCompanyAccess(
   request: NextRequest,
@@ -202,7 +222,7 @@ export function createCompanyFilter(companyId: string) {
 }
 
 /**
- * Audit log for company operations
+ * Simplified audit log (reduced logging for performance)
  */
 export async function auditLog(
   context: CompanyContext,
@@ -211,33 +231,18 @@ export async function auditLog(
   resourceId?: string,
   details?: any
 ) {
-  try {
-    // In a production app, you might want to store audit logs in a separate table
-    console.log('AUDIT LOG:', {
+  // Only log critical actions to reduce overhead
+  const criticalActions = ['create', 'delete', 'update_sensitive', 'switch_company']
+  
+  if (criticalActions.includes(action)) {
+    console.log('AUDIT:', {
       timestamp: new Date().toISOString(),
       userId: context.userId,
       companyId: context.companyId,
-      userRole: context.userRole,
       action,
       resourceType,
-      resourceId,
-      details
+      resourceId
     })
-
-    // Optional: Store in database
-    // await authClient.auditLog.create({
-    //   data: {
-    //     userId: context.userId,
-    //     companyId: context.companyId,
-    //     action,
-    //     resourceType,
-    //     resourceId,
-    //     details: details ? JSON.stringify(details) : null,
-    //     timestamp: new Date()
-    //   }
-    // })
-  } catch (error) {
-    console.error('Error writing audit log:', error)
   }
 }
 
