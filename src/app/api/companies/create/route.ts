@@ -79,6 +79,12 @@ export async function POST(req: NextRequest) {
         }
       })
 
+      // CRITICAL FIX: Update user's companyId to link them to the new company
+      await tx.user.update({
+        where: { id: session.user.id },
+        data: { companyId: company.id }
+      })
+
       // Get the trial plan
       const trialPlan = await tx.plan.findFirst({
         where: { 
