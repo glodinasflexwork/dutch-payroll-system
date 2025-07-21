@@ -76,6 +76,9 @@ model Employee {
   contractType     String
   workingHours     Float           @default(40)
   workingDays      Float           @default(5)
+  salary           Float?
+  salaryType       String?         @default("monthly")
+  hourlyRate       Float?
   bankAccount      String?
   bankName         String?
   emergencyContact String?
