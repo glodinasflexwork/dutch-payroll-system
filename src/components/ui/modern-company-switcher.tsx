@@ -68,8 +68,12 @@ export function ModernCompanySwitcher({ isOpen, onClose, className }: ModernComp
       if (response.ok) {
         const data = await response.json()
         
-        // Update session to reflect the company change
-        await update()
+        // Update session to reflect the company change with proper data
+        await update({
+          companyId: companyId,
+          company: data.company,
+          role: data.company?.role
+        })
         
         // Update local state immediately for better UX
         setCompanies(prev => prev.map(company => ({

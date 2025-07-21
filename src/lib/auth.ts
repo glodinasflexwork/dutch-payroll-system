@@ -137,11 +137,43 @@ export const authOptions: NextAuthOptions = {
 
       // Handle session updates (e.g., when switching companies)
       if (trigger === "update" && session) {
+        console.log('Session update triggered:', session)
+        
         if (session.companyId) {
-          token.companyId = session.companyId
-          token.companyName = session.company?.name || token.companyName
-          token.companyRole = session.role || token.companyRole
-          token.hasCompany = true
+          // Fetch fresh company data when switching
+          try {
+            const userCompany = await authClient.userCompany.findUnique({
+              where: {
+                userId_companyId: {
+                  userId: token.sub!,
+                  companyId: session.companyId
+                }
+              },
+              include: {
+                Company: {
+                  select: {
+                    id: true,
+                    name: true
+                  }
+                }
+              }
+            })
+
+            if (userCompany && userCompany.isActive) {
+              token.companyId = userCompany.Company.id
+              token.companyName = userCompany.Company.name
+              token.companyRole = userCompany.role
+              token.hasCompany = true
+              
+              console.log('Updated token with company:', {
+                companyId: token.companyId,
+                companyName: token.companyName,
+                companyRole: token.companyRole
+              })
+            }
+          } catch (error) {
+            console.error('Error updating company in session:', error)
+          }
         }
       }
 
