@@ -237,13 +237,9 @@ export async function POST(request: NextRequest) {
         salaryType: data.salaryType || 'monthly',
         hourlyRate: hourlyRate > 0 ? hourlyRate : null,
         
-        // Dutch payroll compliance fields
+        // Dutch payroll compliance fields (individual-level only)
         taxTable: data.taxTable || 'wit',
         taxCredit: parseFloat(data.taxCredit) || 0,
-        payrollTaxNumber: data.payrollTaxNumber || null,
-        holidayAllowance: parseFloat(data.holidayAllowance) || 8.33,
-        holidayDays: parseInt(data.holidayDays) || 25,
-        pensionScheme: data.pensionScheme || null,
         isDGA: data.isDGA || false,
         
         // Banking information

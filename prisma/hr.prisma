@@ -36,6 +36,10 @@ model Company {
   noticePeriodDays        Int             @default(30)
   annualLeaveEntitlement  Int             @default(25)
   sickLeavePolicy         String          @default("STATUTORY")
+  
+  // Dutch payroll compliance (company-level)
+  payrollTaxNumber        String?         // Company's loonheffingennummer
+  pensionScheme           String?         // Company pension scheme
   createdAt               DateTime        @default(now())
   updatedAt               DateTime        @updatedAt
   // Relations
@@ -80,14 +84,10 @@ model Employee {
   salaryType      String?         @default("monthly") // "monthly" or "hourly"
   hourlyRate      Float?
   
-  // Dutch payroll compliance fields
-  taxTable        String?         @default("wit") // "wit" (standard) or "groen" (reduced)
-  taxCredit       Float?          @default(0) // Dutch tax credit amount
-  payrollTaxNumber String?        // Dutch payroll tax number (loonheffingennummer)
-  holidayAllowance Float?         @default(8.33) // Holiday allowance percentage (Dutch legal requirement)
-  holidayDays     Int?            @default(25) // Annual holiday days (Dutch minimum)
-  pensionScheme   String?         // Pension scheme information
-  isDGA           Boolean         @default(false) // Director-major shareholder (Directeur Grootaandeelhouder)
+  // Dutch payroll compliance fields (individual-level only)
+  taxTable        String?         @default("wit") // Individual tax table: "wit" (standard) or "groen" (reduced)
+  taxCredit       Float?          @default(0) // Individual tax credit amount
+  isDGA           Boolean         @default(false) // Individual Director-major shareholder status
   bankAccount      String?
   bankName         String?
   emergencyContact String?
