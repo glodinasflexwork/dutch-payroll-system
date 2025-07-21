@@ -47,6 +47,8 @@ model Company {
   timeEntries             TimeEntry[]
   employeeHistories       EmployeeHistory[]
   performanceReviews      PerformanceReview[]
+  contracts               Contract[]
+  employeePortalAccess    EmployeePortalAccess[]
 }
 
 model Employee {
@@ -88,6 +90,9 @@ model Employee {
   TimeEntry        TimeEntry[]
   EmployeeHistory  EmployeeHistory[]
   Company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contracts        Contract[]
+  portalAccess     EmployeePortalAccess?
+  documents        Document[]
 
   @@unique([companyId, bsn])
   @@unique([companyId, employeeNumber])
@@ -209,5 +214,83 @@ model PerformanceReview {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   Company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+
+model Contract {
+  id              String   @id @default(cuid())
+  employeeId      String
+  contractType    String   // "employment", "amendment", "termination", etc.
+  title           String
+  description     String?
+  fileName        String
+  filePath        String
+  fileSize        Int?
+  mimeType        String?
+  status          String   @default("pending") // "pending", "signed", "expired", "cancelled"
+  signedAt        DateTime?
+  signedBy        String?  // Employee ID who signed
+  signatureData   String?  // Base64 encoded signature or signature metadata
+  expiresAt       DateTime?
+  isActive        Boolean  @default(true)
+  companyId       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  Employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  Company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model EmployeePortalAccess {
+  id              String   @id @default(cuid())
+  employeeId      String   @unique
+  userId          String?  // Link to auth database user if employee has portal access
+  isActive        Boolean  @default(true)
+  lastLoginAt     DateTime?
+  loginAttempts   Int      @default(0)
+  lockedUntil     DateTime?
+  companyId       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  Employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  Company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+
+
+model Document {
+  id          String      @id @default(cuid())
+  employeeId  String
+  documentType DocumentType
+  fileName    String
+  originalName String
+  filePath    String
+  fileSize    Int
+  mimeType    String
+  status      DocumentStatus @default(PENDING)
+  uploadedAt  DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  expiresAt   DateTime?
+  notes       String?
+  
+  // Relations
+  employee    Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  @@map("documents")
+}
+
+enum DocumentType {
+  ID_BEWIJS
+  LOONBELASTINGVERKLARING
+  CONTRACT
+  PASSPORT
+  DRIVERS_LICENSE
+  OTHER
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
 }
 
