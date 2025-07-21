@@ -172,106 +172,118 @@ export default function AddEmployeeWizardPage() {
   ]
 
   // Real-time validation functions
-  const validateField = (field: keyof EmployeeFormData, value: string): FieldValidation => {
+  const validateField = (field: keyof EmployeeFormData, value: string | boolean): FieldValidation => {
     switch (field) {
       case 'firstName':
+        const firstNameValue = value as string
         return {
-          isValid: value.trim().length >= 2,
-          message: value.trim().length === 0 ? 'First name is required' : 
-                   value.trim().length < 2 ? 'First name must be at least 2 characters' : 'Valid first name',
+          isValid: firstNameValue.trim().length >= 2,
+          message: firstNameValue.trim().length === 0 ? 'First name is required' : 
+                   firstNameValue.trim().length < 2 ? 'First name must be at least 2 characters' : 'Valid first name',
           isRequired: true
         }
       
       case 'lastName':
+        const lastNameValue = value as string
         return {
-          isValid: value.trim().length >= 2,
-          message: value.trim().length === 0 ? 'Last name is required' : 
-                   value.trim().length < 2 ? 'Last name must be at least 2 characters' : 'Valid last name',
+          isValid: lastNameValue.trim().length >= 2,
+          message: lastNameValue.trim().length === 0 ? 'Last name is required' : 
+                   lastNameValue.trim().length < 2 ? 'Last name must be at least 2 characters' : 'Valid last name',
           isRequired: true
         }
       
       case 'email':
+        const emailValue = value as string
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
         return {
-          isValid: emailRegex.test(value),
-          message: value.trim().length === 0 ? 'Email address is required' : 
-                   !emailRegex.test(value) ? 'Please enter a valid email address' : 'Valid email address',
+          isValid: emailRegex.test(emailValue),
+          message: emailValue.trim().length === 0 ? 'Email address is required' : 
+                   !emailRegex.test(emailValue) ? 'Please enter a valid email address' : 'Valid email address',
           isRequired: true
         }
       
       case 'bsn':
+        const bsnValue = value as string
         return {
-          isValid: validateBSN(value),
-          message: value.trim().length === 0 ? 'BSN is required' : 
-                   value.length !== 9 ? 'BSN must be exactly 9 digits' :
-                   !validateBSN(value) ? 'Invalid BSN number' : 'Valid BSN number',
+          isValid: validateBSN(bsnValue),
+          message: bsnValue.trim().length === 0 ? 'BSN is required' : 
+                   bsnValue.length !== 9 ? 'BSN must be exactly 9 digits' :
+                   !validateBSN(bsnValue) ? 'Invalid BSN number' : 'Valid BSN number',
           isRequired: true
         }
       
       case 'country':
+        const countryValue = value as string
         return {
-          isValid: value.trim().length > 0,
-          message: value.trim().length === 0 ? 'Country is required' : 'Valid country selected',
+          isValid: countryValue.trim().length > 0,
+          message: countryValue.trim().length === 0 ? 'Country is required' : 'Valid country selected',
           isRequired: true
         }
       
       case 'nationality':
+        const nationalityValue = value as string
         return {
-          isValid: value.trim().length > 0,
-          message: value.trim().length === 0 ? 'Nationality is required' : 'Valid nationality selected',
+          isValid: nationalityValue.trim().length > 0,
+          message: nationalityValue.trim().length === 0 ? 'Nationality is required' : 'Valid nationality selected',
           isRequired: true
         }
       
       case 'phoneNumber':
+        const phoneValue = value as string
         const phoneRegex = /^(\+31|0)[0-9]{9}$/
         return {
-          isValid: value.length === 0 || phoneRegex.test(value.replace(/\s/g, '')),
-          message: value.length === 0 ? 'Phone number is optional' :
-                   !phoneRegex.test(value.replace(/\s/g, '')) ? 'Please enter a valid Dutch phone number' : 'Valid phone number',
+          isValid: phoneValue.length === 0 || phoneRegex.test(phoneValue.replace(/\s/g, '')),
+          message: phoneValue.length === 0 ? 'Phone number is optional' :
+                   !phoneRegex.test(phoneValue.replace(/\s/g, '')) ? 'Please enter a valid Dutch phone number' : 'Valid phone number',
           isRequired: false
         }
       
       case 'postalCode':
+        const postalValue = value as string
         const postalRegex = /^\d{4}\s?[A-Z]{2}$/i
         return {
-          isValid: value.length === 0 || postalRegex.test(value),
-          message: value.length === 0 ? 'Postal code is optional' :
-                   !postalRegex.test(value) ? 'Please enter a valid postal code (e.g., 1234 AB)' : 'Valid postal code',
+          isValid: postalValue.length === 0 || postalRegex.test(postalValue),
+          message: postalValue.length === 0 ? 'Postal code is optional' :
+                   !postalRegex.test(postalValue) ? 'Please enter a valid postal code (e.g., 1234 AB)' : 'Valid postal code',
           isRequired: false
         }
       
       case 'bankAccount':
+        const bankValue = value as string
         const ibanRegex = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{4}[0-9]{7}([A-Z0-9]?){0,16}$/
-        const cleanIban = value.replace(/\s/g, '').toUpperCase()
+        const cleanIban = bankValue.replace(/\s/g, '').toUpperCase()
         return {
-          isValid: value.length === 0 || (ibanRegex.test(cleanIban) && cleanIban.startsWith('NL')),
-          message: value.length === 0 ? 'Bank account is optional' :
+          isValid: bankValue.length === 0 || (ibanRegex.test(cleanIban) && cleanIban.startsWith('NL')),
+          message: bankValue.length === 0 ? 'Bank account is optional' :
                    !cleanIban.startsWith('NL') ? 'Please enter a Dutch IBAN (starting with NL)' :
                    !ibanRegex.test(cleanIban) ? 'Please enter a valid IBAN' : 'Valid IBAN',
           isRequired: false
         }
       
       case 'department':
+        const deptValue = value as string
         return {
-          isValid: value.trim().length > 0,
-          message: value.trim().length === 0 ? 'Department is required' : 'Valid department selected',
+          isValid: deptValue.trim().length > 0,
+          message: deptValue.trim().length === 0 ? 'Department is required' : 'Valid department selected',
           isRequired: true
         }
       
       case 'position':
+        const posValue = value as string
         return {
-          isValid: value.trim().length >= 2,
-          message: value.trim().length === 0 ? 'Position is required' : 
-                   value.trim().length < 2 ? 'Position must be at least 2 characters' : 'Valid position',
+          isValid: posValue.trim().length >= 2,
+          message: posValue.trim().length === 0 ? 'Position is required' : 
+                   posValue.trim().length < 2 ? 'Position must be at least 2 characters' : 'Valid position',
           isRequired: true
         }
       
       case 'salary':
+        const salaryValue = value as string
         if (formData.employmentType === 'monthly') {
-          const salaryNum = Number(value)
+          const salaryNum = Number(salaryValue)
           return {
             isValid: !isNaN(salaryNum) && salaryNum > 0,
-            message: value.trim().length === 0 ? 'Monthly salary is required' :
+            message: salaryValue.trim().length === 0 ? 'Monthly salary is required' :
                      isNaN(salaryNum) ? 'Please enter a valid number' :
                      salaryNum <= 0 ? 'Salary must be greater than 0' : 'Valid salary amount',
             isRequired: true
@@ -280,11 +292,12 @@ export default function AddEmployeeWizardPage() {
         return { isValid: true, message: 'Not required for hourly employees', isRequired: false }
       
       case 'hourlyRate':
+        const rateValue = value as string
         if (formData.employmentType === 'hourly') {
-          const rateNum = Number(value)
+          const rateNum = Number(rateValue)
           return {
             isValid: !isNaN(rateNum) && rateNum > 0,
-            message: value.trim().length === 0 ? 'Hourly rate is required' :
+            message: rateValue.trim().length === 0 ? 'Hourly rate is required' :
                      isNaN(rateNum) ? 'Please enter a valid number' :
                      rateNum <= 0 ? 'Hourly rate must be greater than 0' : 'Valid hourly rate',
             isRequired: true
@@ -293,45 +306,50 @@ export default function AddEmployeeWizardPage() {
         return { isValid: true, message: 'Not required for monthly employees', isRequired: false }
       
       case 'startDate':
+        const dateValue = value as string
         const today = new Date()
-        const selectedDate = new Date(value)
+        const selectedDate = new Date(dateValue)
         return {
-          isValid: value.length > 0 && selectedDate <= today,
-          message: value.length === 0 ? 'Start date is required' :
+          isValid: dateValue.length > 0 && selectedDate <= today,
+          message: dateValue.length === 0 ? 'Start date is required' :
                    selectedDate > today ? 'Start date cannot be in the future' : 'Valid start date',
           isRequired: true
         }
       
       case 'city':
+        const cityValue = value as string
         return {
-          isValid: value.length === 0 || value.trim().length >= 2,
-          message: value.length === 0 ? 'City is optional' :
-                   value.trim().length < 2 ? 'City name must be at least 2 characters' : 'Valid city name',
+          isValid: cityValue.length === 0 || cityValue.trim().length >= 2,
+          message: cityValue.length === 0 ? 'City is optional' :
+                   cityValue.trim().length < 2 ? 'City name must be at least 2 characters' : 'Valid city name',
           isRequired: false
         }
       
       case 'address':
+        const addressValue = value as string
         return {
-          isValid: value.length === 0 || value.trim().length >= 5,
-          message: value.length === 0 ? 'Address is optional' :
-                   value.trim().length < 5 ? 'Please enter a complete address' : 'Valid address',
+          isValid: addressValue.length === 0 || addressValue.trim().length >= 5,
+          message: addressValue.length === 0 ? 'Address is optional' :
+                   addressValue.trim().length < 5 ? 'Please enter a complete address' : 'Valid address',
           isRequired: false
         }
       
       case 'emergencyContact':
+        const contactValue = value as string
         return {
-          isValid: value.length === 0 || value.trim().length >= 2,
-          message: value.length === 0 ? 'Emergency contact is optional' :
-                   value.trim().length < 2 ? 'Contact name must be at least 2 characters' : 'Valid emergency contact',
+          isValid: contactValue.length === 0 || contactValue.trim().length >= 2,
+          message: contactValue.length === 0 ? 'Emergency contact is optional' :
+                   contactValue.trim().length < 2 ? 'Contact name must be at least 2 characters' : 'Valid emergency contact',
           isRequired: false
         }
       
       case 'emergencyPhone':
+        const emergencyPhoneValue = value as string
         const emergencyPhoneRegex = /^(\+31|0)[0-9]{9}$/
         return {
-          isValid: value.length === 0 || emergencyPhoneRegex.test(value.replace(/\s/g, '')),
-          message: value.length === 0 ? 'Emergency phone is optional' :
-                   !emergencyPhoneRegex.test(value.replace(/\s/g, '')) ? 'Please enter a valid phone number' : 'Valid emergency phone',
+          isValid: emergencyPhoneValue.length === 0 || emergencyPhoneRegex.test(emergencyPhoneValue.replace(/\s/g, '')),
+          message: emergencyPhoneValue.length === 0 ? 'Emergency phone is optional' :
+                   !emergencyPhoneRegex.test(emergencyPhoneValue.replace(/\s/g, '')) ? 'Please enter a valid phone number' : 'Valid emergency phone',
           isRequired: false
         }
       
@@ -342,12 +360,19 @@ export default function AddEmployeeWizardPage() {
           isRequired: false
         }
       
+      case 'sendInvitation':
+        return {
+          isValid: true,
+          message: 'Portal invitation is optional',
+          isRequired: false
+        }
+      
       default:
         return { isValid: true, message: '', isRequired: false }
     }
   }
 
-  const handleInputChange = (field: keyof EmployeeFormData, value: string) => {
+  const handleInputChange = (field: keyof EmployeeFormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     
     // Real-time validation
@@ -430,7 +455,8 @@ export default function AddEmployeeWizardPage() {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/employees', {
+      // First, create the employee
+      const employeeResponse = await fetch('/api/employees', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -442,10 +468,36 @@ export default function AddEmployeeWizardPage() {
         }),
       })
 
-      if (response.ok) {
+      if (employeeResponse.ok) {
+        const employeeData = await employeeResponse.json()
+        
+        // If sendInvitation is true, send the invitation
+        if (formData.sendInvitation) {
+          try {
+            const inviteResponse = await fetch('/api/employees/invite', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                employeeId: employeeData.employee.id,
+              }),
+            })
+
+            if (!inviteResponse.ok) {
+              const inviteError = await inviteResponse.json()
+              console.warn('Failed to send invitation:', inviteError.error)
+              // Don't fail the entire process if invitation fails
+            }
+          } catch (inviteError) {
+            console.warn('Failed to send invitation:', inviteError)
+            // Don't fail the entire process if invitation fails
+          }
+        }
+
         router.push('/dashboard/employees')
       } else {
-        const errorData = await response.json()
+        const errorData = await employeeResponse.json()
         setErrors({ submit: errorData.error || 'Failed to create employee' })
       }
     } catch (error) {
@@ -460,7 +512,7 @@ export default function AddEmployeeWizardPage() {
     if (!validation) return ''
     
     if (errors[field]) return 'border-red-500 focus:border-red-500 focus:ring-red-500'
-    if (validation.isValid && formData[field].length > 0) return 'border-green-500 focus:border-green-500 focus:ring-green-500'
+    if (validation.isValid && (typeof formData[field] === 'string' ? formData[field].length > 0 : true)) return 'border-green-500 focus:border-green-500 focus:ring-green-500'
     return ''
   }
 
@@ -477,7 +529,7 @@ export default function AddEmployeeWizardPage() {
       )
     }
     
-    if (validation && formData[field].length > 0) {
+    if (validation && (typeof formData[field] === 'string' ? formData[field].length > 0 : true)) {
       if (validation.isValid) {
         return (
           <p className="text-green-500 text-sm mt-1 flex items-center">
@@ -868,22 +920,37 @@ export default function AddEmployeeWizardPage() {
       case 5:
         return (
           <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="sendInvitation"
-                checked={formData.sendInvitation}
-                onChange={(e) => handleInputChange("sendInvitation", e.target.checked)}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label htmlFor="sendInvitation" className="text-sm font-medium text-gray-700">
-                Send portal invitation to employee
-              </label>
-            </div>
             <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-              <p className="text-sm text-blue-700">
-                <strong>Note:</strong> Sending a portal invitation may incur additional costs or count towards your subscription limits. Please ensure your subscription plan supports additional employee portals.
+              <h3 className="text-lg font-medium text-blue-900 mb-2">Employee Portal Access</h3>
+              <p className="text-sm text-blue-700 mb-4">
+                The employee portal allows your team members to view their payslips, request time off, and manage their personal information. 
+                You can choose to send an invitation now or invite them later from the employee list.
               </p>
+              
+              <div className="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  id="sendInvitation"
+                  checked={formData.sendInvitation}
+                  onChange={(e) => handleInputChange('sendInvitation', e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="sendInvitation" className="text-sm font-medium text-gray-700">
+                  Send portal invitation to employee
+                </label>
+              </div>
+              
+              {formData.sendInvitation && (
+                <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                  <p className="text-sm text-green-700">
+                    ✓ An invitation email will be sent to <strong>{formData.email}</strong> after the employee is created.
+                  </p>
+                </div>
+              )}
+              
+              <div className="mt-4 text-xs text-gray-500">
+                <p><strong>Note:</strong> Portal access may be subject to your subscription plan limits. If you reach your user limit, you can upgrade your plan or invite employees later.</p>
+              </div>
             </div>
           </div>
         )

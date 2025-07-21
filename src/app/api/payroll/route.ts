@@ -4,6 +4,8 @@ import { payrollClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { calculateDutchPayroll, generatePayrollBreakdown, formatCurrency } from "@/lib/payroll-calculations"
 import { ensurePayrollInitialized } from "@/lib/lazy-initialization"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 
 // POST /api/payroll/calculate - Calculate payroll for specific employee
 export async function POST(request: NextRequest) {
@@ -323,17 +325,14 @@ export async function PUT(request: NextRequest) {
 // GET /api/payroll - Get payroll records for company
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const { context, error, status } = await validateAuth(request, ["employee", "admin", "hr", "manager"])
     
-    if (!session?.user?.companyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!context || error) {
+      return NextResponse.json({ error }, { status })
     }
 
     // Validate subscription
     const subscriptionValidation = await validateSubscription(context.companyId)
-    if (!subscriptionValidation.isValid) {
-      return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
-    }
 
     const { searchParams } = new URL(request.url)
     const employeeId = searchParams.get('employeeId')
@@ -352,7 +351,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (startDate && endDate) {
-      whereClause.payPeriodStart = {
+      whereClause.createdAt = {
         gte: new Date(startDate),
         lte: new Date(endDate)
       }
@@ -374,7 +373,7 @@ export async function GET(request: NextRequest) {
         }
       },
       orderBy: {
-        payPeriodStart: 'desc'
+        createdAt: 'desc'
       },
       take: limit,
       skip: offset
