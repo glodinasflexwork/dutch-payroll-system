@@ -15,18 +15,27 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
+
     const employee = await hrClient.employee.findFirst({
       where: {
-        id: params.id,
+        id: id,
         companyId: session.user.companyId
       },
       include: {
-        payrollRecords: {
-          orderBy: { payPeriodStart: 'desc' },
-          take: 5 // Last 5 payroll records
+        LeaveRequest: {
+          orderBy: { createdAt: 'desc' },
+          take: 5 // Last 5 leave requests
         },
-        employeeAllowances: true,
-        employeeDeductions: true
+        TimeEntry: {
+          orderBy: { date: 'desc' },
+          take: 10 // Last 10 time entries
+        },
+        EmployeeHistory: {
+          orderBy: { createdAt: 'desc' },
+          take: 5 // Last 5 history records
+        },
+        Company: true
       }
     })
 
@@ -59,12 +68,13 @@ export async function PUT(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const { id } = await params
     const data = await request.json()
     
     // Check if employee exists and belongs to the company
     const existingEmployee = await hrClient.employee.findFirst({
       where: {
-        id: params.id,
+        id: id,
         companyId: session.user.companyId
       }
     })
@@ -86,7 +96,7 @@ export async function PUT(
         where: { 
           bsn: data.bsn,
           companyId: session.user.companyId,
-          id: { not: params.id }
+          id: { not: id }
         }
       })
       
@@ -104,7 +114,7 @@ export async function PUT(
         where: { 
           employeeNumber: data.employeeNumber,
           companyId: session.user.companyId,
-          id: { not: params.id }
+          id: { not: id }
         }
       })
       
@@ -141,7 +151,7 @@ export async function PUT(
     
     // Update employee
     const updatedEmployee = await hrClient.employee.update({
-      where: { id: params.id },
+      where: { id: id },
       data: updateData
     })
     
@@ -171,11 +181,13 @@ export async function DELETE(
     if (!session?.user?.companyId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    const { id } = await params
     
     // Check if employee exists and belongs to the company
     const existingEmployee = await hrClient.employee.findFirst({
       where: {
-        id: params.id,
+        id: id,
         companyId: session.user.companyId
       }
     })
@@ -184,36 +196,20 @@ export async function DELETE(
       return NextResponse.json({ error: "Employee not found" }, { status: 404 })
     }
     
-    // Check if employee has payroll records
-    const payrollCount = await hrClient.payrollRecord.count({
-      where: { employeeId: params.id }
+    // Since we don't have payroll records in the current schema, just soft delete
+    // Soft delete by setting isActive to false and endDate to now
+    await hrClient.employee.update({
+      where: { id: id },
+      data: {
+        isActive: false,
+        endDate: new Date()
+      }
     })
     
-    if (payrollCount > 0) {
-      // Soft delete by setting isActive to false and endDate to now
-      await hrClient.employee.update({
-        where: { id: params.id },
-        data: {
-          isActive: false,
-          endDate: new Date()
-        }
-      })
-      
-      return NextResponse.json({
-        success: true,
-        message: 'Employee deactivated successfully (payroll history preserved)'
-      })
-    } else {
-      // Hard delete if no payroll records exist
-      await hrClient.employee.delete({
-        where: { id: params.id }
-      })
-      
-      return NextResponse.json({
-        success: true,
-        message: 'Employee deleted successfully'
-      })
-    }
+    return NextResponse.json({
+      success: true,
+      message: 'Employee deactivated successfully'
+    })
     
   } catch (error) {
     console.error("Error deleting employee:", error)

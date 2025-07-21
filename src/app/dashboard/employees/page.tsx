@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import DeleteConfirmationModal from "@/components/ui/delete-confirmation-modal"
+import EmployeeActionsDropdown from "@/components/ui/employee-actions-dropdown"
 import { 
   Users, 
   Plus, 
@@ -47,6 +49,7 @@ export default function EmployeesPage() {
   const [filterEmploymentType, setFilterEmploymentType] = useState("all")
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -132,23 +135,23 @@ export default function EmployeesPage() {
 
   const departments = [...new Set(employees.map(emp => emp.department).filter(Boolean))]
 
-  const handleEmployeeMenu = (employee: Employee) => {
-    setSelectedEmployee(employee)
-    // For now, just show a simple alert with options
-    // In a real app, you'd show a dropdown menu
-    const action = window.confirm(
-      `Actions for ${employee.firstName} ${employee.lastName}:\n\n` +
-      `Click OK to delete employee, or Cancel to close.`
-    )
-    
-    if (action) {
-      setShowDeleteDialog(true)
-    }
+  const handleViewEmployee = (employeeId: string) => {
+    router.push(`/dashboard/employees/${employeeId}`)
   }
 
-  const handleDeleteEmployee = async () => {
+  const handleEditEmployee = (employeeId: string) => {
+    router.push(`/dashboard/employees/${employeeId}/edit`)
+  }
+
+  const handleDeleteEmployee = (employee: Employee) => {
+    setSelectedEmployee(employee)
+    setShowDeleteDialog(true)
+  }
+
+  const handleConfirmDelete = async () => {
     if (!selectedEmployee) return
     
+    setIsDeleting(true)
     try {
       const response = await fetch(`/api/employees/${selectedEmployee.id}`, {
         method: 'DELETE'
@@ -159,22 +162,23 @@ export default function EmployeesPage() {
         await fetchEmployees()
         setShowDeleteDialog(false)
         setSelectedEmployee(null)
-        alert('Employee deleted successfully')
       } else {
-        alert('Failed to delete employee')
+        console.error('Failed to delete employee')
       }
     } catch (error) {
       console.error('Error deleting employee:', error)
-      alert('Error deleting employee')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
-  const handleViewEmployee = (employeeId: string) => {
-    router.push(`/dashboard/employees/${employeeId}`)
+  const handleSendEmail = (email: string) => {
+    window.open(`mailto:${email}`, '_blank')
   }
 
-  const handleEditEmployee = (employeeId: string) => {
-    router.push(`/dashboard/employees/${employeeId}/edit`)
+  const handleExportData = (employeeId: string) => {
+    // TODO: Implement export functionality
+    console.log('Export data for employee:', employeeId)
   }
 
   if (status === "loading" || loading) {
@@ -421,14 +425,14 @@ export default function EmployeesPage() {
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleEmployeeMenu(employee)}
-                              title="More actions"
-                            >
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
+                            <EmployeeActionsDropdown
+                              employee={employee}
+                              onView={handleViewEmployee}
+                              onEdit={handleEditEmployee}
+                              onDelete={handleDeleteEmployee}
+                              onSendEmail={handleSendEmail}
+                              onExportData={handleExportData}
+                            />
                           </div>
                         </td>
                       </tr>
@@ -440,6 +444,20 @@ export default function EmployeesPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={showDeleteDialog}
+        onClose={() => {
+          setShowDeleteDialog(false)
+          setSelectedEmployee(null)
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Employee"
+        description="Are you sure you want to delete this employee? This action cannot be undone and will remove all associated data."
+        itemName={selectedEmployee ? `${selectedEmployee.firstName} ${selectedEmployee.lastName}` : ''}
+        isLoading={isDeleting}
+      />
     </DashboardLayout>
   )
 }
