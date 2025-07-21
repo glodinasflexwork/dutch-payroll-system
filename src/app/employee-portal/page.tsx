@@ -1410,7 +1410,7 @@ export default function EmployeePortal() {
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-white bg-opacity-70 z-40 lg:hidden"
+          className="fixed inset-0 bg-opacity-0 z-40 lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
