@@ -75,10 +75,19 @@ model Employee {
   employmentType   String
   contractType     String
   workingHours     Float           @default(40)
-  workingDays      Float           @default(5)
-  salary           Float?
-  salaryType       String?         @default("monthly")
-  hourlyRate       Float?
+   // Salary information
+  salary          Float?
+  salaryType      String?         @default("monthly") // "monthly" or "hourly"
+  hourlyRate      Float?
+  
+  // Dutch payroll compliance fields
+  taxTable        String?         @default("wit") // "wit" (standard) or "groen" (reduced)
+  taxCredit       Float?          @default(0) // Dutch tax credit amount
+  payrollTaxNumber String?        // Dutch payroll tax number (loonheffingennummer)
+  holidayAllowance Float?         @default(8.33) // Holiday allowance percentage (Dutch legal requirement)
+  holidayDays     Int?            @default(25) // Annual holiday days (Dutch minimum)
+  pensionScheme   String?         // Pension scheme information
+  isDGA           Boolean         @default(false) // Director-major shareholder (Directeur Grootaandeelhouder)
   bankAccount      String?
   bankName         String?
   emergencyContact String?

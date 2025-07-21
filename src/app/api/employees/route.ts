@@ -237,6 +237,15 @@ export async function POST(request: NextRequest) {
         salaryType: data.salaryType || 'monthly',
         hourlyRate: hourlyRate > 0 ? hourlyRate : null,
         
+        // Dutch payroll compliance fields
+        taxTable: data.taxTable || 'wit',
+        taxCredit: parseFloat(data.taxCredit) || 0,
+        payrollTaxNumber: data.payrollTaxNumber || null,
+        holidayAllowance: parseFloat(data.holidayAllowance) || 8.33,
+        holidayDays: parseInt(data.holidayDays) || 25,
+        pensionScheme: data.pensionScheme || null,
+        isDGA: data.isDGA || false,
+        
         // Banking information
         bankAccount: data.bankAccount || null,
         bankName: data.bankName || null,
@@ -261,7 +270,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       employee: employee,
-      message: 'Employee created successfully'
+      message: 'Employee created successfully with Dutch payroll compliance fields'
     }, { status: 201 })
     
   } catch (error) {
