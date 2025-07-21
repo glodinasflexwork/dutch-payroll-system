@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    // Create new employee with all Dutch-specific fields
+    // Create new employee with fields that exist in the current schema
     const employee = await hrClient.employee.create({
       data: {
         // Basic identification
@@ -237,16 +237,6 @@ export async function POST(request: NextRequest) {
         salaryType: data.salaryType || 'monthly',
         hourlyRate: hourlyRate > 0 ? hourlyRate : null,
         
-        // Dutch tax information
-        taxTable: data.taxTable || 'wit',
-        taxCredit: parseFloat(data.taxCredit) || 0,
-        payrollTaxNumber: data.payrollTaxNumber || null,
-        
-        // Benefits and allowances
-        holidayAllowance: parseFloat(data.holidayAllowance) || 8.33,
-        holidayDays: parseInt(data.holidayDays) || 25,
-        pensionScheme: data.pensionScheme || null,
-        
         // Banking information
         bankAccount: data.bankAccount || null,
         bankName: data.bankName || null,
@@ -258,7 +248,6 @@ export async function POST(request: NextRequest) {
         
         // Employment status
         isActive: true,
-        isDGA: data.isDGA || false,
         
         // System fields
         companyId: context.companyId,
@@ -272,7 +261,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       employee: employee,
-      message: 'Employee created successfully with all Dutch payroll information'
+      message: 'Employee created successfully'
     }, { status: 201 })
     
   } catch (error) {
@@ -347,14 +336,11 @@ export async function PUT(request: NextRequest) {
     if (data.dateOfBirth) updateData.dateOfBirth = new Date(data.dateOfBirth)
     if (data.probationEndDate) updateData.probationEndDate = new Date(data.probationEndDate)
     
-    // Convert numeric fields
-    if (data.salary) updateData.salary = parseFloat(data.salary)
-    if (data.hourlyRate) updateData.hourlyRate = parseFloat(data.hourlyRate)
-    if (data.workingHours) updateData.workingHours = parseFloat(data.workingHours)
-    if (data.workingDays) updateData.workingDays = parseFloat(data.workingDays)
-    if (data.taxCredit) updateData.taxCredit = parseFloat(data.taxCredit)
-    if (data.holidayAllowance) updateData.holidayAllowance = parseFloat(data.holidayAllowance)
-    if (data.holidayDays) updateData.holidayDays = parseInt(data.holidayDays)
+    // Convert numeric fields that exist in the schema
+    if (data.salary !== undefined) updateData.salary = parseFloat(data.salary) || 0
+    if (data.hourlyRate !== undefined) updateData.hourlyRate = parseFloat(data.hourlyRate) || null
+    if (data.workingHours !== undefined) updateData.workingHours = parseFloat(data.workingHours) || 40
+    if (data.workingDays !== undefined) updateData.workingDays = parseFloat(data.workingDays) || 5
     
     // Update employee
     const updatedEmployee = await hrClient.employee.update({
