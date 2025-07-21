@@ -40,6 +40,7 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith('/api/companies/') ||
       request.nextUrl.pathname.startsWith('/api/kvk/') ||
       request.nextUrl.pathname.startsWith('/api/daily-background') ||
+      request.nextUrl.pathname.startsWith('/api/employee-portal-demo') ||
       request.nextUrl.pathname.startsWith('/setup/company')) {
     return NextResponse.next()
   }
