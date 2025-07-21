@@ -32,7 +32,9 @@ import {
   Calculator,
   Settings,
   CreditCard,
-  Play
+  Play,
+  Menu,
+  X
 } from 'lucide-react'
 
 interface PortalData {
@@ -114,6 +116,7 @@ export default function EmployeePortal() {
     description: "",
     receiptFile: null as File | null
   })
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   // Mock employee ID - in real implementation, this would come from authentication
   const employeeId = 'mock-employee-id'
@@ -484,7 +487,7 @@ export default function EmployeePortal() {
         </div>
 
         {/* Enhanced Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
           <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-blue-50 to-blue-100">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -549,7 +552,7 @@ export default function EmployeePortal() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
           <Card className="border-0 shadow-lg">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center space-x-2">
@@ -639,7 +642,7 @@ export default function EmployeePortal() {
             <CardDescription>Personal information and employment details</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
               <div className="space-y-2">
                 <p className="text-sm font-medium text-gray-500">Full Name</p>
                 <p className="text-lg font-semibold text-gray-900">{data.employee.firstName} {data.employee.lastName}</p>
@@ -658,7 +661,7 @@ export default function EmployeePortal() {
               </div>
             </div>
             <div className="mt-6 pt-6 border-t border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-gray-500">Email Address</p>
                   <p className="text-base text-gray-900">{data.employee.email}</p>
@@ -902,7 +905,7 @@ export default function EmployeePortal() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmitExpense} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Expense Type *
@@ -985,7 +988,7 @@ export default function EmployeePortal() {
                   />
                 </div>
                 
-                <div className="flex space-x-3">
+                <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
                   <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
                     Submit Expense
                   </Button>
@@ -1003,7 +1006,7 @@ export default function EmployeePortal() {
         )}
 
         {/* Expense Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
           <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-blue-100">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -1185,7 +1188,7 @@ export default function EmployeePortal() {
                 
                 return (
                   <div key={reqDoc.type} className={`p-6 ${!isLast ? 'border-b border-gray-200' : ''}`}>
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
                       <div className="flex items-center space-x-4">
                         <div className={`p-2 rounded-lg ${
                           reqDoc.status === 'APPROVED' ? 'bg-green-100' :
@@ -1403,19 +1406,40 @@ export default function EmployeePortal() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex relative">
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+      <div className={`
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        fixed lg:static inset-y-0 left-0 z-50 w-80 bg-white border-r border-gray-200 flex flex-col
+        transition-transform duration-300 ease-in-out lg:transition-none
+      `}>
         {/* Logo */}
         <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
-              <Grid3X3 className="h-6 w-6 text-white" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
+                <Grid3X3 className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <span className="text-xl font-bold text-gray-900">SalarySync</span>
+                <p className="text-sm text-gray-500">Professional Payroll</p>
+              </div>
             </div>
-            <div>
-              <span className="text-xl font-bold text-gray-900">SalarySync</span>
-              <p className="text-sm text-gray-500">Professional Payroll</p>
-            </div>
+            {/* Mobile Close Button */}
+            <button
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
+            >
+              <X className="h-5 w-5 text-gray-600" />
+            </button>
           </div>
         </div>
 
@@ -1517,34 +1541,43 @@ export default function EmployeePortal() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col lg:ml-0">
         {/* Header */}
         <div className="bg-white border-b border-gray-200">
-          <div className="px-6 py-4">
+          <div className="px-4 lg:px-6 py-4">
             <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  {activeSection === 'dashboard' ? 'Dashboard' : 
-                   activeSection === 'payslips' ? 'Payslips' :
-                   activeSection === 'contracts' ? 'Contracts' :
-                   activeSection === 'leave' ? 'Leave Management' :
-                   activeSection === 'timetracking' ? 'Time Tracking' :
-                   activeSection === 'expenses' ? 'Expenses & Refunds' : 'Dashboard'}
-                </h1>
-                <p className="text-gray-600">
-                  {activeSection === 'dashboard' ? 'Overview & insights' : 
-                   activeSection === 'payslips' ? 'People Management' :
-                   activeSection === 'contracts' ? 'People Management' :
-                   activeSection === 'leave' ? 'Time Management' :
-                   activeSection === 'timetracking' ? 'Time Management' :
-                   activeSection === 'expenses' ? 'My Finances' : 'Overview & insights'}
-                </p>
+              <div className="flex items-center space-x-4">
+                {/* Mobile Menu Button */}
+                <button
+                  onClick={() => setIsMobileMenuOpen(true)}
+                  className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
+                >
+                  <Menu className="h-5 w-5 text-gray-600" />
+                </button>
+                <div>
+                  <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
+                    {activeSection === 'dashboard' ? 'Dashboard' : 
+                     activeSection === 'payslips' ? 'Payslips' :
+                     activeSection === 'contracts' ? 'Contracts' :
+                     activeSection === 'leave' ? 'Leave Management' :
+                     activeSection === 'timetracking' ? 'Time Tracking' :
+                     activeSection === 'expenses' ? 'Expenses & Refunds' : 'Dashboard'}
+                  </h1>
+                  <p className="text-sm lg:text-base text-gray-600">
+                    {activeSection === 'dashboard' ? 'Overview & insights' : 
+                     activeSection === 'payslips' ? 'People Management' :
+                     activeSection === 'contracts' ? 'People Management' :
+                     activeSection === 'leave' ? 'Time Management' :
+                     activeSection === 'timetracking' ? 'Time Management' :
+                     activeSection === 'expenses' ? 'My Finances' : 'Overview & insights'}
+                  </p>
+                </div>
               </div>
               
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2 bg-green-50 px-3 py-1 rounded-full">
+              <div className="flex items-center space-x-2 lg:space-x-4">
+                <div className="hidden sm:flex items-center space-x-2 bg-green-50 px-2 lg:px-3 py-1 rounded-full">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm font-medium text-green-700">
+                  <span className="text-xs lg:text-sm font-medium text-green-700">
                     {data.employee.firstName} {data.employee.lastName}
                   </span>
                 </div>
@@ -1554,7 +1587,7 @@ export default function EmployeePortal() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 p-6">
+        <div className="flex-1 p-4 lg:p-6">
           {renderContent()}
         </div>
       </div>
