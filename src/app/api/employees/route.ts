@@ -73,29 +73,7 @@ export async function POST(request: NextRequest) {
     await ensureHRInitialized(context.companyId)
     console.log('HR database initialization complete')
 
-    // Check subscription and employee limits
-    const currentEmployeeCount = await hrClient.employee.count({
-      where: { 
-        companyId: context.companyId, 
-        isActive: true 
-      }
-    })
 
-    // Check subscription - allow employee creation even if expired
-    const subscriptionValidation = await validateSubscription(context.companyId)
-    
-    // Only block if subscription validation completely fails (not just expired)
-    if (!subscriptionValidation.isValid && !subscriptionValidation.isExpired) {
-      return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
-    }
-
-    // Check employee limit only for active subscriptions
-    const maxEmployees = subscriptionValidation.limits?.maxEmployees
-    if (!subscriptionValidation.isExpired && maxEmployees && currentEmployeeCount >= maxEmployees) {
-      return NextResponse.json({ 
-        error: `Employee limit reached. Your plan allows up to ${maxEmployees} employees.` 
-      }, { status: 403 })
-    }
 
     const data = await request.json()
     
@@ -284,7 +262,8 @@ export async function POST(request: NextRequest) {
         
         // System fields
         companyId: context.companyId,
-        createdBy: context.userId
+        createdBy: context.userId,
+        portalAccessStatus: "NO_ACCESS", // Default to no portal access
       }
     })
     

@@ -48,7 +48,7 @@ model Company {
   employeeHistories       EmployeeHistory[]
   performanceReviews      PerformanceReview[]
   contracts               Contract[]
-  employeePortalAccess    EmployeePortalAccess[]
+
 }
 
 model Employee {
@@ -94,7 +94,8 @@ model Employee {
   EmployeeHistory  EmployeeHistory[]
   Company          Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   contracts        Contract[]
-  portalAccess     EmployeePortalAccess?
+  portalAccessStatus String          @default("NO_ACCESS") // e.g., "NO_ACCESS", "INVITED", "ACTIVE"
+  invitedAt        DateTime?
   documents        Document[]
 
   @@unique([companyId, bsn])
@@ -236,21 +237,6 @@ model Contract {
   signatureData   String?  // Base64 encoded signature or signature metadata
   expiresAt       DateTime?
   isActive        Boolean  @default(true)
-  companyId       String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  Employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  Company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-}
-
-model EmployeePortalAccess {
-  id              String   @id @default(cuid())
-  employeeId      String   @unique
-  userId          String?  // Link to auth database user if employee has portal access
-  isActive        Boolean  @default(true)
-  lastLoginAt     DateTime?
-  loginAttempts   Int      @default(0)
-  lockedUntil     DateTime?
   companyId       String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
