@@ -73,8 +73,6 @@ export async function POST(request: NextRequest) {
     await ensureHRInitialized(context.companyId)
     console.log('HR database initialization complete')
 
-
-
     const data = await request.json()
     
     // Validate required fields
@@ -259,6 +257,27 @@ export async function POST(request: NextRequest) {
         portalAccessStatus: "NO_ACCESS", // Default to no portal access
       }
     })
+    
+    // Handle portal invitation if requested
+    if (data.sendInvitation) {
+      try {
+        // Call the invite API
+        const inviteResponse = await fetch(`${process.env.NEXTAUTH_URL}/api/employees/invite`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cookie': request.headers.get('cookie') || '' // Forward auth cookies
+          },
+          body: JSON.stringify({ employeeId: employee.id })
+        });
+        
+        if (!inviteResponse.ok) {
+          console.warn('Failed to send employee invitation, but employee was created successfully');
+        }
+      } catch (inviteError) {
+        console.error('Error sending employee invitation:', inviteError);
+      }
+    }
     
     console.log(`Employee created successfully: ${employee.firstName} ${employee.lastName} with ID: ${employee.id}`)
     
