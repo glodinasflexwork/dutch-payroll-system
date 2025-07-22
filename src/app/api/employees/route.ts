@@ -230,7 +230,6 @@ export async function POST(request: NextRequest) {
         employmentType: data.employmentType,
         contractType: data.contractType,
         workingHours: parseFloat(data.workingHours) || 40,
-        workingDays: parseFloat(data.workingDays) || 5,
         
         // Salary information
         salary: salary,
@@ -345,7 +344,6 @@ export async function PUT(request: NextRequest) {
     if (data.salary !== undefined) updateData.salary = parseFloat(data.salary) || 0
     if (data.hourlyRate !== undefined) updateData.hourlyRate = parseFloat(data.hourlyRate) || null
     if (data.workingHours !== undefined) updateData.workingHours = parseFloat(data.workingHours) || 40
-    if (data.workingDays !== undefined) updateData.workingDays = parseFloat(data.workingDays) || 5
     
     // Update employee
     const updatedEmployee = await hrClient.employee.update({
