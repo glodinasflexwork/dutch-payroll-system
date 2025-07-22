@@ -116,11 +116,23 @@ async function setupDemoCompanies() {
 
     // Create companies and employees
     for (const companyData of companiesData) {
-      console.log(`\n📊 Creating company: ${companyData.name}`)
+      console.log(`\n📊 Setting up company: ${companyData.name}`)
 
-      // Create company in auth database
-      const authCompany = await authPrisma.company.create({
-        data: {
+      // Upsert company in auth database (create or update if exists)
+      const authCompany = await authPrisma.company.upsert({
+        where: { name: companyData.name },
+        update: {
+          address: companyData.address,
+          city: companyData.city,
+          postalCode: companyData.postalCode,
+          phone: companyData.phone,
+          email: companyData.email,
+          website: companyData.website,
+          kvkNumber: companyData.kvkNumber,
+          industry: companyData.industry,
+          employeeCount: companyData.employeeCount
+        },
+        create: {
           name: companyData.name,
           address: companyData.address,
           city: companyData.city,
@@ -134,23 +146,53 @@ async function setupDemoCompanies() {
         }
       })
 
-      console.log(`✅ Created auth company: ${authCompany.id}`)
+      console.log(`✅ Upserted auth company: ${authCompany.id}`)
 
-      // Create UserCompany relationship
-      await authPrisma.userCompany.create({
-        data: {
+      // Upsert UserCompany relationship
+      const existingUserCompany = await authPrisma.userCompany.findFirst({
+        where: {
           userId: user.id,
-          companyId: authCompany.id,
-          role: companyData.role,
-          isActive: true
+          companyId: authCompany.id
         }
       })
 
-      console.log(`✅ Created user-company relationship with role: ${companyData.role}`)
+      if (!existingUserCompany) {
+        await authPrisma.userCompany.create({
+          data: {
+            userId: user.id,
+            companyId: authCompany.id,
+            role: companyData.role,
+            isActive: true
+          }
+        })
+        console.log(`✅ Created user-company relationship with role: ${companyData.role}`)
+      } else {
+        await authPrisma.userCompany.update({
+          where: { id: existingUserCompany.id },
+          data: {
+            role: companyData.role,
+            isActive: true
+          }
+        })
+        console.log(`✅ Updated user-company relationship with role: ${companyData.role}`)
+      }
 
-      // Create company in HR database
-      const hrCompany = await hrPrisma.company.create({
-        data: {
+      // Upsert company in HR database
+      const hrCompany = await hrPrisma.company.upsert({
+        where: { id: authCompany.id },
+        update: {
+          name: companyData.name,
+          address: companyData.address,
+          city: companyData.city,
+          postalCode: companyData.postalCode,
+          phone: companyData.phone,
+          email: companyData.email,
+          website: companyData.website,
+          kvkNumber: companyData.kvkNumber,
+          industry: companyData.industry,
+          employeeCount: companyData.employeeCount
+        },
+        create: {
           id: authCompany.id, // Use same ID for consistency
           name: companyData.name,
           address: companyData.address,
@@ -165,34 +207,42 @@ async function setupDemoCompanies() {
         }
       })
 
-      console.log(`✅ Created HR company: ${hrCompany.id}`)
+      console.log(`✅ Upserted HR company: ${hrCompany.id}`)
 
-      // Create employees
-      let employeeNumber = 1
-      for (const employeeData of companyData.employees) {
-        const employee = await hrPrisma.employee.create({
-          data: {
-            employeeNumber: `EMP${employeeNumber.toString().padStart(3, '0')}`,
-            firstName: employeeData.firstName,
-            lastName: employeeData.lastName,
-            email: `${employeeData.firstName.toLowerCase()}.${employeeData.lastName.toLowerCase().replace(' ', '')}@${companyData.name.toLowerCase().replace(/[^a-z]/g, '')}.nl`,
-            bsn: employeeData.bsn,
-            dateOfBirth: new Date('1990-01-01'), // Default birth date
-            startDate: new Date('2024-01-01'), // Default start date
-            position: employeeData.position,
-            department: employeeData.department,
-            employmentType: 'FULL_TIME',
-            contractType: 'PERMANENT',
-            workingHours: 40,
-            companyId: hrCompany.id,
-            createdBy: user.id
-          }
-        })
+      // Create/update employees (only if they don't exist)
+      const existingEmployeeCount = await hrPrisma.employee.count({
+        where: { companyId: hrCompany.id }
+      })
 
-        employeeNumber++
+      if (existingEmployeeCount === 0) {
+        console.log(`📝 Creating ${companyData.employees.length} employees...`)
+        let employeeNumber = 1
+        for (const employeeData of companyData.employees) {
+          const employee = await hrPrisma.employee.create({
+            data: {
+              employeeNumber: `EMP${employeeNumber.toString().padStart(3, '0')}`,
+              firstName: employeeData.firstName,
+              lastName: employeeData.lastName,
+              email: `${employeeData.firstName.toLowerCase()}.${employeeData.lastName.toLowerCase().replace(' ', '')}@${companyData.name.toLowerCase().replace(/[^a-z]/g, '')}.nl`,
+              bsn: employeeData.bsn,
+              dateOfBirth: new Date('1990-01-01'), // Default birth date
+              startDate: new Date('2024-01-01'), // Default start date
+              position: employeeData.position,
+              department: employeeData.department,
+              employmentType: 'FULL_TIME',
+              contractType: 'PERMANENT',
+              workingHours: 40,
+              companyId: hrCompany.id,
+              createdBy: user.id
+            }
+          })
+
+          employeeNumber++
+        }
+        console.log(`✅ Created ${companyData.employees.length} employees`)
+      } else {
+        console.log(`ℹ️  Company already has ${existingEmployeeCount} employees, skipping employee creation`)
       }
-
-      console.log(`✅ Created ${companyData.employees.length} employees`)
     }
 
     // Set the first company as the user's current company
