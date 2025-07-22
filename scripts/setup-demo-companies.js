@@ -1,3 +1,4 @@
+require('dotenv').config({ path: '.env.local' });
 const { PrismaClient } = require('@prisma/client')
 const { PrismaClient: HRPrismaClient } = require('@prisma/hr-client')
 
@@ -183,7 +184,6 @@ async function setupDemoCompanies() {
             employmentType: 'FULL_TIME',
             contractType: 'PERMANENT',
             workingHours: 40,
-            workingDays: 5,
             companyId: hrCompany.id,
             createdBy: user.id
           }

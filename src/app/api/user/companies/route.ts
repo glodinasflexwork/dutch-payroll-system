@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { authClient } from '@/lib/database-clients'
+import { PrismaClient as HRPrismaClient } from '@prisma/hr-client'
+
+const hrClient = new HRPrismaClient()
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,14 +35,33 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Format the response
+    // Get real-time employee counts from HR database
+    const companyIds = userCompanies.map(uc => uc.Company.id)
+    const employeeCounts = await hrClient.employee.groupBy({
+      by: ['companyId'],
+      where: {
+        companyId: { in: companyIds },
+        isActive: true
+      },
+      _count: {
+        id: true
+      }
+    })
+
+    // Create a map of company ID to employee count
+    const employeeCountMap = employeeCounts.reduce((acc, item) => {
+      acc[item.companyId] = item._count.id
+      return acc
+    }, {} as Record<string, number>)
+
+    // Format the response with real-time employee counts
     const companies = userCompanies.map(uc => ({
       id: uc.Company.id,
       name: uc.Company.name,
       role: uc.role,
       isActive: uc.isActive,
       industry: uc.Company.industry,
-      employeeCount: uc.Company.employeeCount || 0,
+      employeeCount: employeeCountMap[uc.Company.id] || 0, // Use real-time count
       isCurrentCompany: false // Will be set below
     }))
 
@@ -70,6 +92,8 @@ export async function GET(request: NextRequest) {
       { error: 'Failed to fetch companies' },
       { status: 500 }
     )
+  } finally {
+    await hrClient.$disconnect()
   }
 }
 
