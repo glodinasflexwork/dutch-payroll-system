@@ -1,0 +1,151 @@
+Running in dry run mode - no emails will be sent
+Starting invitation scheduler with schedule: 0 9 * * *
+Dry run mode: Enabled
+Invitation scheduler started successfully
+Next scheduled run: 7/24/2025, 9:00:00 AM
+Running invitation process immediately...
+
+[2025-07-23T18:57:14.057Z] Running scheduled invitation process...
+Starting automated employee invitation process...
+Found 44 employees who need invitations
+Processing employee: Jan de Vries (jan.devries@techsolutionsbv.nl)
+[DRY RUN] Would send email to jan.devries@techsolutionsbv.nl
+✅ Successfully sent invitation to jan.devries@techsolutionsbv.nl
+Processing employee: Emma van der Berg (emma.vander berg@techsolutionsbv.nl)
+[DRY RUN] Would send email to emma.vander berg@techsolutionsbv.nl
+✅ Successfully sent invitation to emma.vander berg@techsolutionsbv.nl
+Processing employee: Pieter Jansen (pieter.jansen@techsolutionsbv.nl)
+[DRY RUN] Would send email to pieter.jansen@techsolutionsbv.nl
+✅ Successfully sent invitation to pieter.jansen@techsolutionsbv.nl
+Processing employee: Sophie Bakker (sophie.bakker@techsolutionsbv.nl)
+[DRY RUN] Would send email to sophie.bakker@techsolutionsbv.nl
+✅ Successfully sent invitation to sophie.bakker@techsolutionsbv.nl
+Processing employee: Tom van Dijk (tom.vandijk@techsolutionsbv.nl)
+[DRY RUN] Would send email to tom.vandijk@techsolutionsbv.nl
+✅ Successfully sent invitation to tom.vandijk@techsolutionsbv.nl
+Processing employee: Lisa Mulder (lisa.mulder@techsolutionsbv.nl)
+[DRY RUN] Would send email to lisa.mulder@techsolutionsbv.nl
+✅ Successfully sent invitation to lisa.mulder@techsolutionsbv.nl
+Processing employee: Mark Visser (mark.visser@techsolutionsbv.nl)
+[DRY RUN] Would send email to mark.visser@techsolutionsbv.nl
+✅ Successfully sent invitation to mark.visser@techsolutionsbv.nl
+Processing employee: Anna de Jong (anna.dejong@techsolutionsbv.nl)
+[DRY RUN] Would send email to anna.dejong@techsolutionsbv.nl
+✅ Successfully sent invitation to anna.dejong@techsolutionsbv.nl
+Processing employee: David Smit (david.smit@techsolutionsbv.nl)
+[DRY RUN] Would send email to david.smit@techsolutionsbv.nl
+✅ Successfully sent invitation to david.smit@techsolutionsbv.nl
+Processing employee: Sarah van Leeuwen (sarah.vanleeuwen@techsolutionsbv.nl)
+[DRY RUN] Would send email to sarah.vanleeuwen@techsolutionsbv.nl
+✅ Successfully sent invitation to sarah.vanleeuwen@techsolutionsbv.nl
+Processing employee: Michael Hendriks (michael.hendriks@techsolutionsbv.nl)
+[DRY RUN] Would send email to michael.hendriks@techsolutionsbv.nl
+✅ Successfully sent invitation to michael.hendriks@techsolutionsbv.nl
+Processing employee: Julia Peters (julia.peters@techsolutionsbv.nl)
+[DRY RUN] Would send email to julia.peters@techsolutionsbv.nl
+✅ Successfully sent invitation to julia.peters@techsolutionsbv.nl
+Processing employee: Robert van der Meer (robert.vander meer@techsolutionsbv.nl)
+[DRY RUN] Would send email to robert.vander meer@techsolutionsbv.nl
+✅ Successfully sent invitation to robert.vander meer@techsolutionsbv.nl
+Processing employee: Nina Koster (nina.koster@techsolutionsbv.nl)
+[DRY RUN] Would send email to nina.koster@techsolutionsbv.nl
+✅ Successfully sent invitation to nina.koster@techsolutionsbv.nl
+Processing employee: Lucas Brouwer (lucas.brouwer@techsolutionsbv.nl)
+[DRY RUN] Would send email to lucas.brouwer@techsolutionsbv.nl
+✅ Successfully sent invitation to lucas.brouwer@techsolutionsbv.nl
+Processing employee: Mila van den Berg (mila.vanden berg@techsolutionsbv.nl)
+[DRY RUN] Would send email to mila.vanden berg@techsolutionsbv.nl
+✅ Successfully sent invitation to mila.vanden berg@techsolutionsbv.nl
+Processing employee: Kevin Dijkstra (kevin.dijkstra@techsolutionsbv.nl)
+[DRY RUN] Would send email to kevin.dijkstra@techsolutionsbv.nl
+✅ Successfully sent invitation to kevin.dijkstra@techsolutionsbv.nl
+Processing employee: Lotte Vermeulen (lotte.vermeulen@techsolutionsbv.nl)
+[DRY RUN] Would send email to lotte.vermeulen@techsolutionsbv.nl
+✅ Successfully sent invitation to lotte.vermeulen@techsolutionsbv.nl
+Processing employee: Thijs van der Laan (thijs.vander laan@techsolutionsbv.nl)
+[DRY RUN] Would send email to thijs.vander laan@techsolutionsbv.nl
+✅ Successfully sent invitation to thijs.vander laan@techsolutionsbv.nl
+Processing employee: Isa Hoekstra (isa.hoekstra@techsolutionsbv.nl)
+[DRY RUN] Would send email to isa.hoekstra@techsolutionsbv.nl
+✅ Successfully sent invitation to isa.hoekstra@techsolutionsbv.nl
+Processing employee: Bas Meijer (bas.meijer@techsolutionsbv.nl)
+[DRY RUN] Would send email to bas.meijer@techsolutionsbv.nl
+✅ Successfully sent invitation to bas.meijer@techsolutionsbv.nl
+Processing employee: Fleur van Wijk (fleur.vanwijk@techsolutionsbv.nl)
+[DRY RUN] Would send email to fleur.vanwijk@techsolutionsbv.nl
+✅ Successfully sent invitation to fleur.vanwijk@techsolutionsbv.nl
+Processing employee: Joris Dekker (joris.dekker@techsolutionsbv.nl)
+[DRY RUN] Would send email to joris.dekker@techsolutionsbv.nl
+✅ Successfully sent invitation to joris.dekker@techsolutionsbv.nl
+Processing employee: Roos van der Wal (roos.vander wal@techsolutionsbv.nl)
+[DRY RUN] Would send email to roos.vander wal@techsolutionsbv.nl
+✅ Successfully sent invitation to roos.vander wal@techsolutionsbv.nl
+Processing employee: Sanne van der Heijden (sanne.vander heijden@marketingplus.nl)
+[DRY RUN] Would send email to sanne.vander heijden@marketingplus.nl
+✅ Successfully sent invitation to sanne.vander heijden@marketingplus.nl
+Processing employee: Rick Scholten (rick.scholten@marketingplus.nl)
+[DRY RUN] Would send email to rick.scholten@marketingplus.nl
+✅ Successfully sent invitation to rick.scholten@marketingplus.nl
+Processing employee: Noa van Beek (noa.vanbeek@marketingplus.nl)
+[DRY RUN] Would send email to noa.vanbeek@marketingplus.nl
+✅ Successfully sent invitation to noa.vanbeek@marketingplus.nl
+Processing employee: Daan Willems (daan.willems@marketingplus.nl)
+[DRY RUN] Would send email to daan.willems@marketingplus.nl
+✅ Successfully sent invitation to daan.willems@marketingplus.nl
+Processing employee: Eva Kuiper (eva.kuiper@marketingplus.nl)
+[DRY RUN] Would send email to eva.kuiper@marketingplus.nl
+✅ Successfully sent invitation to eva.kuiper@marketingplus.nl
+Processing employee: Finn van der Pol (finn.vander pol@marketingplus.nl)
+[DRY RUN] Would send email to finn.vander pol@marketingplus.nl
+✅ Successfully sent invitation to finn.vander pol@marketingplus.nl
+Processing employee: Zoe Martens (zoe.martens@marketingplus.nl)
+[DRY RUN] Would send email to zoe.martens@marketingplus.nl
+✅ Successfully sent invitation to zoe.martens@marketingplus.nl
+Processing employee: Lars van Vliet (lars.vanvliet@marketingplus.nl)
+[DRY RUN] Would send email to lars.vanvliet@marketingplus.nl
+✅ Successfully sent invitation to lars.vanvliet@marketingplus.nl
+Processing employee: Iris Bosman (iris.bosman@marketingplus.nl)
+[DRY RUN] Would send email to iris.bosman@marketingplus.nl
+✅ Successfully sent invitation to iris.bosman@marketingplus.nl
+Processing employee: Sem van der Veen (sem.vander veen@marketingplus.nl)
+[DRY RUN] Would send email to sem.vander veen@marketingplus.nl
+✅ Successfully sent invitation to sem.vander veen@marketingplus.nl
+Processing employee: Luna Prins (luna.prins@marketingplus.nl)
+[DRY RUN] Would send email to luna.prins@marketingplus.nl
+✅ Successfully sent invitation to luna.prins@marketingplus.nl
+Processing employee: Bram de Wit (bram.dewit@marketingplus.nl)
+[DRY RUN] Would send email to bram.dewit@marketingplus.nl
+✅ Successfully sent invitation to bram.dewit@marketingplus.nl
+Processing employee: Maxime van der Steen (maxime.vander steen@consultinggroup.nl)
+[DRY RUN] Would send email to maxime.vander steen@consultinggroup.nl
+✅ Successfully sent invitation to maxime.vander steen@consultinggroup.nl
+Processing employee: Olivier Huisman (olivier.huisman@consultinggroup.nl)
+[DRY RUN] Would send email to olivier.huisman@consultinggroup.nl
+✅ Successfully sent invitation to olivier.huisman@consultinggroup.nl
+Processing employee: Amber van Dongen (amber.vandongen@consultinggroup.nl)
+[DRY RUN] Would send email to amber.vandongen@consultinggroup.nl
+✅ Successfully sent invitation to amber.vandongen@consultinggroup.nl
+Processing employee: Jesse Roos (jesse.roos@consultinggroup.nl)
+[DRY RUN] Would send email to jesse.roos@consultinggroup.nl
+✅ Successfully sent invitation to jesse.roos@consultinggroup.nl
+Processing employee: Tessa van der Horst (tessa.vander horst@consultinggroup.nl)
+[DRY RUN] Would send email to tessa.vander horst@consultinggroup.nl
+✅ Successfully sent invitation to tessa.vander horst@consultinggroup.nl
+Processing employee: Noah Leenders (noah.leenders@consultinggroup.nl)
+[DRY RUN] Would send email to noah.leenders@consultinggroup.nl
+✅ Successfully sent invitation to noah.leenders@consultinggroup.nl
+Processing employee: Lara van Schaik (lara.vanschaik@consultinggroup.nl)
+[DRY RUN] Would send email to lara.vanschaik@consultinggroup.nl
+✅ Successfully sent invitation to lara.vanschaik@consultinggroup.nl
+Processing employee: Stijn Verhoeven (stijn.verhoeven@consultinggroup.nl)
+[DRY RUN] Would send email to stijn.verhoeven@consultinggroup.nl
+✅ Successfully sent invitation to stijn.verhoeven@consultinggroup.nl
+
+Invitation process completed!
+- Total processed: 44
+- Successful: 44
+- Failed: 0
+[2025-07-23T18:57:14.978Z] Scheduled invitation process completed successfully
+- Total processed: 44
+- Successful: 44
+- Failed: 0
