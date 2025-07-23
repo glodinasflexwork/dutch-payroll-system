@@ -1,0 +1,17 @@
+# Crontab configuration for automated employee portal invitations
+# To install: crontab crontab-setup.txt
+
+# Environment variables
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+NODE_ENV=production
+
+# Run the invitation process every day at 9:00 AM
+0 9 * * * cd /home/ubuntu/dutch-payroll-system && node auto-invite-employees.js >> logs/cron-invitations.log 2>&1
+
+# Run the invitation process every Monday at 9:00 AM for weekly schedule option
+# 0 9 * * 1 cd /home/ubuntu/dutch-payroll-system && node auto-invite-employees.js >> logs/cron-invitations.log 2>&1
+
+# Restart the invitation service if the server reboots
+@reboot cd /home/ubuntu/dutch-payroll-system && ./start-invitation-service.sh >> logs/service-startup.log 2>&1
+
