@@ -1,0 +1,520 @@
+// Enhanced Payroll Database Schema with Integrity Controls
+// This schema addresses critical compliance and audit requirements
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../node_modules/@prisma/payroll-client"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("PAYROLL_DATABASE_URL")
+}
+
+// Enhanced PayrollRecord with integrity controls
+model PayrollRecord {
+  id               String   @id @default(cuid())
+  employeeId       String
+  employeeNumber   String
+  firstName        String
+  lastName         String
+  period           String
+  year             Int
+  month            Int
+  grossSalary      Float
+  netSalary        Float
+  taxDeduction     Float
+  socialSecurity   Float
+  pensionDeduction Float?
+  otherDeductions  Float?
+  overtime         Float?
+  bonus            Float?
+  holidayAllowance Float?
+  expenses         Float?
+  paymentDate      DateTime?
+  
+  // Status and workflow fields
+  status           String   @default("draft") // draft, pending, approved, finalized, paid, cancelled
+  
+  // Integrity and audit fields
+  isLocked         Boolean  @default(false)
+  lockedAt         DateTime?
+  lockedBy         String?
+  lockReason       String?
+  version          Int      @default(1)
+  
+  // Immutability controls
+  canModify        Boolean  @default(true)
+  canDelete        Boolean  @default(true)
+  finalizedAt      DateTime?
+  finalizedBy      String?
+  
+  // Audit trail
+  createdBy        String
+  lastModifiedBy   String?
+  lastModifiedAt   DateTime?
+  deletionAttempts Int      @default(0)
+  
+  companyId        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  // Relations
+  PayrollBatch     PayrollBatch? @relation(fields: [batchId], references: [id])
+  batchId          String?
+  TaxCalculation   TaxCalculation[]
+  PayslipGeneration PayslipGeneration[]
+  PayrollApproval  PayrollApproval?
+  PayrollVersionHistory PayrollVersionHistory[]
+  PayrollAuditLog  PayrollAuditLog[]
+
+  @@unique([employeeId, year, month])
+  @@index([status])
+  @@index([isLocked])
+  @@index([companyId, status])
+}
+
+// Enhanced PayrollBatch with approval workflow
+model PayrollBatch {
+  id            String          @id @default(cuid())
+  batchNumber   String
+  period        String
+  year          Int
+  month         Int
+  
+  // Status and workflow
+  status        String          @default("draft") // draft, pending, approved, finalized, paid, cancelled
+  
+  // Batch processing data
+  totalEmployees Int
+  totalGross    Float
+  totalNet      Float
+  totalTax      Float
+  
+  // Workflow tracking
+  processedBy   String
+  processedAt   DateTime?
+  approvedBy    String?
+  approvedAt    DateTime?
+  finalizedBy   String?
+  finalizedAt   DateTime?
+  
+  // Integrity controls
+  isLocked      Boolean         @default(false)
+  lockedAt      DateTime?
+  lockedBy      String?
+  canModify     Boolean         @default(true)
+  canDelete     Boolean         @default(true)
+  
+  companyId     String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  
+  // Relations
+  PayrollRecord PayrollRecord[]
+  PayrollBatchApproval PayrollBatchApproval?
+  PayrollAuditLog PayrollAuditLog[]
+
+  @@unique([companyId, year, month])
+  @@index([status])
+  @@index([isLocked])
+}
+
+// NEW: Payroll Approval Workflow
+model PayrollApproval {
+  id              String   @id @default(cuid())
+  payrollRecordId String   @unique
+  companyId       String
+  
+  // Approval status
+  status          String   @default("draft") // draft, pending, approved, rejected, finalized, cancelled
+  
+  // Submission tracking
+  submittedBy     String?
+  submittedAt     DateTime?
+  submissionComments String?
+  
+  // Review tracking
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  reviewComments  String?
+  
+  // Approval tracking
+  approvedBy      String?
+  approvedAt      DateTime?
+  approvalComments String?
+  
+  // Rejection tracking
+  rejectedBy      String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  rejectionComments String?
+  
+  // Finalization tracking
+  finalizedBy     String?
+  finalizedAt     DateTime?
+  finalizationComments String?
+  
+  // Cancellation tracking
+  cancelledBy     String?
+  cancelledAt     DateTime?
+  cancellationReason String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  payrollRecord   PayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Cascade)
+  history         PayrollApprovalHistory[]
+  
+  @@index([status])
+  @@index([companyId, status])
+}
+
+// NEW: Payroll Approval History
+model PayrollApprovalHistory {
+  id                String   @id @default(cuid())
+  payrollApprovalId String
+  
+  // Action details
+  action            String   // submit, review, approve, reject, finalize, cancel
+  performedBy       String
+  performedAt       DateTime @default(now())
+  comments          String?
+  
+  // Status transition
+  previousStatus    String
+  newStatus         String
+  
+  // Additional context
+  reason            String?
+  ipAddress         String?
+  userAgent         String?
+  
+  // Relations
+  payrollApproval   PayrollApproval @relation(fields: [payrollApprovalId], references: [id], onDelete: Cascade)
+  
+  @@index([payrollApprovalId])
+  @@index([performedBy])
+  @@index([performedAt])
+}
+
+// NEW: Payroll Batch Approval
+model PayrollBatchApproval {
+  id            String   @id @default(cuid())
+  batchId       String   @unique
+  companyId     String
+  
+  // Approval workflow
+  status        String   @default("draft")
+  submittedBy   String?
+  submittedAt   DateTime?
+  approvedBy    String?
+  approvedAt    DateTime?
+  finalizedBy   String?
+  finalizedAt   DateTime?
+  
+  // Comments and reasons
+  submissionComments String?
+  approvalComments   String?
+  rejectionReason    String?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  batch         PayrollBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  history       PayrollBatchApprovalHistory[]
+  
+  @@index([status])
+  @@index([companyId, status])
+}
+
+// NEW: Payroll Batch Approval History
+model PayrollBatchApprovalHistory {
+  id                     String   @id @default(cuid())
+  batchApprovalId        String
+  
+  action                 String
+  performedBy            String
+  performedAt            DateTime @default(now())
+  comments               String?
+  previousStatus         String
+  newStatus              String
+  
+  batchApproval          PayrollBatchApproval @relation(fields: [batchApprovalId], references: [id], onDelete: Cascade)
+  
+  @@index([batchApprovalId])
+  @@index([performedBy])
+}
+
+// NEW: Payroll Version History
+model PayrollVersionHistory {
+  id              String   @id @default(cuid())
+  payrollRecordId String
+  version         Int
+  
+  // Change tracking
+  changedBy       String
+  changedAt       DateTime @default(now())
+  changeReason    String
+  changeType      String   // create, update, status_change, approval, finalization
+  
+  // Previous values (JSON)
+  previousValues  Json?
+  newValues       Json?
+  
+  // Field-level changes
+  changedFields   String[] // Array of field names that changed
+  
+  // Relations
+  payrollRecord   PayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Cascade)
+  
+  @@index([payrollRecordId])
+  @@index([version])
+  @@index([changedBy])
+  @@index([changedAt])
+}
+
+// Enhanced Financial Audit with payroll-specific fields
+model PayrollAuditLog {
+  id              String   @id @default(cuid())
+  
+  // Entity information
+  entityType      String   // payroll_record, payroll_batch, approval, etc.
+  entityId        String
+  
+  // Action details
+  action          String   // create, update, delete, approve, finalize, etc.
+  actionCategory  String   // data_change, workflow, security, compliance
+  
+  // User and session information
+  performedBy     String
+  userRole        String?
+  sessionId       String?
+  ipAddress       String?
+  userAgent       String?
+  
+  // Change details
+  oldValues       Json?
+  newValues       Json?
+  changedFields   String[]
+  
+  // Business context
+  reason          String?
+  businessJustification String?
+  approvalRequired Boolean @default(false)
+  approvedBy      String?
+  approvedAt      DateTime?
+  
+  // Compliance and legal
+  legalBasis      String?  // GDPR legal basis, business requirement, etc.
+  retentionPeriod Int?     // Years to retain this audit record
+  
+  // Risk assessment
+  riskLevel       String   @default("low") // low, medium, high, critical
+  complianceImpact String? // tax, gdpr, audit, legal
+  
+  companyId       String
+  createdAt       DateTime @default(now())
+  
+  // Relations (optional - for easier querying)
+  payrollRecord   PayrollRecord? @relation(fields: [payrollRecordId], references: [id])
+  payrollRecordId String?
+  
+  payrollBatch    PayrollBatch? @relation(fields: [payrollBatchId], references: [id])
+  payrollBatchId  String?
+  
+  @@index([entityType, entityId])
+  @@index([performedBy])
+  @@index([createdAt])
+  @@index([companyId, createdAt])
+  @@index([action])
+  @@index([riskLevel])
+}
+
+// Enhanced TaxSettings (existing model - no changes needed)
+model TaxSettings {
+  id                String   @id @default(cuid())
+  year              Int
+  aowRate           Float
+  wlzRate           Float
+  zvwRate           Float
+  holidayAllowance  Float
+  pensionRate       Float?
+  isActive          Boolean  @default(true)
+  companyId         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([year, companyId])
+}
+
+// Enhanced TaxCalculation (existing model - no changes needed)
+model TaxCalculation {
+  id              String        @id @default(cuid())
+  payrollRecordId String
+  employeeId      String
+  taxTable        String
+  grossSalary     Float
+  taxableIncome   Float
+  incomeTax       Float
+  aowContribution Float
+  wlzContribution Float
+  zvwContribution Float
+  totalTax        Float
+  taxCredit       Float
+  netSalary       Float
+  calculationDate DateTime
+  companyId       String
+  createdAt       DateTime      @default(now())
+  PayrollRecord   PayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Cascade)
+}
+
+// Enhanced PayslipGeneration (existing model - no changes needed)
+model PayslipGeneration {
+  id              String        @id @default(cuid())
+  payrollRecordId String
+  employeeId      String
+  fileName        String
+  filePath        String?
+  status          String        @default("pending")
+  generatedAt     DateTime?
+  sentAt          DateTime?
+  downloadedAt    DateTime?
+  companyId       String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  PayrollRecord   PayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Cascade)
+}
+
+// Enhanced ComplianceReport (existing model - no changes needed)
+model ComplianceReport {
+  id          String   @id @default(cuid())
+  reportType  String
+  period      String
+  year        Int
+  month       Int?
+  quarter     Int?
+  fileName    String
+  filePath    String?
+  status      String   @default("draft")
+  generatedBy String
+  generatedAt DateTime?
+  submittedAt DateTime?
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([companyId, reportType, year, month, quarter])
+}
+
+// Enhanced PayrollAnalytics (existing model - no changes needed)
+model PayrollAnalytics {
+  id              String   @id @default(cuid())
+  period          String
+  year            Int
+  month           Int
+  totalEmployees  Int
+  totalGrossPay   Float
+  totalNetPay     Float
+  totalTaxPaid    Float
+  averageGrossPay Float
+  averageNetPay   Float
+  departmentBreakdown Json?
+  positionBreakdown Json?
+  companyId       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([companyId, year, month])
+}
+
+// Enhanced CostCenter (existing model - no changes needed)
+model CostCenter {
+  id          String   @id @default(cuid())
+  name        String
+  code        String
+  description String?
+  budget      Float?
+  actualCost  Float?
+  department  String?
+  isActive    Boolean  @default(true)
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([companyId, code])
+}
+
+// Legacy FinancialAudit model (kept for backward compatibility)
+model FinancialAudit {
+  id          String   @id @default(cuid())
+  action      String
+  entityType  String
+  entityId    String
+  oldValues   Json?
+  newValues   Json?
+  performedBy String
+  reason      String?
+  ipAddress   String?
+  userAgent   String?
+  companyId   String
+  createdAt   DateTime @default(now())
+}
+
+// NEW: Payroll Data Retention Policy
+model PayrollRetentionPolicy {
+  id              String   @id @default(cuid())
+  companyId       String
+  
+  // Retention periods (in years)
+  payrollRecords  Int      @default(7)  // Dutch legal requirement
+  auditLogs       Int      @default(10) // Extended for audit purposes
+  approvalHistory Int      @default(7)
+  taxDocuments    Int      @default(7)
+  
+  // Automatic deletion settings
+  autoDeleteEnabled Boolean @default(false)
+  autoDeleteWarningDays Int @default(30)
+  
+  // Legal basis
+  legalBasis      String   @default("Dutch Bookkeeping Act Article 52")
+  lastReviewed    DateTime @default(now())
+  reviewedBy      String
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([companyId])
+}
+
+// NEW: Payroll Data Integrity Check
+model PayrollIntegrityCheck {
+  id              String   @id @default(cuid())
+  companyId       String
+  
+  // Check details
+  checkType       String   // daily, weekly, monthly, on_demand
+  checkDate       DateTime @default(now())
+  performedBy     String?  // null for automated checks
+  
+  // Results
+  status          String   // passed, failed, warning
+  recordsChecked  Int
+  issuesFound     Int
+  
+  // Issue details
+  issues          Json?    // Array of issues found
+  
+  // Actions taken
+  actionsTaken    String?
+  resolvedIssues  Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([companyId, checkDate])
+  @@index([status])
+}
+
