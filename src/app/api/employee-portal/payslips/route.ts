@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { hrClient, payrollClient } from "@/lib/database-clients"
+import { hrClient } from "@/lib/database-clients"
 import fs from 'fs'
 import path from 'path'
 

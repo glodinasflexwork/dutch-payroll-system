@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { validateAuth } from "@/lib/auth-utils"
-import { payrollClient } from "@/lib/database-clients"
+import { } from "@/lib/database-clients"
 
 export async function GET(request: NextRequest) {
   try {

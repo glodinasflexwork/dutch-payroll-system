@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { validateEmployeeInvitationToken } from "@/lib/employee-auth";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import { AlertTriangle, CheckCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-export default function EmployeeSignupPage() {
+function EmployeeSignupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
@@ -272,6 +272,14 @@ export default function EmployeeSignupPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function EmployeeSignupPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <EmployeeSignupContent />
+    </Suspense>
   );
 }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { validateAuth } from "@/lib/auth-utils"
-import { payrollClient } from "@/lib/database-clients"
+import { } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { calculateDutchPayroll, generatePayrollBreakdown, formatCurrency } from "@/lib/payroll-calculations"
 import { ensurePayrollInitialized } from "@/lib/lazy-initialization"

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { hrClient, payrollClient } from "@/lib/database-clients"
+import { hrClient } from "@/lib/database-clients"
 
 // GET /api/employee-portal - Get employee portal data
 export async function GET(request: NextRequest) {
