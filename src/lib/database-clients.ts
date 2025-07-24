@@ -1,6 +1,5 @@
 import { PrismaClient as AuthClient } from '@prisma/client'
 import { PrismaClient as HRClient } from '@prisma/hr-client'
-import { PrismaClient as PayrollClient } from '@prisma/payroll-client'
 
 // Validate environment variables
 function validateDatabaseUrl(url: string | undefined, name: string): string {
@@ -32,15 +31,6 @@ const getHRDatabaseUrl = () => {
   } catch (error) {
     console.error('HR database configuration error:', error)
     return process.env.HR_DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder'
-  }
-}
-
-const getPayrollDatabaseUrl = () => {
-  try {
-    return validateDatabaseUrl(process.env.PAYROLL_DATABASE_URL, 'PAYROLL_DATABASE_URL')
-  } catch (error) {
-    console.error('Payroll database configuration error:', error)
-    return process.env.PAYROLL_DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder'
   }
 }
 
@@ -77,27 +67,10 @@ const createHRClient = () => {
   }
 }
 
-// Create Payroll client
-const createPayrollClient = () => {
-  try {
-    return new PayrollClient({
-      datasources: {
-        db: {
-          url: getPayrollDatabaseUrl()
-        }
-      }
-    })
-  } catch (error) {
-    console.error('Failed to create Payroll client:', error)
-    return new PayrollClient()
-  }
-}
-
 // Global variable to store database clients
 declare global {
   var __authClient: AuthClient | undefined
   var __hrClient: HRClient | undefined
-  var __payrollClient: PayrollClient | undefined
 }
 
 // Auth Database Client (using default @prisma/client with AUTH_DATABASE_URL)
@@ -112,17 +85,10 @@ if (process.env.NODE_ENV !== 'production') {
   globalThis.__hrClient = hrClient
 }
 
-// Payroll Database Client
-export const payrollClient = globalThis.__payrollClient ?? createPayrollClient()
-if (process.env.NODE_ENV !== 'production') {
-  globalThis.__payrollClient = payrollClient
-}
-
 // Helper functions for database operations
 export const DatabaseClients = {
   auth,
   hr: hrClient,
-  payroll: payrollClient,
   
   // Helper to get user with company information
   async getUserWithCompany(userId: string) {
@@ -160,7 +126,7 @@ export const DatabaseClients = {
     }
   },
 
-  // Helper to get employee with cross-database reference
+  // Helper to get employee with details
   async getEmployeeWithDetails(employeeId: string, companyId: string) {
     try {
       const employee = await hrClient.employee.findFirst({
@@ -172,27 +138,14 @@ export const DatabaseClients = {
       
       if (!employee) return null
 
-      // Get payroll records for this employee
-      const payrollRecords = await payrollClient.payrollRecord.findMany({
-        where: { 
-          employeeId: employeeId,
-          companyId: companyId
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 12 // Last 12 months
-      })
-
-      return {
-        ...employee,
-        payrollRecords
-      }
+      return employee
     } catch (error) {
       console.error('Error fetching employee details:', error)
       throw error
     }
   },
 
-  // Helper to create employee across databases
+  // Helper to create employee
   async createEmployeeWithReferences(employeeData: any, companyId: string, createdBy: string) {
     try {
       // Create employee in HR database
@@ -203,9 +156,6 @@ export const DatabaseClients = {
           createdBy
         }
       })
-
-      // Create initial payroll setup if needed
-      // This could include setting up tax settings, etc.
 
       return employee
     } catch (error) {
@@ -245,20 +195,6 @@ export const DatabaseClients = {
       console.error('Error getting company employee count:', error)
       throw error
     }
-  },
-
-  // Helper to get company payroll count for subscription limits
-  async getCompanyPayrollCount(companyId: string) {
-    try {
-      return await payrollClient.payrollBatch.count({
-        where: {
-          companyId
-        }
-      })
-    } catch (error) {
-      console.error('Error getting company payroll count:', error)
-      throw error
-    }
   }
 }
 
@@ -270,7 +206,6 @@ export async function checkDatabaseConnections() {
   const results = {
     auth: false,
     hr: false,
-    payroll: false,
     errors: [] as string[]
   }
 
@@ -286,13 +221,6 @@ export async function checkDatabaseConnections() {
     results.hr = true
   } catch (error) {
     results.errors.push(`HR DB: ${error}`)
-  }
-
-  try {
-    await payrollClient.$queryRaw`SELECT 1`
-    results.payroll = true
-  } catch (error) {
-    results.errors.push(`Payroll DB: ${error}`)
   }
 
   return results
