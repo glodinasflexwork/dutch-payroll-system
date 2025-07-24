@@ -13,7 +13,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error }, { status })
     }
 
-    // Ensure HR database is initialized for this company
+    // STEP 1: Validate subscription FIRST before any resource allocation
+    console.log('Validating subscription for company:', context.companyId)
+    const subscriptionValidation = await validateSubscription(context.companyId)
+    
+    if (!subscriptionValidation.isValid) {
+      return NextResponse.json({ 
+        error: subscriptionValidation.message || 'Invalid subscription' 
+      }, { status: 403 })
+    }
+
+    // STEP 2: Validate feature access for employee management
+    if (!subscriptionValidation.limits?.features.employees) {
+      return NextResponse.json({ 
+        error: 'Employee management not included in your subscription plan' 
+      }, { status: 403 })
+    }
+
+    // STEP 3: Check employee limits before proceeding
+    const currentEmployeeCount = await hrClient.employee.count({
+      where: { companyId: context.companyId, isActive: true }
+    })
+
+    if (currentEmployeeCount >= (subscriptionValidation.limits?.maxEmployees || 0)) {
+      return NextResponse.json({ 
+        error: `Employee limit reached (${subscriptionValidation.limits?.maxEmployees}). Please upgrade your subscription.` 
+      }, { status: 403 })
+    }
+
+    // STEP 4: NOW ensure HR database is initialized (after subscription validation)
     console.log('Ensuring HR database is initialized for company:', context.companyId)
     await ensureHRInitialized(context.companyId)
     console.log('HR database initialization complete')
