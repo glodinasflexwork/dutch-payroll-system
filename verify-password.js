@@ -53,4 +53,3 @@ async function verifyPassword() {
 }
 
 verifyPassword();
-EOF && node verify-password.js

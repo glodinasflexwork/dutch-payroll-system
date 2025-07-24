@@ -37,6 +37,11 @@ export interface PayrollResult {
   // Total employee contributions
   totalEmployeeContributions: number;
   
+  // Net amounts (gross minus social security contributions)
+  // Note: This is what appears on payslips as "net" - income tax handled at year-end
+  netMonthlySalary: number;
+  netAnnualSalary: number;
+  
   // Employer contributions
   employerAowContribution: number;
   employerWlzContribution: number;
@@ -111,6 +116,28 @@ const CONTRIBUTION_BASES_2025 = {
   wlz: 40000,    // WLZ maximum base
   ww: 69000,     // WW maximum base
   wia: 69000     // WIA maximum base
+};
+
+/**
+ * 2025 Tax Brackets for Income Tax Calculation
+ * Note: These are for reference only - actual tax calculation should be handled by tax advisors
+ */
+const TAX_BRACKETS_2025 = {
+  belowPensionAge: [
+    { min: 0, max: 38441, rate: 0.3693 },
+    { min: 38441, max: 76817, rate: 0.3693 },
+    { min: 76817, max: Infinity, rate: 0.4950 }
+  ],
+  pensionAge1945Earlier: [
+    { min: 0, max: 25965, rate: 0.1928 },
+    { min: 25965, max: 76817, rate: 0.3693 },
+    { min: 76817, max: Infinity, rate: 0.4950 }
+  ],
+  pensionAge1946Plus: [
+    { min: 0, max: 38441, rate: 0.1928 },
+    { min: 38441, max: 76817, rate: 0.3693 },
+    { min: 76817, max: Infinity, rate: 0.4950 }
+  ]
 };
 
 /**
@@ -264,8 +291,10 @@ export function calculateDutchPayroll(
   // Calculate holiday allowance (gross only)
   const holidayAllowanceGross = calculateHolidayAllowance(annualSalary);
   
-  // Gross salary after employee contributions (NOT net salary - income tax not calculated)
+  // Gross salary after employee contributions (this is the "net" shown on payslips)
   const grossSalaryAfterEmployeeContributions = annualSalary - employeeContributions.totalContributions;
+  const netAnnualSalary = grossSalaryAfterEmployeeContributions;
+  const netMonthlySalary = netAnnualSalary / 12;
   
   return {
     grossAnnualSalary: annualSalary,
@@ -277,6 +306,10 @@ export function calculateDutchPayroll(
     wwContribution: employeeContributions.wwContribution,
     wiaContribution: employeeContributions.wiaContribution,
     totalEmployeeContributions: employeeContributions.totalContributions,
+    
+    // Net amounts (what appears on payslips as "net")
+    netMonthlySalary,
+    netAnnualSalary,
     
     // Employer contributions
     employerAowContribution: employerContributions.employerAowContribution,
@@ -290,10 +323,21 @@ export function calculateDutchPayroll(
     
     // Holiday allowance
     holidayAllowanceGross,
+    holidayAllowanceNet: holidayAllowanceGross, // Simplified - no tax calculation
     
     // Gross salary after employee social security contributions
-    // Note: This is NOT net salary - income tax calculation is handled by tax advisors
-    grossSalaryAfterEmployeeContributions
+    // Note: This is the same as netAnnualSalary for payslip purposes
+    grossSalaryAfterEmployeeContributions,
+    
+    // Missing employer cost properties (simplified)
+    employerAWFContribution: employerContributions.employerAwfContribution,
+    employerAOFContribution: employerContributions.employerAofContribution,
+    employerWKOSurcharge: 0, // Not implemented
+    employerUFOPremium: 0, // Not implemented
+    totalEmployerCosts: employerContributions.totalEmployerContributions,
+    
+    // Tax bracket breakdown (empty for now)
+    taxBracketBreakdown: []
   };
 }
 
@@ -330,36 +374,37 @@ export function generatePayrollBreakdown(result: PayrollResult): string {
   breakdown += `Monthly: ${formatCurrency(result.grossMonthlySalary)}\n`;
   breakdown += `Annual: ${formatCurrency(result.grossAnnualSalary)}\n\n`;
   
-  breakdown += `TAX BRACKET BREAKDOWN:\n`;
-  result.taxBracketBreakdown.forEach(bracket => {
-    breakdown += `Band ${bracket.bracket}: ${formatCurrency(bracket.incomeInBracket)} × ${formatPercentage(bracket.rate)} = ${formatCurrency(bracket.taxAmount)}\n`;
-  });
-  breakdown += `Total Tax Before Credits: ${formatCurrency(result.incomeTaxBeforeCredits)}\n\n`;
+  breakdown += `EMPLOYEE SOCIAL SECURITY CONTRIBUTIONS:\n`;
+  breakdown += `AOW (Old Age Pension): ${formatCurrency(result.aowContribution)}\n`;
+  breakdown += `WLZ (Long-term Care): ${formatCurrency(result.wlzContribution)}\n`;
+  breakdown += `WW (Unemployment): ${formatCurrency(result.wwContribution)}\n`;
+  breakdown += `WIA (Work & Income): ${formatCurrency(result.wiaContribution)}\n`;
+  breakdown += `Total Employee Contributions: ${formatCurrency(result.totalEmployeeContributions)}\n\n`;
   
-  breakdown += `TAX CREDITS:\n`;
-  breakdown += `General Tax Credit: ${formatCurrency(result.generalTaxCredit)}\n`;
-  breakdown += `Employed Person Tax Credit: ${formatCurrency(result.employedPersonTaxCredit)}\n`;
-  if (result.youngDisabledTaxCredit > 0) {
-    breakdown += `Young Disabled Tax Credit: ${formatCurrency(result.youngDisabledTaxCredit)}\n`;
-  }
-  breakdown += `Total Tax Credits: ${formatCurrency(result.totalTaxCredits)}\n\n`;
-  
-  breakdown += `FINAL CALCULATIONS:\n`;
-  breakdown += `Income Tax After Credits: ${formatCurrency(result.incomeTaxAfterCredits)}\n`;
-  breakdown += `Total Deductions: ${formatCurrency(result.totalTaxAndInsurance)}\n`;
+  breakdown += `NET SALARY (Amount paid to employee):\n`;
   breakdown += `Net Monthly Salary: ${formatCurrency(result.netMonthlySalary)}\n`;
   breakdown += `Net Annual Salary: ${formatCurrency(result.netAnnualSalary)}\n\n`;
   
-  breakdown += `EMPLOYER COSTS:\n`;
-  breakdown += `AWF Contribution: ${formatCurrency(result.employerAWFContribution)}\n`;
-  breakdown += `AOF Contribution: ${formatCurrency(result.employerAOFContribution)}\n`;
-  breakdown += `WKO Surcharge: ${formatCurrency(result.employerWKOSurcharge)}\n`;
-  breakdown += `UFO Premium: ${formatCurrency(result.employerUFOPremium)}\n`;
+  breakdown += `EMPLOYER CONTRIBUTIONS:\n`;
+  breakdown += `Employer AOW: ${formatCurrency(result.employerAowContribution)}\n`;
+  breakdown += `Employer WLZ: ${formatCurrency(result.employerWlzContribution)}\n`;
+  breakdown += `Employer WW: ${formatCurrency(result.employerWwContribution)}\n`;
+  breakdown += `Employer WIA: ${formatCurrency(result.employerWiaContribution)}\n`;
+  breakdown += `Employer AWF: ${formatCurrency(result.employerAwfContribution)}\n`;
+  breakdown += `Employer AOF: ${formatCurrency(result.employerAofContribution)}\n`;
+  breakdown += `Employer ZVW: ${formatCurrency(result.employerZvwContribution)}\n`;
+  breakdown += `Total Employer Contributions: ${formatCurrency(result.totalEmployerContributions)}\n\n`;
+  
+  breakdown += `HOLIDAY ALLOWANCE:\n`;
+  breakdown += `Gross Holiday Allowance: ${formatCurrency(result.holidayAllowanceGross)}\n\n`;
+  
+  breakdown += `FINAL CALCULATIONS:\n`;
+  breakdown += `Gross Salary After Employee Contributions: ${formatCurrency(result.grossSalaryAfterEmployeeContributions)}\n`;
   breakdown += `Total Employer Costs: ${formatCurrency(result.totalEmployerCosts)}\n\n`;
   
-  breakdown += `HOLIDAY ALLOWANCE (8.33%):\n`;
-  breakdown += `Gross: ${formatCurrency(result.holidayAllowanceGross)}\n`;
-  breakdown += `Net: ${formatCurrency(result.holidayAllowanceNet)}\n`;
+  breakdown += `NOTE: The "Net Salary" shown above is what the employee receives in their bank account.\n`;
+  breakdown += `Income tax is calculated and handled separately at year-end by the bookkeeper\n`;
+  breakdown += `when all annual information is available.\n`;
   
   return breakdown;
 }

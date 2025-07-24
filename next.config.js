@@ -8,10 +8,7 @@ const nextConfig = {
     // Disable TypeScript errors during builds
     ignoreBuildErrors: true,
   },
-  experimental: {
-    // Enable server components
-    serverComponentsExternalPackages: ['@prisma/client', '@prisma/hr-client', '@prisma/payroll-client'],
-  },
+  serverExternalPackages: ['@prisma/client', '@prisma/hr-client', '@prisma/payroll-client'],
   webpack: (config, { isServer }) => {
     if (isServer) {
       // Copy Prisma engines for all clients
