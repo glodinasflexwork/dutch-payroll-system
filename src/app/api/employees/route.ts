@@ -4,6 +4,71 @@ import { DatabaseClients, hrClient, authClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { ensureHRInitialized } from "@/lib/lazy-initialization"
 
+/**
+ * Generate a unique employee number for a company using a robust approach
+ * This function handles race conditions and ensures uniqueness within the company
+ */
+async function generateUniqueEmployeeNumber(companyId: string, maxRetries: number = 5): Promise<string> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // Get all existing employee numbers for this company to find gaps
+      const existingEmployees = await hrClient.employee.findMany({
+        where: { companyId },
+        select: { employeeNumber: true },
+        orderBy: { employeeNumber: 'asc' }
+      })
+      
+      // Extract numeric parts and find the next available number
+      const existingNumbers = new Set<number>()
+      
+      for (const emp of existingEmployees) {
+        const match = emp.employeeNumber.match(/EMP0*(\d+)/)
+        if (match) {
+          existingNumbers.add(parseInt(match[1]))
+        }
+      }
+      
+      // Find the first available number starting from 1
+      let nextNumber = 1
+      while (existingNumbers.has(nextNumber)) {
+        nextNumber++
+      }
+      
+      // Generate the employee number with proper padding
+      const employeeNumber = `EMP${String(nextNumber).padStart(4, '0')}`
+      
+      console.log(`Generated employee number: ${employeeNumber} for company: ${companyId}`)
+      
+      // Double-check that this number doesn't exist (handles race conditions)
+      const existing = await hrClient.employee.findFirst({
+        where: { 
+          employeeNumber,
+          companyId 
+        }
+      })
+      
+      if (!existing) {
+        return employeeNumber
+      }
+      
+      // If it exists, log and try again
+      console.log(`Employee number ${employeeNumber} already exists, retrying...`)
+      
+    } catch (error) {
+      console.error(`Error generating employee number (attempt ${attempt + 1}):`, error)
+      
+      if (attempt === maxRetries - 1) {
+        throw new Error(`Failed to generate unique employee number after ${maxRetries} attempts`)
+      }
+      
+      // Wait a bit before retrying to reduce race condition likelihood
+      await new Promise(resolve => setTimeout(resolve, 100 * (attempt + 1)))
+    }
+  }
+  
+  throw new Error(`Failed to generate unique employee number after ${maxRetries} attempts`)
+}
+
 // GET /api/employees - Get all employees for the current company
 export async function GET(request: NextRequest) {
   try {
@@ -125,38 +190,26 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    // Generate unique employee number if not provided
+    // Generate unique employee number using a more robust approach
     let employeeNumber = data.employeeNumber
+    
     if (!employeeNumber) {
-      const lastEmployee = await hrClient.employee.findFirst({
-        where: { companyId: context.companyId },
-        orderBy: { employeeNumber: 'desc' }
+      employeeNumber = await generateUniqueEmployeeNumber(context.companyId)
+    } else {
+      // If employee number is provided, validate it's unique within the company
+      const existingEmployeeNumber = await hrClient.employee.findFirst({
+        where: { 
+          employeeNumber: employeeNumber,
+          companyId: context.companyId
+        }
       })
       
-      let nextNumber = 1
-      if (lastEmployee && lastEmployee.employeeNumber) {
-        const match = lastEmployee.employeeNumber.match(/EMP(\d+)/)
-        if (match) {
-          nextNumber = parseInt(match[1]) + 1
-        }
+      if (existingEmployeeNumber) {
+        return NextResponse.json({
+          success: false,
+          error: 'Employee number already exists in your company'
+        }, { status: 400 })
       }
-      
-      employeeNumber = `EMP${String(nextNumber).padStart(4, '0')}`
-    }
-    
-    // Check if employee number already exists in this company
-    const existingEmployeeNumber = await hrClient.employee.findFirst({
-      where: { 
-        employeeNumber: employeeNumber,
-        companyId: context.companyId
-      }
-    })
-    
-    if (existingEmployeeNumber) {
-      return NextResponse.json({
-        success: false,
-        error: 'Employee number already exists in your company'
-      }, { status: 400 })
     }
     
     // Parse dates
@@ -197,65 +250,80 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
     
-    // Create new employee with fields that exist in the current schema
-    const employee = await hrClient.employee.create({
-      data: {
-        // Basic identification
-        employeeNumber,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        
-        // Personal information
-        phone: data.phone || null,
-        streetName: data.streetName || null,
-        houseNumber: data.houseNumber || null,
-        houseNumberAddition: data.houseNumberAddition || null,
-        city: data.city || null,
-        postalCode: data.postalCode || null,
-        country: data.country || 'Netherlands',
-        bsn: data.bsn,
-        nationality: data.nationality || 'Dutch',
-        dateOfBirth: dateOfBirth,
-        
-        // Employment information
-        startDate: startDate,
-        probationEndDate: probationEndDate,
-        position: data.position,
-        department: data.department || null,
-        
-        // Contract information
-        employmentType: data.employmentType,
-        contractType: data.contractType,
-        workingHours: parseFloat(data.workingHours) || 40,
-        
-        // Salary information
-        salary: salary,
-        salaryType: data.salaryType || 'monthly',
-        hourlyRate: hourlyRate > 0 ? hourlyRate : null,
-        
-        // Dutch payroll compliance fields (individual-level only)
-        taxTable: data.taxTable || 'wit',
-        taxCredit: parseFloat(data.taxCredit) || 0,
-        isDGA: data.isDGA || false,
-        
-        // Banking information
-        bankAccount: data.bankAccount || null,
-        bankName: data.bankName || null,
-        
-        // Emergency contact
-        emergencyContact: data.emergencyContact || null,
-        emergencyPhone: data.emergencyPhone || null,
-        emergencyRelation: data.emergencyRelation || null,
-        
-        // Employment status
-        isActive: true,
-        
-        // System fields
-        companyId: context.companyId,
-        createdBy: context.userId,
-        portalAccessStatus: "NO_ACCESS", // Default to no portal access
+    // Create new employee using a transaction for better consistency
+    const employee = await hrClient.$transaction(async (tx) => {
+      // Final check for employee number uniqueness within the transaction
+      const existingEmployee = await tx.employee.findFirst({
+        where: { 
+          employeeNumber,
+          companyId: context.companyId
+        }
+      })
+      
+      if (existingEmployee) {
+        throw new Error('Employee number already exists in your company')
       }
+      
+      // Create the employee
+      return await tx.employee.create({
+        data: {
+          // Basic identification
+          employeeNumber,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          
+          // Personal information
+          phone: data.phone || null,
+          streetName: data.streetName || null,
+          houseNumber: data.houseNumber || null,
+          houseNumberAddition: data.houseNumberAddition || null,
+          city: data.city || null,
+          postalCode: data.postalCode || null,
+          country: data.country || 'Netherlands',
+          bsn: data.bsn,
+          nationality: data.nationality || 'Dutch',
+          dateOfBirth: dateOfBirth,
+          
+          // Employment information
+          startDate: startDate,
+          probationEndDate: probationEndDate,
+          position: data.position,
+          department: data.department || null,
+          
+          // Contract information
+          employmentType: data.employmentType,
+          contractType: data.contractType,
+          workingHours: parseFloat(data.workingHours) || 40,
+          
+          // Salary information
+          salary: salary,
+          salaryType: data.salaryType || 'monthly',
+          hourlyRate: hourlyRate > 0 ? hourlyRate : null,
+          
+          // Dutch payroll compliance fields (individual-level only)
+          taxTable: data.taxTable || 'wit',
+          taxCredit: parseFloat(data.taxCredit) || 0,
+          isDGA: data.isDGA || false,
+          
+          // Banking information
+          bankAccount: data.bankAccount || null,
+          bankName: data.bankName || null,
+          
+          // Emergency contact
+          emergencyContact: data.emergencyContact || null,
+          emergencyPhone: data.emergencyPhone || null,
+          emergencyRelation: data.emergencyRelation || null,
+          
+          // Employment status
+          isActive: true,
+          
+          // System fields
+          companyId: context.companyId,
+          createdBy: context.userId,
+          portalAccessStatus: "NO_ACCESS", // Default to no portal access
+        }
+      })
     })
     
     // Handle portal invitation if requested

@@ -116,3 +116,26 @@ export async function getCompanyInitializationStatus(companyId: string) {
   }
 }
 
+
+/**
+ * Initialize Payroll database for a company when first payroll is processed
+ */
+export async function initializePayrollDatabase(companyId: string) {
+  try {
+    console.log(`Payroll database initialization requested for company ${companyId}`)
+    // For now, this is a placeholder since we don't have a separate payroll client
+    // In a full implementation, this would initialize payroll-specific tables
+    return { companyId, initialized: true }
+  } catch (error) {
+    console.error(`Error initializing Payroll database for company ${companyId}:`, error)
+    throw new Error(`Failed to initialize Payroll database: ${error}`)
+  }
+}
+
+/**
+ * Ensure Payroll database is initialized before payroll operations
+ */
+export async function ensurePayrollInitialized(companyId: string) {
+  return await initializePayrollDatabase(companyId)
+}
+
