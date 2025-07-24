@@ -71,6 +71,11 @@ export async function PUT(
     const { id } = await params
     const data = await request.json()
     
+    // Debug logging
+    console.log('🔍 Employee update request received:');
+    console.log('Employee ID:', id);
+    console.log('Request data:', JSON.stringify(data, null, 2));
+    
     // Check if employee exists and belongs to the company
     const existingEmployee = await hrClient.employee.findFirst({
       where: {
@@ -82,6 +87,8 @@ export async function PUT(
     if (!existingEmployee) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 })
     }
+    
+    console.log('✅ Existing employee found:', existingEmployee.firstName, existingEmployee.lastName);
     
     // Validate BSN if being updated
     if (data.bsn && data.bsn !== existingEmployee.bsn) {
@@ -127,33 +134,93 @@ export async function PUT(
     }
     
     // Parse dates if provided
-    const updateData: any = { ...data }
-    if (data.startDate) updateData.startDate = new Date(data.startDate)
-    if (data.dateOfBirth) updateData.dateOfBirth = new Date(data.dateOfBirth)
-    if (data.probationEndDate) updateData.probationEndDate = new Date(data.probationEndDate)
-    if (data.endDate) updateData.endDate = new Date(data.endDate)
+    // Map frontend field names to database field names
+    const fieldMapping: { [key: string]: string } = {
+      'phoneNumber': 'phone',
+      'address': 'streetName'
+    }
     
-    // Convert numeric fields
-    if (data.salary !== undefined) updateData.salary = parseFloat(data.salary) || 0
-    if (data.hourlyRate !== undefined) updateData.hourlyRate = parseFloat(data.hourlyRate) || null
-    if (data.workingHours !== undefined) updateData.workingHours = parseFloat(data.workingHours) || 40
-    if (data.workingDays !== undefined) updateData.workingDays = parseFloat(data.workingDays) || 5
-    if (data.taxCredit !== undefined) updateData.taxCredit = parseFloat(data.taxCredit) || 0
-    if (data.holidayAllowance !== undefined) updateData.holidayAllowance = parseFloat(data.holidayAllowance) || 8.33
-    if (data.holidayDays !== undefined) updateData.holidayDays = parseInt(data.holidayDays) || 25
+    // Define allowed fields for update (exclude relational and system fields)
+    const allowedFields = [
+      'firstName', 'lastName', 'email', 'phone', 'streetName', 'houseNumber', 
+      'houseNumberAddition', 'city', 'postalCode', 'country', 'nationality', 
+      'bsn', 'dateOfBirth', 'startDate', 'endDate', 'position', 'department', 'employmentType', 
+      'contractType', 'workingHours', 'salary', 'salaryType', 'hourlyRate', 
+      'taxTable', 'taxCredit', 'isDGA', 'bankAccount', 'bankName', 
+      'emergencyContact', 'emergencyPhone', 'emergencyRelation', 'isActive',
+      'holidayAllowance', 'holidayDays', 'employeeNumber'
+    ]
     
-    // Remove undefined values to avoid overwriting with null
-    Object.keys(updateData).forEach(key => {
-      if (updateData[key] === undefined) {
-        delete updateData[key]
+    // Filter and map form data to database fields
+    const updateData: any = {}
+    
+    Object.keys(data).forEach(key => {
+      const dbField = fieldMapping[key] || key
+      
+      // Skip relational fields that cannot be updated directly
+      if (['LeaveRequest', 'TimeEntry', 'EmployeeHistory', 'Company', 'id', 'companyId', 'createdAt', 'updatedAt'].includes(key)) {
+        console.log(`🚫 Skipping relational/system field: ${key}`)
+        return
       }
+      
+      // Only allow specific fields to be updated
+      if (!allowedFields.includes(dbField)) {
+        console.log(`🚫 Skipping field: ${key} -> ${dbField} (not in allowed list)`)
+        return
+      }
+      
+      // Skip undefined values
+      if (data[key] === undefined || data[key] === null) {
+        return
+      }
+      
+      // Handle date fields
+      if (['dateOfBirth', 'startDate', 'endDate'].includes(dbField) && data[key]) {
+        updateData[dbField] = new Date(data[key])
+        console.log(`✅ Including date field: ${key} -> ${dbField} = ${data[key]}`)
+        return
+      }
+      
+      // Handle numeric fields
+      if (['salary', 'workingHours', 'taxCredit', 'hourlyRate'].includes(dbField) && data[key] !== undefined) {
+        updateData[dbField] = parseFloat(data[key]) || 0
+        console.log(`✅ Including numeric field: ${key} -> ${dbField} = ${data[key]}`)
+        return
+      }
+      
+      if (['holidayAllowance'].includes(dbField) && data[key] !== undefined) {
+        updateData[dbField] = parseFloat(data[key]) || 8.33
+        console.log(`✅ Including holiday allowance field: ${key} -> ${dbField} = ${data[key]}`)
+        return
+      }
+      
+      if (['holidayDays'].includes(dbField) && data[key] !== undefined) {
+        updateData[dbField] = parseInt(data[key]) || 25
+        console.log(`✅ Including holiday days field: ${key} -> ${dbField} = ${data[key]}`)
+        return
+      }
+      
+      // Handle boolean fields
+      if (['isActive', 'isDGA'].includes(dbField)) {
+        updateData[dbField] = Boolean(data[key])
+        console.log(`✅ Including boolean field: ${key} -> ${dbField} = ${data[key]}`)
+        return
+      }
+      
+      // Handle string fields
+      updateData[dbField] = data[key]
+      console.log(`✅ Including string field: ${key} -> ${dbField} = ${data[key]}`)
     })
+    
+    console.log('🔄 Attempting to update employee with data:', JSON.stringify(updateData, null, 2));
     
     // Update employee
     const updatedEmployee = await hrClient.employee.update({
       where: { id: id },
       data: updateData
     })
+    
+    console.log('✅ Employee updated successfully:', updatedEmployee.firstName, updatedEmployee.lastName);
     
     return NextResponse.json({
       success: true,
