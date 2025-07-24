@@ -12,6 +12,120 @@ export interface AuthContext {
 }
 
 /**
+ * Atomically set user's company context to their first active company
+ * Prevents race conditions in multi-company scenarios
+ */
+async function setUserCompanyContext(userId: string): Promise<string | null> {
+  try {
+    return await authClient.$transaction(async (tx) => {
+      console.log(`🔄 Setting company context for user: ${userId}`)
+      
+      // Get user's current company context
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { companyId: true }
+      })
+
+      if (user?.companyId) {
+        console.log(`✅ User already has company context: ${user.companyId}`)
+        return user.companyId // Already has context
+      }
+
+      // Find first active company relationship
+      const userCompany = await tx.userCompany.findFirst({
+        where: {
+          userId: userId,
+          isActive: true
+        },
+        include: {
+          Company: { select: { id: true, name: true } }
+        },
+        orderBy: { createdAt: 'asc' }
+      })
+
+      if (!userCompany) {
+        console.log(`❌ No active companies found for user: ${userId}`)
+        return null // No companies found
+      }
+
+      // Atomically update user's company context
+      await tx.user.update({
+        where: { id: userId },
+        data: { companyId: userCompany.companyId }
+      })
+
+      console.log(`✅ Set user company context to: ${userCompany.Company.name} (${userCompany.companyId})`)
+      
+      // Log the context change for audit purposes
+      await logCompanyContextChange(tx, userId, null, userCompany.companyId)
+
+      return userCompany.companyId
+    })
+  } catch (error) {
+    console.error('❌ Error setting user company context:', error)
+    return null
+  }
+}
+
+/**
+ * Validate that a user has access to a specific company
+ */
+async function validateCompanyContext(userId: string, companyId: string): Promise<boolean> {
+  try {
+    const userCompany = await authClient.userCompany.findUnique({
+      where: {
+        userId_companyId: {
+          userId: userId,
+          companyId: companyId
+        }
+      }
+    })
+
+    const isValid = userCompany?.isActive === true
+    console.log(`🔍 Company context validation for user ${userId}, company ${companyId}: ${isValid ? 'VALID' : 'INVALID'}`)
+    
+    return isValid
+  } catch (error) {
+    console.error('❌ Error validating company context:', error)
+    return false
+  }
+}
+
+/**
+ * Log company context changes for audit purposes
+ */
+async function logCompanyContextChange(
+  tx: any, 
+  userId: string, 
+  oldCompanyId: string | null, 
+  newCompanyId: string
+) {
+  try {
+    // Note: This assumes an audit log table exists. If not, this will be a no-op.
+    // In a production system, you might want to use a separate logging service.
+    console.log(`📝 Audit: User ${userId} company context changed from ${oldCompanyId || 'null'} to ${newCompanyId}`)
+    
+    // If you have an audit log table, uncomment and modify this:
+    /*
+    await tx.auditLog.create({
+      data: {
+        userId: userId,
+        action: 'COMPANY_CONTEXT_CHANGE',
+        details: {
+          oldCompanyId,
+          newCompanyId,
+          timestamp: new Date()
+        }
+      }
+    })
+    */
+  } catch (error) {
+    console.error('⚠️ Failed to log company context change:', error)
+    // Don't throw - audit logging failure shouldn't prevent the operation
+  }
+}
+
+/**
  * Enhanced authentication check with better error handling for production
  */
 export async function getAuthContext(request: NextRequest): Promise<AuthContext | null> {
@@ -51,46 +165,20 @@ export async function getAuthContext(request: NextRequest): Promise<AuthContext 
 
     let companyId = user.companyId
 
-    // If no company set, get user's first company
+    // If no company set, get user's first company atomically
     if (!companyId) {
-      try {
-        const firstUserCompany = await authClient.userCompany.findFirst({
-          where: {
-            userId: session.user.id,
-            isActive: true
-          },
-          include: {
-            Company: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
-          },
-          orderBy: {
-            createdAt: 'asc'
-          }
-        })
-
-        if (firstUserCompany) {
-          companyId = firstUserCompany.companyId
-          
-          // Update user's companyId
-          await authClient.user.update({
-            where: { id: session.user.id },
-            data: { companyId: companyId }
-          })
-          
-          console.log('Set user companyId to:', companyId)
-        }
-      } catch (companyError) {
-        console.error('Error fetching user company:', companyError)
-        return null
-      }
+      companyId = await setUserCompanyContext(session.user.id)
     }
 
     if (!companyId) {
       console.log('No company found for user')
+      return null
+    }
+
+    // Validate that the user has access to this company
+    const hasAccess = await validateCompanyContext(session.user.id, companyId)
+    if (!hasAccess) {
+      console.log(`❌ User ${session.user.id} does not have access to company ${companyId}`)
       return null
     }
 

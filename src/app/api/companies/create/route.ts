@@ -4,6 +4,132 @@ import { authOptions } from "@/lib/auth"
 import { authClient } from "@/lib/database-clients"
 import { initializeHRDatabase } from "@/lib/lazy-initialization"
 
+/**
+ * Robust trial plan lookup with fallback logic and automatic creation
+ * Handles various naming conventions and ensures trial plan availability
+ */
+async function findOrCreateTrialPlan(tx: any) {
+  console.log('🔍 Looking for trial plan...')
+  
+  // Step 1: Try to find canonical "Free Trial" plan
+  let trialPlan = await tx.plan.findFirst({
+    where: { 
+      name: "Free Trial",
+      isActive: true 
+    }
+  })
+
+  if (trialPlan) {
+    console.log(`✅ Found canonical trial plan: ${trialPlan.id}`)
+    return trialPlan
+  }
+
+  // Step 2: Try alternative trial plan names
+  const alternativeNames = [
+    "Trial Plan",
+    "trial", 
+    "Trial",
+    "Free trial",
+    "FREE_TRIAL",
+    "14-Day Trial",
+    "Starter Trial"
+  ]
+
+  for (const name of alternativeNames) {
+    trialPlan = await tx.plan.findFirst({
+      where: { 
+        name: name,
+        isActive: true 
+      }
+    })
+    
+    if (trialPlan) {
+      console.log(`✅ Found trial plan with alternative name: "${name}" (${trialPlan.id})`)
+      
+      // Update to canonical name for consistency
+      await tx.plan.update({
+        where: { id: trialPlan.id },
+        data: { name: "Free Trial" }
+      })
+      
+      console.log(`🔄 Updated plan name to "Free Trial"`)
+      return trialPlan
+    }
+  }
+
+  // Step 3: Look for any plan with trial-like characteristics
+  trialPlan = await tx.plan.findFirst({
+    where: {
+      AND: [
+        { isActive: true },
+        { price: 0 },
+        {
+          OR: [
+            { name: { contains: 'trial', mode: 'insensitive' } },
+            { name: { contains: 'free', mode: 'insensitive' } },
+            { description: { contains: 'trial', mode: 'insensitive' } }
+          ]
+        }
+      ]
+    }
+  })
+
+  if (trialPlan) {
+    console.log(`✅ Found trial-like plan: "${trialPlan.name}" (${trialPlan.id})`)
+    
+    // Update to canonical name and ensure proper configuration
+    await tx.plan.update({
+      where: { id: trialPlan.id },
+      data: { 
+        name: "Free Trial",
+        description: "14-day free trial with full access to all features",
+        features: [
+          "employees",
+          "payroll", 
+          "leave_management",
+          "time_tracking",
+          "reporting",
+          "multi_company",
+          "priority_support"
+        ],
+        maxEmployees: 999,
+        maxPayrolls: 999
+      }
+    })
+    
+    console.log(`🔄 Updated plan configuration`)
+    return trialPlan
+  }
+
+  // Step 4: Create new trial plan if none exists
+  console.log('📝 Creating new trial plan...')
+  
+  trialPlan = await tx.plan.create({
+    data: {
+      name: "Free Trial",
+      description: "14-day free trial with full access to all features",
+      price: 0,
+      currency: "EUR",
+      interval: "month",
+      features: [
+        "employees",
+        "payroll", 
+        "leave_management",
+        "time_tracking",
+        "reporting",
+        "multi_company",
+        "priority_support"
+      ],
+      maxEmployees: 999,
+      maxPayrolls: 999,
+      isActive: true
+    }
+  })
+
+  console.log(`✅ Created new trial plan: ${trialPlan.id}`)
+  return trialPlan
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -85,19 +211,19 @@ export async function POST(req: NextRequest) {
         data: { companyId: company.id }
       })
 
-      // Get the trial plan
-      const trialPlan = await tx.plan.findFirst({
-        where: { 
-          name: "Free Trial",
-          isActive: true 
-        }
-      })
+      // Get the trial plan with robust fallback logic
+      const trialPlan = await findOrCreateTrialPlan(tx)
 
       if (!trialPlan) {
-        throw new Error("Trial plan not found")
+        throw new Error("Unable to create or find trial plan")
       }
 
-      // Start trial subscription
+      // Start trial subscription with enhanced logging
+      console.log(`🎯 Creating trial subscription for company: ${company.id}`)
+      console.log(`📋 Trial plan details: ${trialPlan.name} (${trialPlan.id})`)
+      
+      const trialEndDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+      
       const subscription = await tx.subscription.create({
         data: {
           companyId: company.id,
@@ -106,14 +232,18 @@ export async function POST(req: NextRequest) {
           stripeSubscriptionId: null,
           stripeCustomerId: null,
           currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
+          currentPeriodEnd: trialEndDate,
           cancelAtPeriodEnd: false,
-          trialEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+          trialEnd: trialEndDate,
           isTrialActive: true,
           trialStart: new Date(),
           trialExtensions: 0
         }
       })
+
+      console.log(`🎉 Trial subscription created successfully!`)
+      console.log(`📅 Trial period: ${subscription.trialStart} to ${subscription.trialEnd}`)
+      console.log(`🆔 Subscription ID: ${subscription.id}`)
 
       return { company, userCompany, subscription, trialPlan }
     })
