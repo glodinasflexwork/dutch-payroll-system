@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Send invitation email
-    const invitationLink = `${process.env.NEXTAUTH_URL}/auth/signup?token=${invitationToken}&email=${encodeURIComponent(employee.email)}`;
+    const invitationLink = `${process.env.NEXTAUTH_URL}/auth/employee-signup?token=${invitationToken}&email=${encodeURIComponent(employee.email)}`;
     await sendEmployeeInvitationEmail(employee.email, employee.firstName, invitationLink);
 
     // Update employee status in HR database

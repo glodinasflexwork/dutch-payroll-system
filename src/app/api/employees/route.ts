@@ -261,6 +261,15 @@ export async function POST(request: NextRequest) {
     // Handle portal invitation if requested
     if (data.sendInvitation) {
       try {
+        // Update employee status to INVITED before sending invitation
+        await hrClient.employee.update({
+          where: { id: employee.id },
+          data: {
+            portalAccessStatus: "INVITED",
+            invitedAt: new Date()
+          }
+        });
+        
         // Call the invite API
         const inviteResponse = await fetch(`${process.env.NEXTAUTH_URL}/api/employees/invite`, {
           method: 'POST',
@@ -273,9 +282,27 @@ export async function POST(request: NextRequest) {
         
         if (!inviteResponse.ok) {
           console.warn('Failed to send employee invitation, but employee was created successfully');
+          // Revert the status if invitation failed
+          await hrClient.employee.update({
+            where: { id: employee.id },
+            data: {
+              portalAccessStatus: "NO_ACCESS",
+              invitedAt: null
+            }
+          });
+        } else {
+          console.log(`Portal invitation sent successfully to ${employee.email}`);
         }
       } catch (inviteError) {
         console.error('Error sending employee invitation:', inviteError);
+        // Revert the status if invitation failed
+        await hrClient.employee.update({
+          where: { id: employee.id },
+          data: {
+            portalAccessStatus: "NO_ACCESS",
+            invitedAt: null
+          }
+        });
       }
     }
     
