@@ -5,8 +5,6 @@
  * employee portal invitations.
  */
 
-import axios from 'axios';
-
 // Email templates
 const EMAIL_TEMPLATES = {
   EMPLOYEE_INVITATION: {
@@ -113,6 +111,16 @@ const EMAIL_TEMPLATES = {
  */
 async function sendEmail(to: string, subject: string, html: string, text: string) {
   try {
+    // For development, just log the email instead of sending
+    if (process.env.NODE_ENV === 'development') {
+      console.log('📧 Email would be sent:');
+      console.log(`To: ${to}`);
+      console.log(`Subject: ${subject}`);
+      console.log(`HTML: ${html.substring(0, 200)}...`);
+      console.log(`Text: ${text.substring(0, 200)}...`);
+      return { success: true, messageId: 'dev-' + Date.now() };
+    }
+
     const apiToken = process.env.MAILTRAP_API_TOKEN;
     const apiUrl = process.env.MAILTRAP_API_URL;
     const fromEmail = process.env.EMAIL_FROM;
@@ -122,9 +130,13 @@ async function sendEmail(to: string, subject: string, html: string, text: string
       throw new Error('Email service configuration missing');
     }
 
-    const response = await axios.post(
-      apiUrl,
-      {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
         from: {
           email: fromEmail,
           name: fromName || 'SalarySync'
@@ -133,16 +145,14 @@ async function sendEmail(to: string, subject: string, html: string, text: string
         subject,
         html,
         text
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${apiToken}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+      })
+    });
 
-    return response.data;
+    if (!response.ok) {
+      throw new Error(`Email API error: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
   } catch (error) {
     console.error('Error sending email:', error);
     throw error;

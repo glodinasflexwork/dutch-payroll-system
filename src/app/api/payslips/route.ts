@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { payrollClient } from "@/lib/database-clients"
+import { } from "@/lib/database-clients"
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { calculateDutchPayroll, type EmployeeData, type CompanyData } from "@/lib/payroll-calculations"

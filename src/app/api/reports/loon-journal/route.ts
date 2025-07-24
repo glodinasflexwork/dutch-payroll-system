@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { payrollClient } from "@/lib/database-clients"
+import { } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { NextRequest, NextResponse } from "next/server"
 
