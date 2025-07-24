@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import DeleteConfirmationModal from "@/components/ui/delete-confirmation-modal"
 import EmployeeActionsDropdown from "@/components/ui/employee-actions-dropdown"
+import EmployeeDeactivationModal from "@/components/ui/employee-deactivation-modal"
 import { 
   Users, 
   Plus, 
@@ -50,6 +51,8 @@ export default function EmployeesPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeactivationDialog, setShowDeactivationDialog] = useState(false)
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -179,6 +182,46 @@ export default function EmployeesPage() {
   const handleExportData = (employeeId: string) => {
     // TODO: Implement export functionality
     console.log('Export data for employee:', employeeId)
+  }
+
+  const handleToggleStatus = (employee: Employee) => {
+    setSelectedEmployee(employee)
+    setShowDeactivationDialog(true)
+  }
+
+  const handleConfirmToggleStatus = async (data: { reason: string; effectiveDate: string; customReason?: string }) => {
+    if (!selectedEmployee) return
+    
+    setIsTogglingStatus(true)
+    try {
+      const response = await fetch(`/api/employees/${selectedEmployee.id}/toggle-status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reason: data.reason,
+          effectiveDate: data.effectiveDate
+        })
+      })
+      
+      if (response.ok) {
+        // Refresh the employee list
+        await fetchEmployees()
+        setShowDeactivationDialog(false)
+        setSelectedEmployee(null)
+        
+        const result = await response.json()
+        console.log('Employee status toggled:', result.message)
+      } else {
+        const errorData = await response.json()
+        console.error('Failed to toggle employee status:', errorData.error)
+      }
+    } catch (error) {
+      console.error('Error toggling employee status:', error)
+    } finally {
+      setIsTogglingStatus(false)
+    }
   }
 
   if (status === "loading" || loading) {
@@ -430,6 +473,7 @@ export default function EmployeesPage() {
                               onView={handleViewEmployee}
                               onEdit={handleEditEmployee}
                               onDelete={handleDeleteEmployee}
+                              onToggleStatus={handleToggleStatus}
                               onSendEmail={handleSendEmail}
                               onExportData={handleExportData}
                             />
@@ -457,6 +501,18 @@ export default function EmployeesPage() {
         description="Are you sure you want to delete this employee? This action cannot be undone and will remove all associated data."
         itemName={selectedEmployee ? `${selectedEmployee.firstName} ${selectedEmployee.lastName}` : ''}
         isLoading={isDeleting}
+      />
+
+      {/* Employee Deactivation Modal */}
+      <EmployeeDeactivationModal
+        isOpen={showDeactivationDialog}
+        onClose={() => {
+          setShowDeactivationDialog(false)
+          setSelectedEmployee(null)
+        }}
+        onConfirm={handleConfirmToggleStatus}
+        employee={selectedEmployee}
+        isLoading={isTogglingStatus}
       />
     </DashboardLayout>
   )
