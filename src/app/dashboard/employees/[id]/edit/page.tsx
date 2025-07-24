@@ -33,10 +33,10 @@ interface Employee {
   hourlyRate?: number
   taxTable: 'wit' | 'groen'
   startDate: string
-  address: string
+  streetName: string  // Changed from 'address' to match DB schema
   postalCode: string
   city: string
-  phoneNumber: string
+  phone: string       // Changed from 'phoneNumber' to match DB schema
   bankAccount: string
   emergencyContact: string
   emergencyPhone: string
@@ -96,14 +96,36 @@ export default function EditEmployeePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
+    setError("")
 
     try {
+      // Only send fields that can be updated, exclude relational data
+      const editableFields = [
+        'firstName', 'lastName', 'email', 'phone', 'streetName', 'houseNumber', 
+        'houseNumberAddition', 'city', 'postalCode', 'country', 'nationality', 
+        'bsn', 'dateOfBirth', 'startDate', 'endDate', 'position', 'department', 'employmentType', 
+        'contractType', 'workingHours', 'salary', 'salaryType', 'hourlyRate', 
+        'taxTable', 'taxCredit', 'isDGA', 'bankAccount', 'bankName', 
+        'emergencyContact', 'emergencyPhone', 'emergencyRelation', 'isActive',
+        'holidayAllowance', 'holidayDays', 'employeeNumber'
+      ]
+      
+      // Filter formData to only include editable fields
+      const updateData: any = {}
+      editableFields.forEach(field => {
+        if (formData[field as keyof Employee] !== undefined) {
+          updateData[field] = formData[field as keyof Employee]
+        }
+      })
+      
+      console.log('🔄 Sending update data:', updateData)
+
       const response = await fetch(`/api/employees/${params.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(updateData),
       })
 
       if (response.ok) {
@@ -113,6 +135,7 @@ export default function EditEmployeePage() {
         setError(errorData.error || 'Failed to update employee')
       }
     } catch (error) {
+      console.error('Update error:', error)
       setError('Network error. Please try again.')
     } finally {
       setSaving(false)
@@ -232,8 +255,8 @@ export default function EditEmployeePage() {
                     Phone Number
                   </label>
                   <Input
-                    value={formData.phoneNumber || ''}
-                    onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+                    value={formData.phone || ''}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
                     placeholder="+31 6 12345678"
                   />
                 </div>
@@ -255,8 +278,8 @@ export default function EditEmployeePage() {
                   Address
                 </label>
                 <Input
-                  value={formData.address || ''}
-                  onChange={(e) => handleInputChange('address', e.target.value)}
+                  value={formData.streetName || ''}
+                  onChange={(e) => handleInputChange('streetName', e.target.value)}
                   placeholder="Straatnaam 123"
                 />
               </div>
