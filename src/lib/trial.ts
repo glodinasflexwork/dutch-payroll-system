@@ -150,8 +150,7 @@ export async function convertTrialToPaid(
       status: 'active',
       stripeSubscriptionId,
       isTrialActive: false,
-      convertedFromTrial: true,
-      trialConvertedAt: now
+      updatedAt: now
     }
   });
 }

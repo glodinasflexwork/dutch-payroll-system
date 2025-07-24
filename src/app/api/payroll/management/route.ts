@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { } from "@/lib/database-clients"
+import { payrollClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { calculateDutchPayroll, generatePayrollBreakdown } from "@/lib/payroll-calculations"
 

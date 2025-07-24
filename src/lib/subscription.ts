@@ -323,6 +323,6 @@ async function ensureTrialSubscription(companyId: string) {
 
 export async function hasFeature(companyId: string, feature: string): Promise<boolean> {
   const validation = await validateSubscription(companyId)
-  return validation.isValid && validation.limits?.features[feature] === true
+  return validation.isValid && Boolean(validation.limits?.features[feature as keyof typeof validation.limits.features])
 }
 
