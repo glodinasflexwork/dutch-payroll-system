@@ -1,0 +1,313 @@
+{
+  "summary": {
+    "total": 43,
+    "passed": 40,
+    "failed": 3,
+    "critical": 1,
+    "successRate": 93.02325581395348,
+    "timestamp": "2025-07-24T17:22:36.893Z"
+  },
+  "results": [
+    {
+      "test": "DELETE endpoint security test",
+      "passed": false,
+      "details": "Test failed with error: fetch failed",
+      "critical": true,
+      "timestamp": "2025-07-24T17:22:36.884Z"
+    },
+    {
+      "test": "Valid transition: draft → pending",
+      "passed": true,
+      "details": "Transition should be allowed by business logic",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.885Z"
+    },
+    {
+      "test": "Valid transition: draft → cancelled",
+      "passed": true,
+      "details": "Transition should be allowed by business logic",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.885Z"
+    },
+    {
+      "test": "Valid transition: pending → approved",
+      "passed": true,
+      "details": "Transition should be allowed by business logic",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.885Z"
+    },
+    {
+      "test": "Valid transition: pending → rejected",
+      "passed": true,
+      "details": "Transition should be allowed by business logic",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.885Z"
+    },
+    {
+      "test": "Valid transition: pending → cancelled",
+      "passed": true,
+      "details": "Transition should be allowed by business logic",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.885Z"
+    },
+    {
+      "test": "Valid transition: approved → finalized",
+      "passed": true,
+      "details": "Transition should be allowed by business logic",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.885Z"
+    },
+    {
+      "test": "Valid transition: approved → rejected",
+      "passed": true,
+      "details": "Transition should be allowed by business logic",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.885Z"
+    },
+    {
+      "test": "Valid transition: rejected → pending",
+      "passed": true,
+      "details": "Transition should be allowed by business logic",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.885Z"
+    },
+    {
+      "test": "Valid transition: rejected → cancelled",
+      "passed": true,
+      "details": "Transition should be allowed by business logic",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.885Z"
+    },
+    {
+      "test": "Valid transition: finalized → paid",
+      "passed": true,
+      "details": "Transition should be allowed by business logic",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.885Z"
+    },
+    {
+      "test": "Invalid transition blocked: finalized → draft",
+      "passed": true,
+      "details": "Cannot modify finalized payroll",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.886Z"
+    },
+    {
+      "test": "Invalid transition blocked: paid → approved",
+      "passed": true,
+      "details": "Cannot modify paid payroll",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.886Z"
+    },
+    {
+      "test": "Invalid transition blocked: finalized → pending",
+      "passed": true,
+      "details": "Cannot revert finalized payroll",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.886Z"
+    },
+    {
+      "test": "Invalid transition blocked: paid → cancelled",
+      "passed": true,
+      "details": "Cannot cancel paid payroll",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.886Z"
+    },
+    {
+      "test": "Audit trail API test",
+      "passed": false,
+      "details": "Failed to test audit trail API: fetch failed",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.889Z"
+    },
+    {
+      "test": "Audit log structure validation",
+      "passed": true,
+      "details": "Required fields defined: entityType, entityId, action, performedBy, createdAt, oldValues, newValues, reason",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.889Z"
+    },
+    {
+      "test": "Immutability protection for finalized status",
+      "passed": true,
+      "details": "Payroll records with finalized status should be immutable",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.889Z"
+    },
+    {
+      "test": "Immutability protection for paid status",
+      "passed": true,
+      "details": "Payroll records with paid status should be immutable",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.889Z"
+    },
+    {
+      "test": "Modification allowed for draft status",
+      "passed": true,
+      "details": "Payroll records with draft status should be modifiable",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.889Z"
+    },
+    {
+      "test": "Modification allowed for pending status",
+      "passed": true,
+      "details": "Payroll records with pending status should be modifiable",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.889Z"
+    },
+    {
+      "test": "Payroll lock mechanism",
+      "passed": true,
+      "details": "Locked payrolls should be immutable regardless of status",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.889Z"
+    },
+    {
+      "test": "Approval workflow test",
+      "passed": false,
+      "details": "Failed to test approval workflow: fetch failed",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.891Z"
+    },
+    {
+      "test": "Approval action: submit",
+      "passed": true,
+      "details": "submit action should be implemented in approval workflow",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.891Z"
+    },
+    {
+      "test": "Approval action: approve",
+      "passed": true,
+      "details": "approve action should be implemented in approval workflow",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.891Z"
+    },
+    {
+      "test": "Approval action: reject",
+      "passed": true,
+      "details": "reject action should be implemented in approval workflow",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.891Z"
+    },
+    {
+      "test": "Approval action: finalize",
+      "passed": true,
+      "details": "finalize action should be implemented in approval workflow",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.891Z"
+    },
+    {
+      "test": "Approval action: cancel",
+      "passed": true,
+      "details": "cancel action should be implemented in approval workflow",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.892Z"
+    },
+    {
+      "test": "Data retention policy: payrollRecords",
+      "passed": true,
+      "details": "payrollRecords should be retained for 7 years (Dutch legal requirement)",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.892Z"
+    },
+    {
+      "test": "Data retention policy: auditLogs",
+      "passed": true,
+      "details": "auditLogs should be retained for 10 years (Dutch legal requirement)",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.892Z"
+    },
+    {
+      "test": "Data retention policy: taxDocuments",
+      "passed": true,
+      "details": "taxDocuments should be retained for 7 years (Dutch legal requirement)",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.892Z"
+    },
+    {
+      "test": "Data retention policy: approvalHistory",
+      "passed": true,
+      "details": "approvalHistory should be retained for 7 years (Dutch legal requirement)",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.892Z"
+    },
+    {
+      "test": "Automatic deletion controls",
+      "passed": true,
+      "details": "System should have controls to prevent premature deletion of legally required records",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.892Z"
+    },
+    {
+      "test": "GDPR requirement: Data integrity maintenance",
+      "passed": true,
+      "details": "Should be implemented in the enhanced payroll system",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.892Z"
+    },
+    {
+      "test": "GDPR requirement: Audit trail for personal data processing",
+      "passed": true,
+      "details": "Should be implemented in the enhanced payroll system",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.892Z"
+    },
+    {
+      "test": "GDPR requirement: Right to rectification (balanced with legal retention)",
+      "passed": true,
+      "details": "Should be implemented in the enhanced payroll system",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.892Z"
+    },
+    {
+      "test": "GDPR requirement: Data protection by design",
+      "passed": true,
+      "details": "Should be implemented in the enhanced payroll system",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.892Z"
+    },
+    {
+      "test": "GDPR requirement: Lawful basis tracking",
+      "passed": true,
+      "details": "Should be implemented in the enhanced payroll system",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.892Z"
+    },
+    {
+      "test": "Version control: Version numbering for payroll records",
+      "passed": true,
+      "details": "Feature should be implemented in enhanced schema",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.892Z"
+    },
+    {
+      "test": "Version control: Change tracking with previous/new values",
+      "passed": true,
+      "details": "Feature should be implemented in enhanced schema",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.892Z"
+    },
+    {
+      "test": "Version control: User attribution for changes",
+      "passed": true,
+      "details": "Feature should be implemented in enhanced schema",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.892Z"
+    },
+    {
+      "test": "Version control: Timestamp for all modifications",
+      "passed": true,
+      "details": "Feature should be implemented in enhanced schema",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.893Z"
+    },
+    {
+      "test": "Version control: Reason tracking for changes",
+      "passed": true,
+      "details": "Feature should be implemented in enhanced schema",
+      "critical": false,
+      "timestamp": "2025-07-24T17:22:36.893Z"
+    }
+  ]
+}
