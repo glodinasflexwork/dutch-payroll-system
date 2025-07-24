@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { authClient } from '@/lib/database-clients'
-import { EmailService } from '@/lib/email-service'
+import { sendEmployeeInvitationEmail } from '@/lib/email-service'
 import crypto from 'crypto'
 
 export async function POST(request: NextRequest) {
@@ -85,25 +85,21 @@ export async function POST(request: NextRequest) {
     // Send invitation email
     const inviteUrl = `${process.env.NEXTAUTH_URL}/auth/invite?token=${token}`
     
-    await EmailService.sendEmail({
-      to: email,
-      subject: `Invitation to join ${userCompany.company.name} on SalarySync`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #2563eb;">You're invited to join ${userCompany.company.name}</h2>
-          <p>Hello,</p>
-          <p>${session.user.name} has invited you to join <strong>${userCompany.company.name}</strong> on SalarySync as a <strong>${role}</strong>.</p>
-          <p>SalarySync is a professional Dutch payroll management platform that helps companies manage their payroll, employees, and compliance efficiently.</p>
-          <div style="margin: 30px 0;">
-            <a href="${inviteUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Accept Invitation</a>
-          </div>
-          <p style="color: #666; font-size: 14px;">This invitation will expire in 7 days. If you don't have a SalarySync account, you'll be able to create one during the process.</p>
-          <p style="color: #666; font-size: 14px;">If you didn't expect this invitation, you can safely ignore this email.</p>
-          <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-          <p style="color: #999; font-size: 12px;">SalarySync - Professional Dutch Payroll Management</p>
+    // Create a simple invitation email (we can enhance this later)
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2563eb;">You're invited to join ${userCompany.company.name}</h2>
+        <p>Hello,</p>
+        <p>${session.user.name} has invited you to join <strong>${userCompany.company.name}</strong> on SalarySync as a <strong>${role}</strong>.</p>
+        <p>SalarySync is a professional Dutch payroll management platform that helps companies manage their payroll, employees, and compliance efficiently.</p>
+        <div style="margin: 30px 0;">
+          <a href="${inviteUrl}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Accept Invitation</a>
         </div>
-      `
-    })
+        <p style="color: #666; font-size: 14px;">This invitation will expire in 7 days. If you don't have a SalarySync account, you'll be able to create one during the process.</p>
+      </div>
+    `
+    
+    await sendEmployeeInvitationEmail(email, 'there', inviteUrl)
 
     return NextResponse.json({
       success: true,
