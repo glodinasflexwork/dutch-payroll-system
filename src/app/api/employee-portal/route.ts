@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { hrClient } from "@/lib/database-clients"
+import { hrClient, payrollClient } from "@/lib/database-clients"
 
 // GET /api/employee-portal - Get employee portal data
 export async function GET(request: NextRequest) {
@@ -154,8 +154,7 @@ export async function GET(request: NextRequest) {
         TimeEntry: {
           orderBy: { date: 'desc' },
           take: 20
-        },
-        portalAccess: true
+        }
       }
     })
 
@@ -164,7 +163,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if employee has portal access
-    if (!employee.portalAccess?.isActive) {
+    if (employee.portalAccessStatus !== "ACTIVE") {
       return NextResponse.json({ error: "Portal access not enabled" }, { status: 403 })
     }
 

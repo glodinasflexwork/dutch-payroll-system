@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { hrClient } from "@/lib/database-clients"
+import { hrClient, payrollClient } from "@/lib/database-clients"
 import fs from 'fs'
 import path from 'path'
 
@@ -17,11 +17,10 @@ export async function GET(request: NextRequest) {
 
     // Verify employee exists and has portal access
     const employee = await hrClient.employee.findUnique({
-      where: { id: employeeId },
-      include: { portalAccess: true }
+      where: { id: employeeId }
     })
 
-    if (!employee || !employee.portalAccess?.isActive) {
+    if (!employee || employee.portalAccessStatus !== "ACTIVE") {
       return NextResponse.json({ error: "Access denied" }, { status: 403 })
     }
 
