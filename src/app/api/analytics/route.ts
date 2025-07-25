@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { validateAuth } from "@/lib/auth-utils"
-import { hrClient } from "@/lib/database-clients"
+import { hrClient, payrollClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 
 export async function GET(request: NextRequest) {
@@ -42,28 +42,16 @@ export async function GET(request: NextRequest) {
     console.log("Analytics API - Fetching data for company:", companyId, "from", startDate, "to", endDate)
 
     // Fetch payroll records for the company within date range
-    const payrollRecords = await hrClient.payrollRecord.findMany({
+    const payrollRecords = await payrollClient.payrollRecord.findMany({
       where: {
         companyId: companyId,
-        payPeriodStart: {
+        createdAt: {
           gte: startDate,
           lte: endDate
         }
       },
-      include: {
-        Employee: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            department: true,
-            position: true,
-            employmentType: true
-          }
-        }
-      },
       orderBy: {
-        payPeriodStart: 'asc'
+        createdAt: 'asc'
       }
     })
 
@@ -82,7 +70,7 @@ export async function GET(request: NextRequest) {
     // Calculate KPI data
     const currentMonth = new Date()
     const currentMonthRecords = payrollRecords.filter(record => {
-      const recordDate = new Date(record.payPeriodStart)
+      const recordDate = new Date(record.createdAt)
       return recordDate.getMonth() === currentMonth.getMonth() && 
              recordDate.getFullYear() === currentMonth.getFullYear()
     })
@@ -90,24 +78,24 @@ export async function GET(request: NextRequest) {
     const previousMonth = new Date()
     previousMonth.setMonth(previousMonth.getMonth() - 1)
     const previousMonthRecords = payrollRecords.filter(record => {
-      const recordDate = new Date(record.payPeriodStart)
+      const recordDate = new Date(record.createdAt)
       return recordDate.getMonth() === previousMonth.getMonth() && 
              recordDate.getFullYear() === previousMonth.getFullYear()
     })
 
     // Calculate totals for current month
     const currentMonthTotals = currentMonthRecords.reduce((acc, record) => {
-      acc.totalPayroll += record.grossPay || 0
-      acc.totalTaxes += record.totalDeductions || 0
-      acc.totalNet += record.netPay || 0
+      acc.totalPayroll += record.grossSalary || 0
+      acc.totalTaxes += record.taxDeduction || 0
+      acc.totalNet += record.netSalary || 0
       return acc
     }, { totalPayroll: 0, totalTaxes: 0, totalNet: 0 })
 
     // Calculate totals for previous month
     const previousMonthTotals = previousMonthRecords.reduce((acc, record) => {
-      acc.totalPayroll += record.grossPay || 0
-      acc.totalTaxes += record.totalDeductions || 0
-      acc.totalNet += record.netPay || 0
+      acc.totalPayroll += record.grossSalary || 0
+      acc.totalTaxes += record.taxDeduction || 0
+      acc.totalNet += record.netSalary || 0
       return acc
     }, { totalPayroll: 0, totalTaxes: 0, totalNet: 0 })
 
@@ -137,7 +125,7 @@ export async function GET(request: NextRequest) {
     }>()
 
     payrollRecords.forEach(record => {
-      const date = new Date(record.payPeriodStart)
+      const date = new Date(record.createdAt)
       const monthKey = date.toLocaleDateString('en-US', { month: 'short' })
       
       if (!monthlyData.has(monthKey)) {
@@ -154,11 +142,11 @@ export async function GET(request: NextRequest) {
       }
       
       const monthData = monthlyData.get(monthKey)!
-      monthData.totalPayroll += record.grossPay || 0
+      monthData.totalPayroll += record.grossSalary || 0
       monthData.employees += 1
-      monthData.aow += record.aowContribution || 0
-      monthData.wlz += record.wlzContribution || 0
-      monthData.zvw += (record.grossPay || 0) * 0.0565 // Calculate ZVW
+      monthData.aow += record.socialSecurity || 0
+      monthData.wlz += record.socialSecurity || 0
+      monthData.zvw += (record.grossSalary || 0) * 0.0565 // Calculate ZVW
     })
 
     // Calculate average salary for each month
@@ -166,17 +154,32 @@ export async function GET(request: NextRequest) {
       data.averageSalary = data.employees > 0 ? data.totalPayroll / data.employees : 0
     })
 
-    // Employee distribution by department
+    // Employee distribution by department - get department info from HR database
     const departmentData = new Map<string, { employees: number, totalSalary: number }>()
     
+    // Get employee details from HR database for department information
+    const employeeIds = Array.from(new Set(currentMonthRecords.map(record => record.employeeId)))
+    const employees = await hrClient.employee.findMany({
+      where: {
+        id: { in: employeeIds },
+        companyId: companyId
+      },
+      select: {
+        id: true,
+        department: true
+      }
+    })
+    
+    const employeeDepartmentMap = new Map<string, string>(employees.map(emp => [emp.id, emp.department || 'Other']))
+    
     currentMonthRecords.forEach(record => {
-      const dept = record.Employee.department || 'Other'
+      const dept = employeeDepartmentMap.get(record.employeeId) || 'Other'
       if (!departmentData.has(dept)) {
         departmentData.set(dept, { employees: 0, totalSalary: 0 })
       }
       const deptData = departmentData.get(dept)!
       deptData.employees += 1
-      deptData.totalSalary += record.grossPay || 0
+      deptData.totalSalary += record.grossSalary || 0
     })
 
     // Employee distribution by employment type
