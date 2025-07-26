@@ -74,6 +74,9 @@ export default function Dashboard() {
       console.error('Error checking company status:', error)
       // On error, redirect to setup to be safe
       router.push("/setup/company")
+    } finally {
+      // Ensure loading is set to false even if there's an error or redirect
+      setLoading(false)
     }
   }
 
