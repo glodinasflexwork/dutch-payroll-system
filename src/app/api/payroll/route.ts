@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { validateAuth } from "@/lib/auth-utils"
-import { payrollClient } from "@/lib/database-clients"
+import { payrollClient, hrClient, authClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { calculateDutchPayroll, generatePayrollBreakdown, formatCurrency } from "@/lib/payroll-calculations"
 import { ensurePayrollInitialized } from "@/lib/lazy-initialization"
@@ -41,12 +41,15 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Fetch employee data
-    const employee = await payrollClient.employee.findFirst({
+    // Fetch employee data from HR database
+    const employee = await hrClient.employee.findFirst({
       where: {
         id: employeeId,
         companyId: context.companyId,
         isActive: true
+      },
+      include: {
+        contracts: true
       }
     })
 
@@ -54,8 +57,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 })
     }
 
-    // Fetch company data
-    const company = await payrollClient.company.findFirst({
+    // Fetch company data from auth database
+    const company = await authClient.company.findFirst({
       where: { id: context.companyId }
     })
 
@@ -89,11 +92,15 @@ export async function POST(request: NextRequest) {
     const breakdown = generatePayrollBreakdown(payrollResult)
 
     // Check if payroll record already exists for this period
+    const payPeriodDate = new Date(payPeriodStart)
+    const year = payPeriodDate.getFullYear()
+    const month = payPeriodDate.getMonth() + 1 // JavaScript months are 0-indexed
+    
     const existingRecord = await payrollClient.payrollRecord.findFirst({
       where: {
         employeeId: employeeId,
-        payPeriodStart: new Date(payPeriodStart),
-        payPeriodEnd: new Date(payPeriodEnd)
+        year: year,
+        month: month
       }
     })
 
@@ -176,12 +183,15 @@ export async function PUT(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Fetch employee data
-    const employee = await payrollClient.employee.findFirst({
+    // Fetch employee data from HR database
+    const employee = await hrClient.employee.findFirst({
       where: {
         id: employeeId,
         companyId: context.companyId,
         isActive: true
+      },
+      include: {
+        contracts: true
       }
     })
 
@@ -189,8 +199,8 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 })
     }
 
-    // Fetch company data
-    const company = await payrollClient.company.findFirst({
+    // Fetch company data from auth database
+    const company = await authClient.company.findFirst({
       where: { id: context.companyId }
     })
 
@@ -357,20 +367,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fetch payroll records
+    // Fetch payroll records (employee data is already stored in PayrollRecord)
     const payrollRecords = await payrollClient.payrollRecord.findMany({
       where: whereClause,
       include: {
-        Employee: {
-          select: {
-            id: true,
-            employeeNumber: true,
-            firstName: true,
-            lastName: true,
-            position: true,
-            department: true
-          }
-        }
+        PayrollBatch: true,
+        TaxCalculation: true,
+        PayslipGeneration: true
       },
       orderBy: {
         createdAt: 'desc'
@@ -384,18 +387,20 @@ export async function GET(request: NextRequest) {
       where: whereClause
     })
 
-    // Calculate summary statistics
+    // Calculate summary statistics using correct field names
     const summary = await payrollClient.payrollRecord.aggregate({
       where: whereClause,
       _sum: {
-        grossPay: true,
-        netPay: true,
-        totalDeductions: true,
-        employerCosts: true
+        grossSalary: true,
+        netSalary: true,
+        taxDeduction: true,
+        socialSecurity: true,
+        pensionDeduction: true,
+        otherDeductions: true
       },
       _avg: {
-        grossPay: true,
-        netPay: true
+        grossSalary: true,
+        netSalary: true
       }
     })
 
@@ -409,12 +414,14 @@ export async function GET(request: NextRequest) {
         hasMore: offset + limit < totalCount
       },
       summary: {
-        totalGrossPay: summary._sum.grossPay || 0,
-        totalNetPay: summary._sum.netPay || 0,
-        totalDeductions: summary._sum.totalDeductions || 0,
-        totalEmployerCosts: summary._sum.employerCosts || 0,
-        averageGrossPay: summary._avg.grossPay || 0,
-        averageNetPay: summary._avg.netPay || 0
+        totalGrossPay: summary._sum.grossSalary || 0,
+        totalNetPay: summary._sum.netSalary || 0,
+        totalTaxDeduction: summary._sum.taxDeduction || 0,
+        totalSocialSecurity: summary._sum.socialSecurity || 0,
+        totalPensionDeduction: summary._sum.pensionDeduction || 0,
+        totalOtherDeductions: summary._sum.otherDeductions || 0,
+        averageGrossPay: summary._avg.grossSalary || 0,
+        averageNetPay: summary._avg.netSalary || 0
       }
     })
 
