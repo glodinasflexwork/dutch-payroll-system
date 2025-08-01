@@ -11,6 +11,8 @@ import { cn } from '@/lib/utils'
 interface Company {
   id: string
   name: string
+  displayName?: string
+  originalName?: string
   role: string
   employeeCount: number
   isCurrentCompany: boolean
@@ -197,7 +199,7 @@ export function ModernCompanySwitcher({ isOpen, onClose, className }: ModernComp
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-2">
                       <h3 className="font-semibold text-gray-900 truncate">
-                        {company.name}
+                        {company.displayName || company.name}
                       </h3>
                       {company.isCurrentCompany && (
                         <Check className="h-4 w-4 text-blue-600 flex-shrink-0" />
@@ -303,7 +305,7 @@ export function CompanySwitcherTrigger({ className }: CompanySwitcherTriggerProp
             </div>
             <div className="flex-1 min-w-0 text-left">
               <div className="font-medium text-sm truncate">
-                {currentCompany.name}
+                {currentCompany.displayName || currentCompany.name}
               </div>
               <div className="text-xs text-gray-500">
                 {currentCompany.role} • {currentCompany.employeeCount} employees

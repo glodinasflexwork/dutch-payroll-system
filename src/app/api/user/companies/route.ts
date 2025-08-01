@@ -65,6 +65,61 @@ export async function GET(request: NextRequest) {
       isCurrentCompany: false // Will be set below
     }))
 
+    // Deduplicate companies by ID (in case user has multiple roles for same company)
+    // Keep the one with the highest role priority (owner > admin > hr_manager > manager > accountant)
+    const roleHierarchy = {
+      'owner': 5,
+      'admin': 4,
+      'hr_manager': 3,
+      'manager': 2,
+      'accountant': 1
+    }
+
+    const uniqueCompanies = companies.reduce((acc, company) => {
+      const existingCompany = acc.find(c => c.id === company.id)
+      
+      if (!existingCompany) {
+        // First occurrence of this company
+        acc.push(company)
+      } else {
+        // Company already exists, keep the one with higher role priority
+        const currentRolePriority = roleHierarchy[company.role.toLowerCase() as keyof typeof roleHierarchy] || 0
+        const existingRolePriority = roleHierarchy[existingCompany.role.toLowerCase() as keyof typeof roleHierarchy] || 0
+        
+        if (currentRolePriority > existingRolePriority) {
+          // Replace with higher priority role
+          const index = acc.findIndex(c => c.id === company.id)
+          acc[index] = company
+        }
+      }
+      
+      return acc
+    }, [] as typeof companies)
+
+    // Handle companies with duplicate names by adding distinguishing suffixes
+    const companiesWithUniqueNames = uniqueCompanies.map((company, index, array) => {
+      // Find all companies with the same name
+      const companiesWithSameName = array.filter(c => c.name === company.name)
+      
+      if (companiesWithSameName.length > 1) {
+        // Multiple companies with same name - add distinguishing suffix
+        const companyIndex = companiesWithSameName.findIndex(c => c.id === company.id)
+        const suffix = companyIndex === 0 ? '' : ` (${companyIndex + 1})`
+        
+        return {
+          ...company,
+          displayName: `${company.name}${suffix}`,
+          originalName: company.name
+        }
+      }
+      
+      return {
+        ...company,
+        displayName: company.name,
+        originalName: company.name
+      }
+    })
+
     // Always fetch current company from database, not from session
     // This ensures we get the latest company selection after switching
     const user = await authClient.user.findUnique({
@@ -72,18 +127,18 @@ export async function GET(request: NextRequest) {
       select: { companyId: true }
     })
 
-    const currentCompanyId = user?.companyId || companies[0]?.id
-    const currentCompany = companies.find(c => c.id === currentCompanyId) || companies[0]
+    const currentCompanyId = user?.companyId || companiesWithUniqueNames[0]?.id
+    const currentCompany = companiesWithUniqueNames.find(c => c.id === currentCompanyId) || companiesWithUniqueNames[0]
 
     // Mark the current company
-    companies.forEach(company => {
+    companiesWithUniqueNames.forEach(company => {
       company.isCurrentCompany = company.id === currentCompanyId
     })
 
     return NextResponse.json({
-      companies,
+      companies: companiesWithUniqueNames,
       currentCompany,
-      totalCompanies: companies.length
+      totalCompanies: companiesWithUniqueNames.length
     })
 
   } catch (error) {
