@@ -135,18 +135,19 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// POST /api/payroll/process - Process and save payroll for employee
+// PUT /api/payroll - Process and save payroll for employee
 export async function PUT(request: NextRequest) {
   try {
     console.log("=== PAYROLL PROCESSING START ===")
     
-    const session = await getServerSession(authOptions)
-    console.log("Session user ID:", session?.user?.id)
-    console.log("Session company ID:", session?.user?.companyId)
+    const { context, error, status } = await validateAuth(request, ['employee'])
     
-    if (!session?.user?.companyId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!context || error) {
+      console.log('Authentication failed:', error)
+      return NextResponse.json({ error }, { status })
     }
+
+    console.log('Authentication successful for payroll processing')
 
     // Validate subscription
     const subscriptionValidation = await validateSubscription(context.companyId)
