@@ -3,7 +3,6 @@
 import React from 'react'
 import EmployeePortalAccess from '@/components/EmployeePortalAccess'
 import EmployeeProfileEnhanced from '@/components/EmployeeProfileEnhanced'
-import PortalAccessBillingDashboard from '@/components/PortalAccessBillingDashboard'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -61,10 +60,9 @@ export default function TestPortalBillingPage() {
       </div>
 
       <Tabs defaultValue="employee-profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="employee-profile">Employee Profile</TabsTrigger>
           <TabsTrigger value="portal-access">Portal Access Control</TabsTrigger>
-          <TabsTrigger value="billing-dashboard">Billing Dashboard</TabsTrigger>
           <TabsTrigger value="api-demo">API Demo</TabsTrigger>
         </TabsList>
 
@@ -100,20 +98,6 @@ export default function TestPortalBillingPage() {
                 companyId={mockCompanyId}
                 onStatusChange={() => console.log('Portal access status changed')}
               />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="billing-dashboard" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Portal Access Billing Dashboard</CardTitle>
-              <CardDescription>
-                Comprehensive billing dashboard for managing portal access costs
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <PortalAccessBillingDashboard companyId={mockCompanyId} />
             </CardContent>
           </Card>
         </TabsContent>
