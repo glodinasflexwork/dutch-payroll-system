@@ -81,6 +81,8 @@ model Company {
   Subscription  Subscription?
   TenantConfig  TenantConfig?
   CompanyPoints CompanyPoints?
+  PortalAccessBilling PortalAccessBilling[]
+  PortalAccessQuota   PortalAccessQuota?
 }
 
 model UserCompany {
@@ -189,5 +191,89 @@ model PointsPackage {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+
+
+// Portal Access Billing Models
+model PortalAccessBilling {
+  id              String   @id @default(cuid())
+  companyId       String
+  employeeId      String   // Reference to HR database employee
+  status          String   // 'pending', 'active', 'cancelled', 'suspended'
+  startDate       DateTime
+  endDate         DateTime?
+  monthlyRate     Float    @default(5.00) // €5 per month
+  currency        String   @default("EUR")
+  billingCycle    String   @default("monthly") // 'monthly', 'annual'
+  
+  // Invitation tracking
+  invitationSentAt DateTime?
+  invitationAcceptedAt DateTime?
+  lastBilledAt    DateTime?
+  nextBillingDate DateTime?
+  
+  // Billing details
+  totalBilled     Float    @default(0)
+  totalPaid       Float    @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  Company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  BillingTransactions PortalBillingTransaction[]
+  
+  @@unique([companyId, employeeId])
+  @@index([companyId, status])
+  @@index([nextBillingDate])
+}
+
+model PortalBillingTransaction {
+  id                    String   @id @default(cuid())
+  portalAccessBillingId String
+  type                  String   // 'charge', 'refund', 'credit'
+  amount                Float
+  currency              String   @default("EUR")
+  description           String?
+  billingPeriodStart    DateTime
+  billingPeriodEnd      DateTime
+  
+  // Payment processing
+  stripeInvoiceId       String?
+  stripePaymentId       String?
+  paymentStatus         String   @default("pending") // 'pending', 'paid', 'failed', 'refunded'
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  PortalAccessBilling   PortalAccessBilling @relation(fields: [portalAccessBillingId], references: [id], onDelete: Cascade)
+  
+  @@index([paymentStatus])
+  @@index([billingPeriodStart, billingPeriodEnd])
+}
+
+model PortalAccessQuota {
+  id                    String   @id @default(cuid())
+  companyId             String   @unique
+  maxPortalUsers        Int      @default(5)  // Based on subscription plan
+  currentActiveUsers    Int      @default(0)
+  currentPendingUsers   Int      @default(0)  // Invited but not yet accepted
+  
+  // Usage tracking
+  totalInvitationsSent  Int      @default(0)
+  totalAcceptances      Int      @default(0)
+  totalCancellations    Int      @default(0)
+  
+  // Billing summary
+  monthlyRevenue        Float    @default(0)
+  totalRevenue          Float    @default(0)
+  
+  lastUpdated           DateTime @default(now())
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  Company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  @@index([companyId])
 }
 

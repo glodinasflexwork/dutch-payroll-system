@@ -165,15 +165,37 @@ async function sendEmail(to: string, subject: string, html: string, text: string
 export async function sendEmployeeInvitationEmail(
   email: string,
   firstName: string,
-  invitationLink: string
+  invitationLink: string,
+  isRetry: boolean = false
 ) {
   const template = EMAIL_TEMPLATES.EMPLOYEE_INVITATION;
   
+  // Modify subject for retry emails
+  const subject = isRetry 
+    ? `Reminder: ${template.subject}` 
+    : template.subject;
+  
+  // Add retry message to HTML template if it's a retry
+  const htmlContent = isRetry 
+    ? template.html(firstName, invitationLink).replace(
+        '<h2>Welcome, ${firstName}!</h2>',
+        `<h2>Reminder: Welcome, ${firstName}!</h2>
+         <div style="background-color: #FEF3C7; border: 1px solid #F59E0B; padding: 10px; margin: 10px 0; border-radius: 4px;">
+           <p style="margin: 0; color: #92400E;"><strong>This is a reminder:</strong> You previously received an invitation to access the SalarySync Employee Portal. If you haven't completed your registration yet, please use the link below.</p>
+         </div>`
+      )
+    : template.html(firstName, invitationLink);
+  
+  // Add retry message to text template if it's a retry
+  const textContent = isRetry
+    ? `REMINDER: ${template.text(firstName, invitationLink)}\n\nThis is a reminder email. You previously received an invitation to access the SalarySync Employee Portal. If you haven't completed your registration yet, please use the link above.`
+    : template.text(firstName, invitationLink);
+  
   return sendEmail(
     email,
-    template.subject,
-    template.html(firstName, invitationLink),
-    template.text(firstName, invitationLink)
+    subject,
+    htmlContent,
+    textContent
   );
 }
 
