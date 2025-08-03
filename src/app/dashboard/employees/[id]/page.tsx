@@ -4,9 +4,11 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter, useParams } from "next/navigation"
 import DashboardLayout from "@/components/layout/dashboard-layout"
+import EmployeePortalAccess from "@/components/EmployeePortalAccess"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   ArrowLeft,
   Edit,
@@ -18,7 +20,8 @@ import {
   Mail,
   MapPin,
   CreditCard,
-  AlertTriangle
+  AlertTriangle,
+  Shield
 } from "lucide-react"
 
 interface Employee {
@@ -44,6 +47,8 @@ interface Employee {
   emergencyPhone: string
   isActive: boolean
   employeeNumber: string
+  portalAccessStatus?: 'NO_ACCESS' | 'INVITED' | 'ACTIVE'
+  invitedAt?: string
 }
 
 export default function EmployeeDetailPage() {
