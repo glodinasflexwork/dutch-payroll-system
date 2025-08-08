@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { payrollClient } from "@/lib/database-clients"
+import { payrollClient, hrClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { calculateDutchPayroll, generatePayrollBreakdown } from "@/lib/payroll-calculations"
 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     console.log("Query params:", { payPeriodStart, payPeriodEnd })
 
     // Fetch active employees for the company
-    const employees = await payrollClient.employee.findMany({
+    const employees = await hrClient.employee.findMany({
       where: {
         companyId: session.user.companyId,
         isActive: true
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get company data for calculations
-    const company = await payrollClient.company.findFirst({
+    const company = await hrClient.company.findFirst({
       where: { id: session.user.companyId }
     })
 
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
     console.log("Dry run:", dryRun)
 
     // Fetch employees
-    const employees = await payrollClient.employee.findMany({
+    const employees = await hrClient.employee.findMany({
       where: {
         id: { in: employeeIds },
         companyId: session.user.companyId,
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch company data
-    const company = await payrollClient.company.findFirst({
+    const company = await hrClient.company.findFirst({
       where: { id: session.user.companyId }
     })
 
