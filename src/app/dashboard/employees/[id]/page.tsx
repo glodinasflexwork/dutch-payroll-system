@@ -349,7 +349,7 @@ export default function EmployeeDetailPage() {
               <Send className="w-4 h-4" />
               <span>Send Invite</span>
             </Button>
-            <Button size="sm" className="flex items-center space-x-2">
+            <Button size="sm" className="flex items-center space-x-2" onClick={() => router.push(`/dashboard/employees/${employee?.id}/edit`)}>
               <Edit className="w-4 h-4" />
               <span>Edit Employee</span>
             </Button>
