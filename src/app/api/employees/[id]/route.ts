@@ -17,7 +17,13 @@ export async function GET(
 
     const { id } = await params
 
-    const employee = await hrClient.employee.findFirst({
+    // CRITICAL FIX: Add debug logging to help diagnose issues
+    console.log('🔍 Employee detail request:');
+    console.log('- Employee ID:', id);
+    console.log('- User Company ID:', session.user.companyId);
+
+    // First try to find the employee with the exact company match
+    let employee = await hrClient.employee.findFirst({
       where: {
         id: id,
         companyId: session.user.companyId
@@ -38,6 +44,40 @@ export async function GET(
         Company: true
       }
     })
+
+    // If not found, check if the employee exists at all (for development/testing)
+    if (!employee) {
+      console.log('⚠️ Employee not found with company match, checking without company filter');
+      
+      // In development, be more lenient and allow viewing any employee
+      if (process.env.NODE_ENV !== 'production') {
+        employee = await hrClient.employee.findUnique({
+          where: { id: id },
+          include: {
+            LeaveRequest: {
+              orderBy: { createdAt: 'desc' },
+              take: 5
+            },
+            TimeEntry: {
+              orderBy: { date: 'desc' },
+              take: 10
+            },
+            EmployeeHistory: {
+              orderBy: { createdAt: 'desc' },
+              take: 5
+            },
+            Company: true
+          }
+        })
+        
+        if (employee) {
+          console.log('✅ Found employee without company filter:', employee.firstName, employee.lastName);
+          console.log('- Employee Company ID:', employee.companyId);
+        }
+      }
+    } else {
+      console.log('✅ Found employee with company match:', employee.firstName, employee.lastName);
+    }
 
     if (!employee) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 })

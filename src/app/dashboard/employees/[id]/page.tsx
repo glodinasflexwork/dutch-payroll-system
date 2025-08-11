@@ -113,7 +113,13 @@ export default function EmployeeDetailPage() {
       }
       
       const data = await response.json()
-      setEmployee(data)
+      
+      // Fix: Extract employee data from the correct response structure
+      if (data.success && data.employee) {
+        setEmployee(data.employee)
+      } else {
+        setError(data.error || "Failed to load employee details")
+      }
     } catch (error) {
       console.error("Error fetching employee:", error)
       setError("Failed to load employee details")
