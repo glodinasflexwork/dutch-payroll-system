@@ -31,7 +31,7 @@ interface KvKCompany {
 }
 
 export default function CompanySetup() {
-  const { data: session, status } = useSession()
+  const { data: session, status, update } = useSession()
   const router = useRouter()
   
   const [formData, setFormData] = useState({
@@ -410,10 +410,33 @@ export default function CompanySetup() {
           addDebugInfo('Company Setup Success', 'Company created successfully!', 'success')
         }
         
-        // Redirect to dashboard after a short delay
-        setTimeout(() => {
-          router.push('/dashboard')
-        }, 2000)
+        // CRITICAL FIX: Refresh the session to pick up the new companyId
+        if (debugMode) {
+          addDebugInfo('Session Refresh', 'Refreshing NextAuth session to update user data', 'info')
+        }
+        
+        try {
+          // Force session refresh to get updated user data with companyId
+          await update()
+          
+          if (debugMode) {
+            addDebugInfo('Session Updated', 'Session refreshed successfully', 'success')
+          }
+          
+          // Redirect to dashboard after session refresh
+          setTimeout(() => {
+            router.push('/dashboard')
+          }, 1000)
+        } catch (sessionError) {
+          if (debugMode) {
+            addDebugInfo('Session Refresh Failed', 'Session update failed, redirecting anyway', 'warning')
+          }
+          
+          // Fallback: redirect anyway after a longer delay
+          setTimeout(() => {
+            router.push('/dashboard')
+          }, 2000)
+        }
       } else {
         const errorMessage = data.error || `Company setup failed (${response.status})`
         setError(errorMessage)
