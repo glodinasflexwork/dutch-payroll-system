@@ -42,15 +42,15 @@ import {
 
 interface Employee {
   id: string
-  firstName: string
-  lastName: string
-  email: string
-  bsn: string
-  employmentType: 'monthly' | 'hourly'
-  contractType: string
-  position: string
+  firstName?: string
+  lastName?: string
+  email?: string
+  bsn?: string
+  employmentType?: 'monthly' | 'hourly'
+  contractType?: string
+  position?: string
   department?: string
-  startDate: string
+  startDate?: string
   endDate?: string
   salary?: number
   hourlyRate?: number
@@ -75,7 +75,7 @@ interface Employee {
   lastPayrollDate?: string
   nextPayrollDate?: string
   portalAccess?: {
-    status: string
+    status?: string
     invitedAt?: string
     activatedAt?: string
   }
@@ -129,7 +129,7 @@ export default function EmployeeDetailPage() {
   }
 
   const formatCurrency = (amount?: number | null) => {
-    if (!amount || isNaN(amount)) return '€0'
+    if (amount === undefined || amount === null || isNaN(amount)) return '€0'
     return new Intl.NumberFormat('nl-NL', {
       style: 'currency',
       currency: 'EUR',
@@ -190,6 +190,8 @@ export default function EmployeeDetailPage() {
 
   // Safe address formatting
   const formatAddress = (employee: Employee) => {
+    if (!employee) return 'N/A';
+    
     const parts = []
     if (employee.streetName) parts.push(employee.streetName)
     if (employee.houseNumber) parts.push(employee.houseNumber)
@@ -213,11 +215,14 @@ export default function EmployeeDetailPage() {
 
   // Safe phone formatting
   const getPhoneNumber = (employee: Employee) => {
+    if (!employee) return null;
     return employee.phone || employee.phoneNumber || null
   }
 
   // Safe salary display
   const getSalaryDisplay = (employee: Employee) => {
+    if (!employee) return 'Not set';
+    
     if (employee.salaryType === 'hourly' && employee.hourlyRate) {
       return `${formatCurrency(employee.hourlyRate)}/hour`
     } else if (employee.salary) {
@@ -280,6 +285,45 @@ export default function EmployeeDetailPage() {
     )
   }
 
+  // Safety check - if we somehow got here with no employee data, show error
+  if (!employee || !employee.id) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="flex items-center space-x-4">
+            <Button 
+              variant="ghost" 
+              onClick={() => router.back()}
+              className="flex items-center space-x-2 hover:bg-gray-100 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back</span>
+            </Button>
+          </div>
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="flex items-center justify-center py-12">
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+                  <AlertTriangle className="w-8 h-8 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-red-900 mb-2">Invalid Employee Data</h3>
+                  <p className="text-red-700 mb-4">The employee data is incomplete or invalid</p>
+                  <Button 
+                    onClick={() => router.push('/dashboard/employees')}
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    View All Employees
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
   return (
     <DashboardLayout>
       <div className="max-w-6xl mx-auto space-y-6">
@@ -318,30 +362,30 @@ export default function EmployeeDetailPage() {
             <div className="flex items-start space-x-6">
               <Avatar className="w-20 h-20 border-4 border-white shadow-lg bg-gradient-to-br from-blue-500 to-indigo-600">
                 <AvatarFallback className="text-white text-xl font-bold bg-transparent">
-                  {getInitials(employee.firstName, employee.lastName)}
+                  {getInitials(employee?.firstName, employee?.lastName)}
                 </AvatarFallback>
               </Avatar>
               
               <div className="flex-1 space-y-4">
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    {employee.firstName} {employee.lastName}
+                    {employee?.firstName || 'Unknown'} {employee?.lastName || ''}
                   </h1>
-                  <p className="text-lg text-gray-600 mb-3">{employee.position || 'Position not set'}</p>
+                  <p className="text-lg text-gray-600 mb-3">{employee?.position || 'Position not set'}</p>
                   
                   <div className="flex items-center space-x-4">
                     <Badge variant="outline" className="flex items-center space-x-1">
                       <Building className="w-3 h-3" />
-                      <span>{employee.department || 'No Department'}</span>
+                      <span>{employee?.department || 'No Department'}</span>
                     </Badge>
                     <Badge variant="outline" className="flex items-center space-x-1">
                       <Calendar className="w-3 h-3" />
-                      <span>{employee.employmentType || 'N/A'}</span>
+                      <span>{employee?.employmentType || 'N/A'}</span>
                     </Badge>
                     <div className="flex items-center space-x-2">
-                      {getPortalStatusIcon(employee.portalAccess?.status)}
-                      <Badge variant={getPortalStatusColor(employee.portalAccess?.status) as any}>
-                        {getPortalStatusText(employee.portalAccess?.status)}
+                      {getPortalStatusIcon(employee?.portalAccess?.status)}
+                      <Badge variant={getPortalStatusColor(employee?.portalAccess?.status) as any}>
+                        {getPortalStatusText(employee?.portalAccess?.status)}
                       </Badge>
                     </div>
                   </div>
@@ -393,7 +437,7 @@ export default function EmployeeDetailPage() {
                         <div className="flex items-center space-x-2">
                           <Shield className="w-4 h-4 text-gray-400" />
                           <code className="text-sm bg-gray-100 px-3 py-2 rounded-md font-mono border">
-                            {employee.bsn || 'N/A'}
+                            {employee?.bsn || 'N/A'}
                           </code>
                         </div>
                       </div>
@@ -402,7 +446,7 @@ export default function EmployeeDetailPage() {
                         <label className="text-sm font-medium text-gray-500 mb-1 block">Email Address</label>
                         <div className="flex items-center space-x-2">
                           <Mail className="w-4 h-4 text-gray-400" />
-                          {employee.email ? (
+                          {employee?.email ? (
                             <a 
                               href={`mailto:${employee.email}`}
                               className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
@@ -449,7 +493,7 @@ export default function EmployeeDetailPage() {
                         <div className="flex items-center space-x-2">
                           <CreditCard className="w-4 h-4 text-gray-400" />
                           <code className="text-sm bg-gray-100 px-3 py-2 rounded-md font-mono border">
-                            {employee.bankAccount || 'N/A'}
+                            {employee?.bankAccount || 'N/A'}
                           </code>
                         </div>
                       </div>
@@ -460,114 +504,109 @@ export default function EmployeeDetailPage() {
 
                   {/* Emergency Contact */}
                   <div>
-                    <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center space-x-2">
-                      <AlertTriangle className="w-4 h-4 text-orange-500" />
-                      <span>Emergency Contact</span>
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <h4 className="text-sm font-medium text-gray-500 mb-3">Emergency Contact</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <label className="text-sm font-medium text-gray-500 mb-1 block">Contact Name</label>
-                        <p className="text-sm">{employee.emergencyContact || 'N/A'}</p>
+                        <label className="text-xs text-gray-500 mb-1 block">Name</label>
+                        <div className="text-sm font-medium">
+                          {employee?.emergencyContact || 'Not provided'}
+                        </div>
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-gray-500 mb-1 block">Contact Phone</label>
-                        {employee.emergencyPhone ? (
-                          <a 
-                            href={`tel:${employee.emergencyPhone}`}
-                            className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
-                          >
-                            {employee.emergencyPhone}
-                          </a>
-                        ) : (
-                          <span className="text-sm text-gray-500">N/A</span>
-                        )}
+                        <label className="text-xs text-gray-500 mb-1 block">Phone</label>
+                        <div className="text-sm font-medium">
+                          {employee?.emergencyPhone ? (
+                            <a 
+                              href={`tel:${employee.emergencyPhone}`}
+                              className="text-blue-600 hover:text-blue-800 transition-colors"
+                            >
+                              {employee.emergencyPhone}
+                            </a>
+                          ) : (
+                            'Not provided'
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">Relationship</label>
+                        <div className="text-sm font-medium">
+                          {employee?.emergencyRelation || 'Not specified'}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Quick Stats Sidebar */}
+              {/* Quick Stats - Enhanced */}
               <div className="space-y-6">
-                {/* Salary Card */}
-                <Card className="border-green-200 bg-green-50">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center space-x-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
                       <Euro className="w-5 h-5 text-green-600" />
                       <span>Compensation</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-green-700 mb-1">
+                    <div className="text-3xl font-bold text-green-600 mb-2">
                       {getSalaryDisplay(employee)}
                     </div>
-                    <p className="text-sm text-green-600">
-                      {employee.salaryType === 'hourly' ? 'Hourly Rate' : 'Monthly Salary'}
+                    <p className="text-sm text-gray-500">
+                      {employee?.employmentType === 'monthly' ? 'Monthly salary' : 'Hourly rate'}
                     </p>
                   </CardContent>
                 </Card>
 
-                {/* Vacation Progress */}
                 <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center space-x-2">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
                       <Calendar className="w-5 h-5 text-blue-600" />
                       <span>Vacation Days</span>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-sm">
-                        <span>Used</span>
-                        <span>{employee.vacationDaysUsed || 0} / {employee.vacationDaysTotal || 25}</span>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-sm font-medium">
+                          {employee?.vacationDaysUsed || 0} / {employee?.vacationDaysTotal || 25} days used
+                        </span>
+                        <span className="text-sm font-medium">
+                          {employee?.vacationDaysTotal ? 
+                            Math.max(0, employee.vacationDaysTotal - (employee.vacationDaysUsed || 0)) : 
+                            25} remaining
+                        </span>
                       </div>
                       <Progress 
-                        value={((employee.vacationDaysUsed || 0) / (employee.vacationDaysTotal || 25)) * 100} 
+                        value={employee?.vacationDaysTotal ? 
+                          ((employee.vacationDaysUsed || 0) / employee.vacationDaysTotal) * 100 : 
+                          0
+                        } 
+                        max={100} 
                         className="h-2"
                       />
-                      <p className="text-xs text-gray-500">
-                        {(employee.vacationDaysTotal || 25) - (employee.vacationDaysUsed || 0)} days remaining
-                      </p>
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Work Schedule */}
                 <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center space-x-2">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
                       <Clock className="w-5 h-5 text-purple-600" />
                       <span>Work Schedule</span>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
+                  <CardContent className="space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Hours/Week</span>
-                      <span className="text-sm font-medium">{employee.workingHoursPerWeek || employee.workingHours || 40}h</span>
+                      <span className="text-sm text-gray-500">Hours per week</span>
+                      <span className="text-sm font-medium">{employee?.workingHoursPerWeek || employee?.workingHours || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Days/Week</span>
-                      <span className="text-sm font-medium">{employee.workingDaysPerWeek || 5} days</span>
+                      <span className="text-sm text-gray-500">Days per week</span>
+                      <span className="text-sm font-medium">{employee?.workingDaysPerWeek || 'N/A'}</span>
                     </div>
-                  </CardContent>
-                </Card>
-
-                {/* Payroll Schedule */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center space-x-2">
-                      <TrendingUp className="w-5 h-5 text-indigo-600" />
-                      <span>Payroll</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div>
-                      <span className="text-sm text-gray-600">Last Payroll</span>
-                      <p className="text-sm font-medium">{formatDate(employee.lastPayrollDate)}</p>
-                    </div>
-                    <div>
-                      <span className="text-sm text-gray-600">Next Payroll</span>
-                      <p className="text-sm font-medium">{formatDate(employee.nextPayrollDate)}</p>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Start date</span>
+                      <span className="text-sm font-medium">{formatDate(employee?.startDate)}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -576,139 +615,111 @@ export default function EmployeeDetailPage() {
           </TabsContent>
 
           <TabsContent value="employment" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Building className="w-5 h-5 text-blue-600" />
-                    <span>Employment Details</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Department</label>
-                      <p className="text-sm font-medium">{employee.department || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Position</label>
-                      <p className="text-sm font-medium">{employee.position || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Employment Type</label>
-                      <Badge variant="outline">{employee.employmentType || 'N/A'}</Badge>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Contract Type</label>
-                      <Badge variant="outline">{employee.contractType || 'N/A'}</Badge>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Start Date</label>
-                      <p className="text-sm">{formatDate(employee.startDate)}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Tax Table</label>
-                      <Badge variant="outline">{employee.taxTable || 'WIT'}</Badge>
-                    </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Employment Details</CardTitle>
+                <CardDescription>
+                  Job details and employment terms
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-3">Department</h4>
+                    <p className="text-lg font-medium">{employee?.department || 'Not assigned'}</p>
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Clock className="w-5 h-5 text-purple-600" />
-                    <span>Work Schedule</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Working Hours/Week</label>
-                      <p className="text-sm font-medium">{employee.workingHoursPerWeek || employee.workingHours || 40} hours</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-500">Working Days/Week</label>
-                      <p className="text-sm font-medium">{employee.workingDaysPerWeek || 5} days</p>
-                    </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-3">Position</h4>
+                    <p className="text-lg font-medium">{employee?.position || 'Not specified'}</p>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-3">Employment Type</h4>
+                    <p className="text-lg font-medium capitalize">{employee?.employmentType || 'Not specified'}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-3">Contract Type</h4>
+                    <p className="text-lg font-medium">{employee?.contractType || 'Not specified'}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-3">Start Date</h4>
+                    <p className="text-lg font-medium">{formatDate(employee?.startDate)}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-3">End Date</h4>
+                    <p className="text-lg font-medium">{formatDate(employee?.endDate) || 'Indefinite'}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="payroll" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="border-green-200">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Euro className="w-5 h-5 text-green-600" />
-                    <span>Compensation</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="text-center p-6 bg-green-50 rounded-lg">
-                    <div className="text-3xl font-bold text-green-700 mb-2">
-                      {getSalaryDisplay(employee)}
-                    </div>
-                    <p className="text-green-600">
-                      {employee.salaryType === 'hourly' ? 'Hourly Rate' : 'Monthly Salary'}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <CreditCard className="w-5 h-5 text-blue-600" />
-                    <span>Payroll Information</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Payroll Information</CardTitle>
+                <CardDescription>
+                  Salary and tax details
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Tax Table</label>
-                    <Badge variant="outline" className="ml-2">{employee.taxTable || 'WIT'}</Badge>
+                    <h4 className="text-sm font-medium text-gray-500 mb-3">Salary Type</h4>
+                    <p className="text-lg font-medium capitalize">{employee?.salaryType || employee?.employmentType || 'Not specified'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Bank Account</label>
-                    <p className="text-sm font-mono bg-gray-100 p-2 rounded border">
-                      {employee.bankAccount || 'N/A'}
+                    <h4 className="text-sm font-medium text-gray-500 mb-3">Amount</h4>
+                    <p className="text-lg font-medium">
+                      {employee?.salaryType === 'hourly' ? 
+                        formatCurrency(employee?.hourlyRate) + '/hour' : 
+                        formatCurrency(employee?.salary) + '/month'}
                     </p>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-3">Tax Table</h4>
+                    <p className="text-lg font-medium">{employee?.taxTable || 'Standard'}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-3">Bank Account</h4>
+                    <p className="text-lg font-medium font-mono">{employee?.bankAccount || 'Not provided'}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-3">Last Payroll</h4>
+                    <p className="text-lg font-medium">{formatDate(employee?.lastPayrollDate) || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-3">Next Payroll</h4>
+                    <p className="text-lg font-medium">{formatDate(employee?.nextPayrollDate) || 'N/A'}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="documents" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <FileText className="w-5 h-5 text-blue-600" />
-                  <span>Documents</span>
-                </CardTitle>
+                <CardTitle>Documents</CardTitle>
                 <CardDescription>
                   Employee documents and files
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="text-center py-12">
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No documents uploaded</h3>
-                  <p className="text-gray-500 mb-4">Upload employee documents like contracts, certificates, and other files.</p>
-                  <Button>
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload Document
+              <CardContent className="py-10">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <FileText className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">No Documents Available</h3>
+                  <p className="text-gray-500 mb-6">Upload employee documents to see them here</p>
+                  <Button variant="outline" className="flex items-center space-x-2 mx-auto">
+                    <Upload className="w-4 h-4" />
+                    <span>Upload Document</span>
                   </Button>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
-
-        {/* Portal Access Component */}
-        <EmployeePortalAccess employeeId={employee.id} />
       </div>
     </DashboardLayout>
   )
