@@ -48,55 +48,72 @@ interface Employee {
   bsn: string
   employmentType: 'monthly' | 'hourly'
   contractType: string
-  department: string
   position: string
-  salary: number
-  hourlyRate?: number
-  taxTable: 'wit' | 'groen'
+  department?: string
   startDate: string
-  address: string
-  postalCode: string
-  city: string
-  phoneNumber: string
-  bankAccount: string
-  emergencyContact: string
-  emergencyPhone: string
-  isActive: boolean
-  employeeNumber: string
-  portalAccessStatus?: 'NO_ACCESS' | 'INVITED' | 'ACTIVE'
-  invitedAt?: string
+  endDate?: string
+  salary?: number
+  hourlyRate?: number
+  salaryType?: string
+  phone?: string
+  phoneNumber?: string
+  address?: string
+  streetName?: string
+  houseNumber?: string
+  city?: string
+  postalCode?: string
+  bankAccount?: string
+  emergencyContact?: string
+  emergencyPhone?: string
+  emergencyRelation?: string
+  taxTable?: string
+  workingHours?: number
   workingHoursPerWeek?: number
   workingDaysPerWeek?: number
   vacationDaysUsed?: number
   vacationDaysTotal?: number
   lastPayrollDate?: string
   nextPayrollDate?: string
+  portalAccess?: {
+    status: string
+    invitedAt?: string
+    activatedAt?: string
+  }
 }
 
-export default function EmployeeDetailPageEnhanced() {
+export default function EmployeeDetailPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const params = useParams()
   const [employee, setEmployee] = useState<Employee | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
+  const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("overview")
 
   useEffect(() => {
-    if (params.id) {
-      fetchEmployee()
+    if (params?.id) {
+      fetchEmployee(params.id as string)
     }
-  }, [params.id])
+  }, [params?.id])
 
-  const fetchEmployee = async () => {
+  const fetchEmployee = async (id: string) => {
     try {
-      const response = await fetch(`/api/employees/${params.id}`)
-      if (response.ok) {
-        const result = await response.json()
-        setEmployee(result.employee)
-      } else {
-        setError("Employee not found")
+      setLoading(true)
+      setError(null)
+      
+      const response = await fetch(`/api/employees/${id}`)
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          setError("Employee not found")
+        } else {
+          setError("Failed to load employee details")
+        }
+        return
       }
+      
+      const data = await response.json()
+      setEmployee(data)
     } catch (error) {
       console.error("Error fetching employee:", error)
       setError("Failed to load employee details")
@@ -105,7 +122,7 @@ export default function EmployeeDetailPageEnhanced() {
     }
   }
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount?: number | null) => {
     if (!amount || isNaN(amount)) return '€0'
     return new Intl.NumberFormat('nl-NL', {
       style: 'currency',
@@ -115,7 +132,7 @@ export default function EmployeeDetailPageEnhanced() {
     }).format(amount)
   }
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string | null) => {
     if (!dateString) return 'N/A'
     try {
       return new Date(dateString).toLocaleDateString('nl-NL', {
@@ -128,7 +145,7 @@ export default function EmployeeDetailPageEnhanced() {
     }
   }
 
-  const getInitials = (firstName: string, lastName: string) => {
+  const getInitials = (firstName?: string, lastName?: string) => {
     return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase()
   }
 
@@ -165,6 +182,44 @@ export default function EmployeeDetailPageEnhanced() {
     }
   }
 
+  // Safe address formatting
+  const formatAddress = (employee: Employee) => {
+    const parts = []
+    if (employee.streetName) parts.push(employee.streetName)
+    if (employee.houseNumber) parts.push(employee.houseNumber)
+    if (employee.address) parts.push(employee.address)
+    
+    const street = parts.join(' ')
+    const cityParts = []
+    if (employee.postalCode) cityParts.push(employee.postalCode)
+    if (employee.city) cityParts.push(employee.city)
+    
+    if (street || cityParts.length > 0) {
+      return (
+        <div>
+          {street && <div>{street}</div>}
+          {cityParts.length > 0 && <div className="text-gray-600">{cityParts.join(' ')}</div>}
+        </div>
+      )
+    }
+    return 'N/A'
+  }
+
+  // Safe phone formatting
+  const getPhoneNumber = (employee: Employee) => {
+    return employee.phone || employee.phoneNumber || null
+  }
+
+  // Safe salary display
+  const getSalaryDisplay = (employee: Employee) => {
+    if (employee.salaryType === 'hourly' && employee.hourlyRate) {
+      return `${formatCurrency(employee.hourlyRate)}/hour`
+    } else if (employee.salary) {
+      return `${formatCurrency(employee.salary)}/month`
+    }
+    return 'Not set'
+  }
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -199,15 +254,14 @@ export default function EmployeeDetailPageEnhanced() {
             <CardContent className="flex items-center justify-center py-12">
               <div className="text-center space-y-4">
                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
-                  <AlertTriangle className="w-8 h-8 text-red-500" />
+                  <AlertTriangle className="w-8 h-8 text-red-600" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-red-900 mb-2">Employee Not Found</h3>
-                  <p className="text-red-700 mb-4">{error}</p>
+                  <p className="text-red-700 mb-4">{error || "Employee not found"}</p>
                   <Button 
-                    variant="outline" 
                     onClick={() => router.push('/dashboard/employees')}
-                    className="border-red-300 text-red-700 hover:bg-red-100"
+                    className="bg-red-600 hover:bg-red-700 text-white"
                   >
                     View All Employees
                   </Button>
@@ -222,89 +276,74 @@ export default function EmployeeDetailPageEnhanced() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
         {/* Enhanced Header */}
-        <div className="bg-white rounded-lg border shadow-sm p-6">
-          <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
             <Button 
               variant="ghost" 
-              onClick={() => router.back()}
+              onClick={() => router.push('/dashboard/employees')}
               className="flex items-center space-x-2 hover:bg-gray-100 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Back to Employees</span>
             </Button>
-            
-            <div className="flex items-center space-x-3">
-              <Button variant="outline" size="sm">
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
-              <Button variant="outline" size="sm">
-                <Send className="w-4 h-4 mr-2" />
-                Send Invite
-              </Button>
-              <Button onClick={() => router.push(`/dashboard/employees/${employee.id}/edit`)}>
-                <Edit className="w-4 h-4 mr-2" />
-                Edit Employee
-              </Button>
-            </div>
           </div>
+          
+          <div className="flex items-center space-x-3">
+            <Button variant="outline" size="sm" className="flex items-center space-x-2">
+              <Download className="w-4 h-4" />
+              <span>Export</span>
+            </Button>
+            <Button variant="outline" size="sm" className="flex items-center space-x-2">
+              <Send className="w-4 h-4" />
+              <span>Send Invite</span>
+            </Button>
+            <Button size="sm" className="flex items-center space-x-2">
+              <Edit className="w-4 h-4" />
+              <span>Edit Employee</span>
+            </Button>
+          </div>
+        </div>
 
-          <div className="flex items-start space-x-6">
-            <Avatar className="w-20 h-20 border-4 border-white shadow-lg">
-              <AvatarFallback className="text-xl font-semibold bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                {getInitials(employee.firstName, employee.lastName)}
-              </AvatarFallback>
-            </Avatar>
-            
-            <div className="flex-1">
-              <div className="flex items-center space-x-3 mb-2">
-                <h1 className="text-3xl font-bold text-gray-900">
-                  {employee.firstName} {employee.lastName}
-                </h1>
-                <Badge variant={employee.isActive ? 'success' : 'destructive'} className="text-sm">
-                  {employee.isActive ? 'Active' : 'Inactive'}
-                </Badge>
-              </div>
+        {/* Enhanced Profile Header */}
+        <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-50 to-indigo-50">
+          <CardContent className="p-8">
+            <div className="flex items-start space-x-6">
+              <Avatar className="w-20 h-20 border-4 border-white shadow-lg bg-gradient-to-br from-blue-500 to-indigo-600">
+                <AvatarFallback className="text-white text-xl font-bold bg-transparent">
+                  {getInitials(employee.firstName, employee.lastName)}
+                </AvatarFallback>
+              </Avatar>
               
-              <div className="flex items-center space-x-4 text-gray-600 mb-4">
-                <div className="flex items-center space-x-2">
-                  <Building className="w-4 h-4" />
-                  <span>{employee.position}</span>
-                </div>
-                <Separator orientation="vertical" className="h-4" />
-                <div className="flex items-center space-x-2">
-                  <User className="w-4 h-4" />
-                  <span>{employee.department}</span>
-                </div>
-                <Separator orientation="vertical" className="h-4" />
-                <div className="flex items-center space-x-2">
-                  <Calendar className="w-4 h-4" />
-                  <span>Started {formatDate(employee.startDate)}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-6">
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm font-medium text-gray-500">Employee ID:</span>
-                  <code className="text-sm bg-gray-100 px-2 py-1 rounded font-mono">
-                    {employee.employeeNumber || 'N/A'}
-                  </code>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm font-medium text-gray-500">Portal Access:</span>
-                  <div className="flex items-center space-x-1">
-                    {getPortalStatusIcon(employee.portalAccessStatus)}
-                    <Badge variant={getPortalStatusColor(employee.portalAccessStatus) as any} size="sm">
-                      {getPortalStatusText(employee.portalAccessStatus)}
+              <div className="flex-1 space-y-4">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                    {employee.firstName} {employee.lastName}
+                  </h1>
+                  <p className="text-lg text-gray-600 mb-3">{employee.position || 'Position not set'}</p>
+                  
+                  <div className="flex items-center space-x-4">
+                    <Badge variant="outline" className="flex items-center space-x-1">
+                      <Building className="w-3 h-3" />
+                      <span>{employee.department || 'No Department'}</span>
                     </Badge>
+                    <Badge variant="outline" className="flex items-center space-x-1">
+                      <Calendar className="w-3 h-3" />
+                      <span>{employee.employmentType || 'N/A'}</span>
+                    </Badge>
+                    <div className="flex items-center space-x-2">
+                      {getPortalStatusIcon(employee.portalAccess?.status)}
+                      <Badge variant={getPortalStatusColor(employee.portalAccess?.status) as any}>
+                        {getPortalStatusText(employee.portalAccess?.status)}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Enhanced Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -357,12 +396,16 @@ export default function EmployeeDetailPageEnhanced() {
                         <label className="text-sm font-medium text-gray-500 mb-1 block">Email Address</label>
                         <div className="flex items-center space-x-2">
                           <Mail className="w-4 h-4 text-gray-400" />
-                          <a 
-                            href={`mailto:${employee.email}`}
-                            className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
-                          >
-                            {employee.email || 'N/A'}
-                          </a>
+                          {employee.email ? (
+                            <a 
+                              href={`mailto:${employee.email}`}
+                              className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                            >
+                              {employee.email}
+                            </a>
+                          ) : (
+                            <span className="text-sm text-gray-500">N/A</span>
+                          )}
                         </div>
                       </div>
 
@@ -370,12 +413,16 @@ export default function EmployeeDetailPageEnhanced() {
                         <label className="text-sm font-medium text-gray-500 mb-1 block">Phone Number</label>
                         <div className="flex items-center space-x-2">
                           <Phone className="w-4 h-4 text-gray-400" />
-                          <a 
-                            href={`tel:${employee.phoneNumber}`}
-                            className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
-                          >
-                            {employee.phoneNumber || 'N/A'}
-                          </a>
+                          {getPhoneNumber(employee) ? (
+                            <a 
+                              href={`tel:${getPhoneNumber(employee)}`}
+                              className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                            >
+                              {getPhoneNumber(employee)}
+                            </a>
+                          ) : (
+                            <span className="text-sm text-gray-500">N/A</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -386,12 +433,7 @@ export default function EmployeeDetailPageEnhanced() {
                         <div className="flex items-start space-x-2">
                           <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
                           <div className="text-sm">
-                            {employee.address ? (
-                              <div>
-                                <div>{employee.address}</div>
-                                <div className="text-gray-600">{employee.postalCode} {employee.city}</div>
-                              </div>
-                            ) : 'N/A'}
+                            {formatAddress(employee)}
                           </div>
                         </div>
                       </div>
@@ -410,6 +452,7 @@ export default function EmployeeDetailPageEnhanced() {
 
                   <Separator />
 
+                  {/* Emergency Contact */}
                   <div>
                     <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center space-x-2">
                       <AlertTriangle className="w-4 h-4 text-orange-500" />
@@ -422,88 +465,103 @@ export default function EmployeeDetailPageEnhanced() {
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-500 mb-1 block">Contact Phone</label>
-                        <div className="flex items-center space-x-2">
-                          <Phone className="w-4 h-4 text-gray-400" />
+                        {employee.emergencyPhone ? (
                           <a 
                             href={`tel:${employee.emergencyPhone}`}
                             className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
                           >
-                            {employee.emergencyPhone || 'N/A'}
+                            {employee.emergencyPhone}
                           </a>
-                        </div>
+                        ) : (
+                          <span className="text-sm text-gray-500">N/A</span>
+                        )}
                       </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Quick Stats */}
+              {/* Quick Stats Sidebar */}
               <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <TrendingUp className="w-5 h-5 text-green-600" />
-                      <span>Quick Stats</span>
+                {/* Salary Card */}
+                <Card className="border-green-200 bg-green-50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center space-x-2">
+                      <Euro className="w-5 h-5 text-green-600" />
+                      <span>Compensation</span>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">
-                        {employee.employmentType === 'monthly' 
-                          ? formatCurrency(employee.salary || 0)
-                          : `${formatCurrency(employee.hourlyRate || 0)}/hr`
-                        }
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {employee.employmentType === 'monthly' ? 'Monthly Salary' : 'Hourly Rate'}
-                      </div>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-700 mb-1">
+                      {getSalaryDisplay(employee)}
                     </div>
-                    
-                    <Separator />
-                    
+                    <p className="text-sm text-green-600">
+                      {employee.salaryType === 'hourly' ? 'Hourly Rate' : 'Monthly Salary'}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Vacation Progress */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center space-x-2">
+                      <Calendar className="w-5 h-5 text-blue-600" />
+                      <span>Vacation Days</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
                     <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Vacation Days</span>
-                        <span className="text-sm font-medium">
-                          {employee.vacationDaysUsed || 0}/{employee.vacationDaysTotal || 25}
-                        </span>
+                      <div className="flex justify-between text-sm">
+                        <span>Used</span>
+                        <span>{employee.vacationDaysUsed || 0} / {employee.vacationDaysTotal || 25}</span>
                       </div>
                       <Progress 
                         value={((employee.vacationDaysUsed || 0) / (employee.vacationDaysTotal || 25)) * 100} 
                         className="h-2"
                       />
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Working Hours</span>
-                        <span className="text-sm font-medium">{employee.workingHoursPerWeek || 40}h/week</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Working Days</span>
-                        <span className="text-sm font-medium">{employee.workingDaysPerWeek || 5} days/week</span>
-                      </div>
+                      <p className="text-xs text-gray-500">
+                        {(employee.vacationDaysTotal || 25) - (employee.vacationDaysUsed || 0)} days remaining
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
 
+                {/* Work Schedule */}
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Clock className="w-5 h-5 text-blue-600" />
-                      <span>Payroll Schedule</span>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center space-x-2">
+                      <Clock className="w-5 h-5 text-purple-600" />
+                      <span>Work Schedule</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Hours/Week</span>
+                      <span className="text-sm font-medium">{employee.workingHoursPerWeek || employee.workingHours || 40}h</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Days/Week</span>
+                      <span className="text-sm font-medium">{employee.workingDaysPerWeek || 5} days</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Payroll Schedule */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center space-x-2">
+                      <TrendingUp className="w-5 h-5 text-indigo-600" />
+                      <span>Payroll</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div>
-                      <label className="text-sm font-medium text-gray-500 mb-1 block">Last Payroll</label>
-                      <p className="text-sm">{formatDate(employee.lastPayrollDate || '')}</p>
+                      <span className="text-sm text-gray-600">Last Payroll</span>
+                      <p className="text-sm font-medium">{formatDate(employee.lastPayrollDate)}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500 mb-1 block">Next Payroll</label>
-                      <p className="text-sm font-medium text-green-600">
-                        {formatDate(employee.nextPayrollDate || '')}
-                      </p>
+                      <span className="text-sm text-gray-600">Next Payroll</span>
+                      <p className="text-sm font-medium">{formatDate(employee.nextPayrollDate)}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -523,60 +581,49 @@ export default function EmployeeDetailPageEnhanced() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium text-gray-500 mb-1 block">Department</label>
-                      <Badge variant="secondary" className="text-sm">
-                        {employee.department || 'N/A'}
-                      </Badge>
+                      <label className="text-sm font-medium text-gray-500">Department</label>
+                      <p className="text-sm font-medium">{employee.department || 'N/A'}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500 mb-1 block">Position</label>
+                      <label className="text-sm font-medium text-gray-500">Position</label>
                       <p className="text-sm font-medium">{employee.position || 'N/A'}</p>
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium text-gray-500 mb-1 block">Employment Type</label>
-                      <Badge variant={employee.employmentType === 'monthly' ? 'default' : 'outline'}>
-                        {employee.employmentType === 'monthly' ? 'Monthly' : 'Hourly'}
-                      </Badge>
+                      <label className="text-sm font-medium text-gray-500">Employment Type</label>
+                      <Badge variant="outline">{employee.employmentType || 'N/A'}</Badge>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500 mb-1 block">Contract Type</label>
-                      <p className="text-sm capitalize">{employee.contractType || 'N/A'}</p>
+                      <label className="text-sm font-medium text-gray-500">Contract Type</label>
+                      <Badge variant="outline">{employee.contractType || 'N/A'}</Badge>
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-500 mb-1 block">Start Date</label>
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="w-4 h-4 text-gray-400" />
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Start Date</label>
                       <p className="text-sm">{formatDate(employee.startDate)}</p>
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-500 mb-1 block">Tax Table</label>
-                    <Badge variant={employee.taxTable === 'wit' ? 'default' : 'success'}>
-                      {(employee.taxTable || 'wit').toUpperCase()}
-                    </Badge>
+                    <div>
+                      <label className="text-sm font-medium text-gray-500">Tax Table</label>
+                      <Badge variant="outline">{employee.taxTable || 'WIT'}</Badge>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Work Schedule</CardTitle>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Clock className="w-5 h-5 text-purple-600" />
+                    <span>Work Schedule</span>
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium text-gray-500 mb-1 block">Hours per Week</label>
-                      <p className="text-2xl font-bold text-blue-600">{employee.workingHoursPerWeek || 40}</p>
+                      <label className="text-sm font-medium text-gray-500">Working Hours/Week</label>
+                      <p className="text-sm font-medium">{employee.workingHoursPerWeek || employee.workingHours || 40} hours</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500 mb-1 block">Days per Week</label>
-                      <p className="text-2xl font-bold text-blue-600">{employee.workingDaysPerWeek || 5}</p>
+                      <label className="text-sm font-medium text-gray-500">Working Days/Week</label>
+                      <p className="text-sm font-medium">{employee.workingDaysPerWeek || 5} days</p>
                     </div>
                   </div>
                 </CardContent>
@@ -586,7 +633,7 @@ export default function EmployeeDetailPageEnhanced() {
 
           <TabsContent value="payroll" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
+              <Card className="border-green-200">
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
                     <Euro className="w-5 h-5 text-green-600" />
@@ -594,42 +641,34 @@ export default function EmployeeDetailPageEnhanced() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {employee.employmentType === 'monthly' ? (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 mb-1 block">Monthly Salary</label>
-                      <p className="text-3xl font-bold text-green-600">
-                        {formatCurrency(employee.salary || 0)}
-                      </p>
-                      <p className="text-sm text-gray-500">Gross monthly salary</p>
+                  <div className="text-center p-6 bg-green-50 rounded-lg">
+                    <div className="text-3xl font-bold text-green-700 mb-2">
+                      {getSalaryDisplay(employee)}
                     </div>
-                  ) : (
-                    <div>
-                      <label className="text-sm font-medium text-gray-500 mb-1 block">Hourly Rate</label>
-                      <p className="text-3xl font-bold text-green-600">
-                        {formatCurrency(employee.hourlyRate || 0)}/hour
-                      </p>
-                      <p className="text-sm text-gray-500">Gross hourly rate</p>
-                    </div>
-                  )}
+                    <p className="text-green-600">
+                      {employee.salaryType === 'hourly' ? 'Hourly Rate' : 'Monthly Salary'}
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Payroll Information</CardTitle>
+                  <CardTitle className="flex items-center space-x-2">
+                    <CreditCard className="w-5 h-5 text-blue-600" />
+                    <span>Payroll Information</span>
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium text-gray-500 mb-1 block">Tax Table</label>
-                    <Badge variant={employee.taxTable === 'wit' ? 'default' : 'success'} className="text-sm">
-                      {(employee.taxTable || 'wit').toUpperCase()}
-                    </Badge>
+                    <label className="text-sm font-medium text-gray-500">Tax Table</label>
+                    <Badge variant="outline" className="ml-2">{employee.taxTable || 'WIT'}</Badge>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500 mb-1 block">Bank Account</label>
-                    <code className="text-sm bg-gray-100 px-3 py-2 rounded-md font-mono border block">
+                    <label className="text-sm font-medium text-gray-500">Bank Account</label>
+                    <p className="text-sm font-mono bg-gray-100 p-2 rounded border">
                       {employee.bankAccount || 'N/A'}
-                    </code>
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -641,17 +680,17 @@ export default function EmployeeDetailPageEnhanced() {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <FileText className="w-5 h-5 text-blue-600" />
-                  <span>Employee Documents</span>
+                  <span>Documents</span>
                 </CardTitle>
                 <CardDescription>
-                  Manage employee contracts, payslips, and other documents
+                  Employee documents and files
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-center py-12">
-                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Documents Yet</h3>
-                  <p className="text-gray-500 mb-4">Upload employee documents to get started</p>
+                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No documents uploaded</h3>
+                  <p className="text-gray-500 mb-4">Upload employee documents like contracts, certificates, and other files.</p>
                   <Button>
                     <Upload className="w-4 h-4 mr-2" />
                     Upload Document
