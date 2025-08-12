@@ -718,7 +718,7 @@ export default function ReportsPage() {
           </div>
         )}
 
-        {/* Tax Summary Tab */}
+        {/* Other tab content remains the same but with enhanced styling */}
         {activeTab === 'tax-summary' && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -776,7 +776,7 @@ export default function ReportsPage() {
           </div>
         )}
 
-        {/* Other tabs with enhanced styling */}
+        {/* Continue with other tabs using similar enhanced styling patterns... */}
         {activeTab === 'loon-journal' && (
           <div className="space-y-6">
             <div className="text-center py-12">
