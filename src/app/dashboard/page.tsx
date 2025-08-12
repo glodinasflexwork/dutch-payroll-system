@@ -133,33 +133,6 @@ export default function Dashboard() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Professional Welcome Section - Blue Gradient Only */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl p-8 text-white shadow-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">
-                Welcome back, {session.user.name}! 👋
-              </h1>
-              <p className="text-blue-100 text-lg">
-                Here's what's happening with your payroll system today.
-              </p>
-              <div className="mt-4 flex items-center space-x-4">
-                <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-                  {stats?.companyName}
-                </Badge>
-                <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-                  {stats?.totalEmployees || 0} Employees
-                </Badge>
-              </div>
-            </div>
-            <div className="hidden md:block">
-              <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center">
-                <Building2 className="w-10 h-10 text-white" />
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Trial Banner */}
         <TrialBanner />
 

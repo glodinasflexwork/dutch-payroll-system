@@ -266,37 +266,6 @@ export default function EmployeesPage() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        {/* Enhanced Header with Gradient */}
-        <div className="relative">
-          <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-purple-700 rounded-2xl p-8 text-white">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="bg-white/20 p-4 rounded-full">
-                  <Users className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-4xl font-bold">Employee Management 👥</h1>
-                  <p className="text-blue-100 text-lg mt-2">
-                    Manage your company's workforce and employee records
-                  </p>
-                  <div className="flex items-center mt-4 space-x-4">
-                    <div className="bg-white/20 px-4 py-2 rounded-full">
-                      <span className="text-sm font-medium">{session?.user?.company?.name || 'Your Company'}</span>
-                    </div>
-                    <div className="bg-white/20 px-4 py-2 rounded-full">
-                      <span className="text-sm font-medium">{overviewStats.activeEmployees} Active Employees</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="hidden md:block">
-                <div className="bg-white/10 p-6 rounded-xl">
-                  <Building2 className="w-16 h-16 text-white/80" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Enhanced Action Buttons */}
         <div className="flex items-center justify-between">

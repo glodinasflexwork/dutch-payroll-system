@@ -198,38 +198,6 @@ export default function LeaveManagementPage() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        {/* Professional Header with Blue Gradient */}
-        <div className="relative">
-          <div className="bg-gradient-to-r from-blue-800 to-blue-900 rounded-2xl p-8 text-white shadow-lg border border-blue-700">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="bg-blue-700 bg-opacity-80 p-4 rounded-full border border-blue-600">
-                  <Calendar className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-4xl font-bold text-white drop-shadow-sm">Leave Management 🏖️</h1>
-                  <p className="text-blue-200 text-lg mt-2 font-medium">
-                    Manage leave requests, balances, and policies for your team
-                  </p>
-                  <div className="flex items-center mt-4 space-x-4">
-                    <div className="bg-blue-700 bg-opacity-80 px-4 py-2 rounded-full border border-blue-600">
-                      <span className="text-sm font-semibold text-white">Glodinas Finance B.V.</span>
-                    </div>
-                    <div className="bg-blue-700 bg-opacity-80 px-4 py-2 rounded-full border border-blue-600">
-                      <span className="text-sm font-semibold text-white">{overviewStats.totalRequests} Total Requests</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="hidden md:block">
-                <div className="bg-blue-700 bg-opacity-80 p-6 rounded-xl border border-blue-600">
-                  <CalendarDays className="w-16 h-16 text-white" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Enhanced Action Buttons */}
         <div className="flex items-center justify-between">
           <div>
