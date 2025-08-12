@@ -198,32 +198,32 @@ export default function LeaveManagementPage() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        {/* Enhanced Header with Gradient */}
+        {/* Professional Header with Blue Gradient */}
         <div className="relative">
-          <div className="bg-gradient-to-r from-green-600 via-blue-600 to-blue-700 rounded-2xl p-8 text-white">
+          <div className="bg-gradient-to-r from-blue-800 to-blue-900 rounded-2xl p-8 text-white shadow-lg border border-blue-700">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <div className="bg-white/20 p-4 rounded-full">
+                <div className="bg-blue-700 bg-opacity-80 p-4 rounded-full border border-blue-600">
                   <Calendar className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-4xl font-bold">Leave Management 🏖️</h1>
-                  <p className="text-blue-100 text-lg mt-2">
+                  <h1 className="text-4xl font-bold text-white drop-shadow-sm">Leave Management 🏖️</h1>
+                  <p className="text-blue-200 text-lg mt-2 font-medium">
                     Manage leave requests, balances, and policies for your team
                   </p>
                   <div className="flex items-center mt-4 space-x-4">
-                    <div className="bg-white/20 px-4 py-2 rounded-full">
-                      <span className="text-sm font-medium">Glodinas Finance B.V.</span>
+                    <div className="bg-blue-700 bg-opacity-80 px-4 py-2 rounded-full border border-blue-600">
+                      <span className="text-sm font-semibold text-white">Glodinas Finance B.V.</span>
                     </div>
-                    <div className="bg-white/20 px-4 py-2 rounded-full">
-                      <span className="text-sm font-medium">{overviewStats.totalRequests} Total Requests</span>
+                    <div className="bg-blue-700 bg-opacity-80 px-4 py-2 rounded-full border border-blue-600">
+                      <span className="text-sm font-semibold text-white">{overviewStats.totalRequests} Total Requests</span>
                     </div>
                   </div>
                 </div>
               </div>
               <div className="hidden md:block">
-                <div className="bg-white/10 p-6 rounded-xl">
-                  <CalendarDays className="w-16 h-16 text-white/80" />
+                <div className="bg-blue-700 bg-opacity-80 p-6 rounded-xl border border-blue-600">
+                  <CalendarDays className="w-16 h-16 text-white" />
                 </div>
               </div>
             </div>
@@ -238,7 +238,7 @@ export default function LeaveManagementPage() {
           </div>
           <div className="flex items-center space-x-3">
             <Button 
-              className="bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700"
+              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg"
             >
               <Plus className="w-4 h-4 mr-2" />
               New Leave Request
@@ -246,14 +246,14 @@ export default function LeaveManagementPage() {
           </div>
         </div>
 
-        {/* Enhanced Stats Cards */}
+        {/* Professional Stats Cards - Blue Gradient Variations */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
+          <Card className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-blue-50">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Requests</p>
-                  <p className="text-3xl font-bold text-gray-900">{overviewStats.totalRequests}</p>
+                  <p className="text-sm font-medium text-blue-900">Total Requests</p>
+                  <p className="text-3xl font-bold text-blue-800">{overviewStats.totalRequests}</p>
                   <p className="text-sm text-blue-600 mt-1">
                     <TrendingUp className="w-4 h-4 inline mr-1" />
                     All time
@@ -266,55 +266,55 @@ export default function LeaveManagementPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-yellow-500 hover:shadow-lg transition-shadow">
+          <Card className="border-l-4 border-l-blue-600 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-blue-50">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Pending Approval</p>
-                  <p className="text-3xl font-bold text-gray-900">{overviewStats.pendingRequests}</p>
-                  <p className="text-sm text-yellow-600 mt-1">
+                  <p className="text-sm font-medium text-blue-900">Pending Approval</p>
+                  <p className="text-3xl font-bold text-blue-800">{overviewStats.pendingRequests}</p>
+                  <p className="text-sm text-blue-600 mt-1">
                     <AlertCircle className="w-4 h-4 inline mr-1" />
                     Needs review
                   </p>
                 </div>
-                <div className="bg-yellow-100 p-3 rounded-full">
-                  <Clock className="w-6 h-6 text-yellow-600" />
+                <div className="bg-blue-100 p-3 rounded-full">
+                  <Clock className="w-6 h-6 text-blue-700" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-green-500 hover:shadow-lg transition-shadow">
+          <Card className="border-l-4 border-l-blue-700 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-blue-50">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Approved Requests</p>
-                  <p className="text-3xl font-bold text-gray-900">{overviewStats.approvedRequests}</p>
-                  <p className="text-sm text-green-600 mt-1">
+                  <p className="text-sm font-medium text-blue-900">Approved Requests</p>
+                  <p className="text-3xl font-bold text-blue-800">{overviewStats.approvedRequests}</p>
+                  <p className="text-sm text-blue-600 mt-1">
                     <CheckCircle className="w-4 h-4 inline mr-1" />
                     This period
                   </p>
                 </div>
-                <div className="bg-green-100 p-3 rounded-full">
-                  <UserCheck className="w-6 h-6 text-green-600" />
+                <div className="bg-blue-100 p-3 rounded-full">
+                  <UserCheck className="w-6 h-6 text-blue-800" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-purple-500 hover:shadow-lg transition-shadow">
+          <Card className="border-l-4 border-l-blue-800 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-blue-50">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Leave Types</p>
-                  <p className="text-3xl font-bold text-gray-900">{overviewStats.totalLeaveTypes}</p>
-                  <p className="text-sm text-purple-600 mt-1">
+                  <p className="text-sm font-medium text-blue-900">Leave Types</p>
+                  <p className="text-3xl font-bold text-blue-800">{overviewStats.totalLeaveTypes}</p>
+                  <p className="text-sm text-blue-600 mt-1">
                     <Settings className="w-4 h-4 inline mr-1" />
                     Configured
                   </p>
                 </div>
-                <div className="bg-purple-100 p-3 rounded-full">
-                  <Award className="w-6 h-6 text-purple-600" />
+                <div className="bg-blue-100 p-3 rounded-full">
+                  <Award className="w-6 h-6 text-blue-900" />
                 </div>
               </div>
             </CardContent>
