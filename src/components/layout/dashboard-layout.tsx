@@ -54,6 +54,7 @@ interface NavigationItem {
   icon: React.ComponentType<any>
   description: string
   badge?: string
+  circularIcon?: boolean
 }
 
 const navigationGroups: NavigationGroup[] = [
@@ -68,19 +69,22 @@ const navigationGroups: NavigationGroup[] = [
         name: "Dashboard",
         href: "/dashboard",
         icon: LayoutDashboard,
-        description: "Overview and analytics"
+        description: "Overview and analytics",
+        circularIcon: true
       },
       {
         name: "Analytics",
         href: "/dashboard/analytics",
         icon: BarChart3,
-        description: "Charts and insights"
+        description: "Charts and insights",
+        circularIcon: true
       },
       {
         name: "Reports",
         href: "/dashboard/reports",
         icon: FileText,
-        description: "View payroll reports"
+        description: "View payroll reports",
+        circularIcon: true
       }
     ]
   },
@@ -95,13 +99,15 @@ const navigationGroups: NavigationGroup[] = [
         name: "Employees",
         href: "/dashboard/employees",
         icon: Users,
-        description: "Manage employee records"
+        description: "Manage employee records",
+        circularIcon: true
       },
       {
         name: "Leave Management",
         href: "/dashboard/leave-management",
         icon: Calendar,
-        description: "Leave requests and balances"
+        description: "Leave requests and balances",
+        circularIcon: true
       }
     ]
   },
@@ -116,13 +122,15 @@ const navigationGroups: NavigationGroup[] = [
         name: "Payroll",
         href: "/payroll",
         icon: Calculator,
-        description: "Process payroll calculations"
+        description: "Process payroll calculations",
+        circularIcon: true
       },
       {
         name: "Tax Settings",
         href: "/dashboard/tax-settings",
-        icon: DollarSign,
-        description: "Configure Dutch tax rates"
+        icon: Settings,
+        description: "Configure Dutch tax rates",
+        circularIcon: true
       }
     ]
   },
@@ -207,14 +215,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     for (const group of navigationGroups) {
       for (const item of group.items) {
         if (pathname === item.href) {
-          return { pageName: item.name, groupName: group.name }
+          return { pageName: item.name, groupName: group.name, pageIcon: item.icon, circularIcon: item.circularIcon }
         }
       }
     }
-    return { pageName: "Dashboard", groupName: "Overview & Insights" }
+    return { pageName: "Dashboard", groupName: "Overview & Insights", pageIcon: LayoutDashboard, circularIcon: true }
   }
 
-  const { pageName, groupName } = getCurrentPageInfo()
+  const { pageName, groupName, pageIcon: PageIcon, circularIcon } = getCurrentPageInfo()
 
   return (
     <div className="h-screen bg-gray-50 flex">
@@ -231,8 +239,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <Menu className="h-5 w-5" />
             </Button>
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <LayoutDashboard className="w-4 h-4 text-primary-foreground" />
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                {PageIcon && (
+                  <PageIcon className="w-4 h-4 text-white" />
+                )}
               </div>
               <div className="hidden sm:block">
                 <h1 className="text-lg font-semibold text-gray-900">{pageName}</h1>
@@ -360,7 +370,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                             : "text-gray-700 hover:bg-gray-100"
                         )}
                       >
-                        <item.icon className="w-4 h-4 flex-shrink-0" />
+                        {item.circularIcon ? (
+                          <div className={cn(
+                            "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
+                            pathname === item.href
+                              ? "bg-primary-foreground/20"
+                              : "bg-blue-100"
+                          )}>
+                            <item.icon className={cn(
+                              "w-4 h-4",
+                              pathname === item.href ? "text-primary-foreground" : "text-blue-600"
+                            )} />
+                          </div>
+                        ) : (
+                          <item.icon className="w-4 h-4 flex-shrink-0" />
+                        )}
                         <div className="flex-1 min-w-0">
                           <div className="font-medium truncate">{item.name}</div>
                           <div className={cn(
@@ -428,9 +452,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         {/* Desktop Header */}
         <div className="hidden lg:block bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{pageName}</h1>
-              <p className="text-sm text-gray-500">{groupName}</p>
+            <div className="flex items-center space-x-3">
+              {PageIcon && (
+                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+                  <PageIcon className="w-6 h-6 text-white" />
+                </div>
+              )}
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">{pageName}</h1>
+                <p className="text-sm text-gray-500">{groupName}</p>
+              </div>
             </div>
             <div className="flex items-center space-x-4">
               <CompanySwitcherTrigger />

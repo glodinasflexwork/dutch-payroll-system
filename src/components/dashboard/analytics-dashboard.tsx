@@ -143,23 +143,6 @@ export default function AnalyticsDashboard() {
   if (loading) {
     return (
       <div className="space-y-6">
-        {/* Professional Header with Improved Contrast */}
-        <div className="bg-gradient-to-r from-blue-800 to-blue-900 rounded-xl p-8 text-white shadow-lg border border-blue-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="bg-blue-700 bg-opacity-80 p-3 rounded-full border border-blue-600">
-                <BarChart3 className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-white drop-shadow-sm">Analytics & Insights 📊</h1>
-                <p className="text-blue-200 mt-1 font-medium">
-                  Comprehensive payroll analytics and business intelligence
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-        
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -173,23 +156,6 @@ export default function AnalyticsDashboard() {
   if (error) {
     return (
       <div className="space-y-6">
-        {/* Professional Header with Improved Contrast */}
-        <div className="bg-gradient-to-r from-blue-800 to-blue-900 rounded-xl p-8 text-white shadow-lg border border-blue-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="bg-blue-700 bg-opacity-80 p-3 rounded-full border border-blue-600">
-                <BarChart3 className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-white drop-shadow-sm">Analytics & Insights 📊</h1>
-                <p className="text-blue-200 mt-1 font-medium">
-                  Comprehensive payroll analytics and business intelligence
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-        
         <Card className="border-red-200 bg-red-50">
           <CardContent className="p-6">
             <div className="flex items-center space-x-3">
@@ -211,37 +177,6 @@ export default function AnalyticsDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Professional Header with Improved Contrast */}
-      <div className="bg-gradient-to-r from-blue-800 to-blue-900 rounded-xl p-8 text-white shadow-lg border border-blue-700">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="bg-blue-700 bg-opacity-80 p-3 rounded-full border border-blue-600">
-              <BarChart3 className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-white drop-shadow-sm">Analytics & Insights 📊</h1>
-              <p className="text-blue-200 mt-1 font-medium">
-                Comprehensive payroll analytics and business intelligence
-              </p>
-              <div className="flex items-center space-x-4 mt-3">
-                <span className="bg-blue-700 bg-opacity-80 px-4 py-2 rounded-full text-sm font-semibold text-white border border-blue-600">
-                  {data.kpis.totalEmployees} Employees
-                </span>
-                <span className="bg-blue-700 bg-opacity-80 px-4 py-2 rounded-full text-sm font-semibold text-white border border-blue-600">
-                  €{data.kpis.totalPayroll.toLocaleString()} Total Payroll
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="bg-blue-700 bg-opacity-80 p-4 rounded-lg border border-blue-600">
-              <div className="text-2xl font-bold text-white">€{Math.round(data.kpis.averageSalary).toLocaleString()}</div>
-              <div className="text-sm text-blue-200 font-medium">Average Salary</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Professional KPI Cards - Blue Gradient Variations */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-blue-50">
