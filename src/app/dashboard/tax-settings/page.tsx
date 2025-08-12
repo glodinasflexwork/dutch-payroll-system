@@ -313,18 +313,50 @@ export default function TaxSettingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
+      <div className="space-y-8">
+        {/* Professional Header with Blue Gradient */}
+        <div className="relative">
+          <div className="bg-gradient-to-r from-blue-800 to-blue-900 rounded-2xl p-8 text-white shadow-lg border border-blue-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="bg-blue-700 bg-opacity-80 p-4 rounded-full border border-blue-600">
+                  <Settings className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-4xl font-bold text-white drop-shadow-sm">Tax Settings ⚙️</h1>
+                  <p className="text-blue-200 text-lg mt-2 font-medium">
+                    Configure Dutch tax rates and social security contributions
+                  </p>
+                  <div className="flex items-center mt-4 space-x-4">
+                    <div className="bg-blue-700 bg-opacity-80 px-4 py-2 rounded-full border border-blue-600">
+                      <span className="text-sm font-semibold text-white">Glodinas Finance B.V.</span>
+                    </div>
+                    <div className="bg-blue-700 bg-opacity-80 px-4 py-2 rounded-full border border-blue-600">
+                      <span className="text-sm font-semibold text-white">{taxSettings.length} Tax Years</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="hidden md:block">
+                <div className="bg-blue-700 bg-opacity-80 p-6 rounded-xl border border-blue-600">
+                  <Calculator className="w-16 h-16 text-white" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Action Buttons */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Tax Settings</h1>
-            <p className="text-gray-500">Configure Dutch tax rates and social security contributions</p>
+            <h2 className="text-2xl font-bold text-gray-900">Tax Configuration</h2>
+            <p className="text-gray-600 mt-1">Manage Dutch tax rates and compliance settings</p>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             <Button 
               variant="outline"
               onClick={exportSettings}
-              className="flex items-center space-x-2"
+              className="flex items-center space-x-2 border-blue-300 text-blue-700 hover:bg-blue-50"
             >
               <Download className="w-4 h-4" />
               <span>Export</span>
@@ -335,12 +367,93 @@ export default function TaxSettingsPage() {
                 setShowForm(true)
                 setEditingId(null)
               }}
-              className="flex items-center space-x-2"
+              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 shadow-lg"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4 mr-2" />
               <span>Add Tax Year</span>
             </Button>
           </div>
+        </div>
+
+        {/* Professional Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-blue-50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-blue-900">Tax Years</p>
+                  <p className="text-3xl font-bold text-blue-800">{taxSettings.length}</p>
+                  <p className="text-sm text-blue-600 mt-1">
+                    <Settings className="w-4 h-4 inline mr-1" />
+                    Configured
+                  </p>
+                </div>
+                <div className="bg-blue-100 p-3 rounded-full">
+                  <Calculator className="w-6 h-6 text-blue-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-4 border-l-blue-600 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-blue-50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-blue-900">Active Year</p>
+                  <p className="text-3xl font-bold text-blue-800">
+                    {taxSettings.find(ts => ts.isActive)?.taxYear || new Date().getFullYear()}
+                  </p>
+                  <p className="text-sm text-blue-600 mt-1">
+                    <Euro className="w-4 h-4 inline mr-1" />
+                    Current
+                  </p>
+                </div>
+                <div className="bg-blue-100 p-3 rounded-full">
+                  <Euro className="w-6 h-6 text-blue-700" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-4 border-l-blue-700 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-blue-50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-blue-900">Total Tax Rate</p>
+                  <p className="text-3xl font-bold text-blue-800">
+                    {taxSettings.find(ts => ts.isActive) 
+                      ? formatPercentage(calculateTotalTaxRate(taxSettings.find(ts => ts.isActive)!))
+                      : '0%'}
+                  </p>
+                  <p className="text-sm text-blue-600 mt-1">
+                    <Calculator className="w-4 h-4 inline mr-1" />
+                    Combined
+                  </p>
+                </div>
+                <div className="bg-blue-100 p-3 rounded-full">
+                  <Settings className="w-6 h-6 text-blue-800" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-l-4 border-l-blue-800 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-blue-50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-blue-900">Compliance</p>
+                  <p className="text-3xl font-bold text-blue-800">✓</p>
+                  <p className="text-sm text-blue-600 mt-1">
+                    <Info className="w-4 h-4 inline mr-1" />
+                    Dutch Law
+                  </p>
+                </div>
+                <div className="bg-blue-100 p-3 rounded-full">
+                  <Info className="w-6 h-6 text-blue-900" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Current Tax Settings */}
