@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -68,7 +66,7 @@ interface AnalyticsData {
   }
 }
 
-export default function AnalyticsDashboard() {
+export default function AnalyticsDashboardEnhanced() {
   const { data: session } = useSession()
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
