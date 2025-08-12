@@ -338,9 +338,9 @@ export default function ReportsPage() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        {/* Enhanced Header with Gradient */}
+        {/* Professional Header with Blue Gradient */}
         <div className="relative">
-          <div className="bg-gradient-to-r from-purple-600 via-blue-600 to-blue-700 rounded-2xl p-8 text-white">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl p-8 text-white shadow-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <div className="bg-white/20 p-4 rounded-full">
@@ -370,15 +370,15 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Enhanced Overview Stats */}
+        {/* Professional Overview Stats - Blue Gradient Variations */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
+          <Card className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-blue-50">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Reports</p>
-                  <p className="text-3xl font-bold text-gray-900">{overviewStats.totalReports}</p>
-                  <p className="text-sm text-green-600 mt-1">
+                  <p className="text-sm font-medium text-blue-900">Total Reports</p>
+                  <p className="text-3xl font-bold text-blue-700">{overviewStats.totalReports}</p>
+                  <p className="text-sm text-blue-600 mt-1">
                     <TrendingUp className="w-4 h-4 inline mr-1" />
                     All periods
                   </p>
@@ -390,30 +390,30 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-green-500 hover:shadow-lg transition-shadow">
+          <Card className="border-l-4 border-l-blue-600 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-blue-50">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Active Employees</p>
-                  <p className="text-3xl font-bold text-gray-900">{overviewStats.totalEmployees}</p>
-                  <p className="text-sm text-green-600 mt-1">
+                  <p className="text-sm font-medium text-blue-900">Active Employees</p>
+                  <p className="text-3xl font-bold text-blue-800">{overviewStats.totalEmployees}</p>
+                  <p className="text-sm text-blue-600 mt-1">
                     <Users className="w-4 h-4 inline mr-1" />
                     In system
                   </p>
                 </div>
-                <div className="bg-green-100 p-3 rounded-full">
-                  <Users className="w-6 h-6 text-green-600" />
+                <div className="bg-blue-100 p-3 rounded-full">
+                  <Users className="w-6 h-6 text-blue-700" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-orange-500 hover:shadow-lg transition-shadow">
+          <Card className="border-l-4 border-l-blue-700 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-blue-50">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Last Processed</p>
-                  <p className="text-lg font-bold text-gray-900">
+                  <p className="text-sm font-medium text-blue-900">Last Processed</p>
+                  <p className="text-lg font-bold text-blue-900">
                     {overviewStats.lastProcessed ? formatDate(overviewStats.lastProcessed).split(' ')[0] : 'N/A'}
                   </p>
                   <p className="text-sm text-blue-600 mt-1">
@@ -421,26 +421,26 @@ export default function ReportsPage() {
                     Recent activity
                   </p>
                 </div>
-                <div className="bg-orange-100 p-3 rounded-full">
-                  <Clock className="w-6 h-6 text-orange-600" />
+                <div className="bg-blue-100 p-3 rounded-full">
+                  <Clock className="w-6 h-6 text-blue-800" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-l-purple-500 hover:shadow-lg transition-shadow">
+          <Card className="border-l-4 border-l-blue-800 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-blue-50">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Compliance Status</p>
+                  <p className="text-sm font-medium text-blue-900">Compliance Status</p>
                   <p className="text-lg font-bold text-green-600">Up to Date</p>
-                  <p className="text-sm text-green-600 mt-1">
+                  <p className="text-sm text-blue-600 mt-1">
                     <CheckCircle className="w-4 h-4 inline mr-1" />
                     All systems green
                   </p>
                 </div>
-                <div className="bg-purple-100 p-3 rounded-full">
-                  <CheckCircle className="w-6 h-6 text-purple-600" />
+                <div className="bg-blue-100 p-3 rounded-full">
+                  <CheckCircle className="w-6 h-6 text-blue-900" />
                 </div>
               </div>
             </CardContent>
