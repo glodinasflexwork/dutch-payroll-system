@@ -442,32 +442,32 @@ export default function PayrollPage() {
     <DashboardLayout>
       <TrialGuard feature="payroll processing">
         <div className="space-y-6">
-          {/* Enhanced Header with Gradient */}
-          <div className="bg-gradient-to-r from-green-500 to-blue-600 rounded-lg p-8 text-white">
+          {/* Enhanced Header with Improved Contrast */}
+          <div className="bg-gradient-to-r from-blue-800 to-blue-900 rounded-lg p-8 text-white shadow-lg border border-blue-700">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <div className="bg-white bg-opacity-20 p-3 rounded-full">
-                  <Calculator className="w-8 h-8" />
+                <div className="bg-blue-700 bg-opacity-80 p-3 rounded-full border border-blue-600">
+                  <Calculator className="w-8 h-8 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold">Payroll Processing 💰</h1>
-                  <p className="text-green-100 mt-1">
+                  <h1 className="text-3xl font-bold text-white drop-shadow-sm">Payroll Processing 💰</h1>
+                  <p className="text-blue-200 mt-1 font-medium">
                     Calculate and process Dutch payroll with accurate tax calculations
                   </p>
-                  <div className="flex items-center space-x-4 mt-2">
-                    <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm">
+                  <div className="flex items-center space-x-4 mt-3">
+                    <span className="bg-blue-700 bg-opacity-80 px-4 py-2 rounded-full text-sm font-semibold text-white border border-blue-600">
                       {company?.name || 'Loading...'}
                     </span>
-                    <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm">
+                    <span className="bg-blue-700 bg-opacity-80 px-4 py-2 rounded-full text-sm font-semibold text-white border border-blue-600">
                       {employees.length} Employees
                     </span>
                   </div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="bg-white bg-opacity-20 p-4 rounded-lg">
-                  <div className="text-2xl font-bold">€{totalGrossThisMonth.toLocaleString()}</div>
-                  <div className="text-sm text-green-100">Total Gross This Month</div>
+                <div className="bg-blue-700 bg-opacity-80 p-4 rounded-lg border border-blue-600">
+                  <div className="text-2xl font-bold text-white">€{totalGrossThisMonth.toLocaleString()}</div>
+                  <div className="text-sm text-blue-200 font-medium">Total Gross This Month</div>
                 </div>
               </div>
             </div>
