@@ -143,16 +143,16 @@ export default function AnalyticsDashboard() {
   if (loading) {
     return (
       <div className="space-y-6">
-        {/* Professional Header with Blue Gradient */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl p-8 text-white shadow-lg">
+        {/* Professional Header with Improved Contrast */}
+        <div className="bg-gradient-to-r from-blue-800 to-blue-900 rounded-xl p-8 text-white shadow-lg border border-blue-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="bg-white bg-opacity-20 p-3 rounded-full">
-                <BarChart3 className="w-8 h-8" />
+              <div className="bg-blue-700 bg-opacity-80 p-3 rounded-full border border-blue-600">
+                <BarChart3 className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold">Analytics & Insights 📊</h1>
-                <p className="text-blue-100 mt-1">
+                <h1 className="text-3xl font-bold text-white drop-shadow-sm">Analytics & Insights 📊</h1>
+                <p className="text-blue-200 mt-1 font-medium">
                   Comprehensive payroll analytics and business intelligence
                 </p>
               </div>
@@ -173,16 +173,16 @@ export default function AnalyticsDashboard() {
   if (error) {
     return (
       <div className="space-y-6">
-        {/* Professional Header with Blue Gradient */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl p-8 text-white shadow-lg">
+        {/* Professional Header with Improved Contrast */}
+        <div className="bg-gradient-to-r from-blue-800 to-blue-900 rounded-xl p-8 text-white shadow-lg border border-blue-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div className="bg-white bg-opacity-20 p-3 rounded-full">
-                <BarChart3 className="w-8 h-8" />
+              <div className="bg-blue-700 bg-opacity-80 p-3 rounded-full border border-blue-600">
+                <BarChart3 className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold">Analytics & Insights 📊</h1>
-                <p className="text-blue-100 mt-1">
+                <h1 className="text-3xl font-bold text-white drop-shadow-sm">Analytics & Insights 📊</h1>
+                <p className="text-blue-200 mt-1 font-medium">
                   Comprehensive payroll analytics and business intelligence
                 </p>
               </div>
@@ -211,32 +211,32 @@ export default function AnalyticsDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Professional Header with Blue Gradient */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl p-8 text-white shadow-lg">
+      {/* Professional Header with Improved Contrast */}
+      <div className="bg-gradient-to-r from-blue-800 to-blue-900 rounded-xl p-8 text-white shadow-lg border border-blue-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className="bg-white bg-opacity-20 p-3 rounded-full">
-              <BarChart3 className="w-8 h-8" />
+            <div className="bg-blue-700 bg-opacity-80 p-3 rounded-full border border-blue-600">
+              <BarChart3 className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">Analytics & Insights 📊</h1>
-              <p className="text-blue-100 mt-1">
+              <h1 className="text-3xl font-bold text-white drop-shadow-sm">Analytics & Insights 📊</h1>
+              <p className="text-blue-200 mt-1 font-medium">
                 Comprehensive payroll analytics and business intelligence
               </p>
-              <div className="flex items-center space-x-4 mt-2">
-                <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm">
+              <div className="flex items-center space-x-4 mt-3">
+                <span className="bg-blue-700 bg-opacity-80 px-4 py-2 rounded-full text-sm font-semibold text-white border border-blue-600">
                   {data.kpis.totalEmployees} Employees
                 </span>
-                <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm">
+                <span className="bg-blue-700 bg-opacity-80 px-4 py-2 rounded-full text-sm font-semibold text-white border border-blue-600">
                   €{data.kpis.totalPayroll.toLocaleString()} Total Payroll
                 </span>
               </div>
             </div>
           </div>
           <div className="text-right">
-            <div className="bg-white bg-opacity-20 p-4 rounded-lg">
-              <div className="text-2xl font-bold">€{Math.round(data.kpis.averageSalary).toLocaleString()}</div>
-              <div className="text-sm text-blue-100">Average Salary</div>
+            <div className="bg-blue-700 bg-opacity-80 p-4 rounded-lg border border-blue-600">
+              <div className="text-2xl font-bold text-white">€{Math.round(data.kpis.averageSalary).toLocaleString()}</div>
+              <div className="text-sm text-blue-200 font-medium">Average Salary</div>
             </div>
           </div>
         </div>
