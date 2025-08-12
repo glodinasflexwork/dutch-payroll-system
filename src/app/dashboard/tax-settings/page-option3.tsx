@@ -484,14 +484,13 @@ export default function TaxSettingsPage() {
 
         {/* Add/Edit Form */}
         {showForm && (
-          <Card>
+          <Card className="border-blue-200 bg-blue-50">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Calculator className="w-5 h-5 mr-2" />
+              <CardTitle className="text-blue-800">
                 {editingId ? 'Edit Tax Settings' : 'Add New Tax Year'}
               </CardTitle>
-              <CardDescription>
-                Configure Dutch tax rates and social security contributions for a specific year
+              <CardDescription className="text-blue-600">
+                Configure tax rates and social security contributions for {formData.taxYear}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -499,178 +498,220 @@ export default function TaxSettingsPage() {
                 {/* Basic Settings */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Tax Year</label>
+                    <label className="block text-sm font-medium text-blue-900 mb-2">
+                      Tax Year
+                    </label>
                     <Input
                       type="number"
                       value={formData.taxYear}
                       onChange={(e) => handleInputChange('taxYear', parseInt(e.target.value))}
+                      className={errors.taxYear ? 'border-red-500' : 'border-blue-300'}
                       min="2020"
                       max="2030"
                     />
-                    {errors.taxYear && <p className="text-red-500 text-sm mt-1">{errors.taxYear}</p>}
+                    {errors.taxYear && (
+                      <p className="text-red-500 text-xs mt-1">{errors.taxYear}</p>
+                    )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Minimum Wage (Monthly)</label>
+                    <label className="block text-sm font-medium text-blue-900 mb-2">
+                      Minimum Wage (Monthly)
+                    </label>
                     <Input
                       type="number"
                       value={formData.minimumWage}
                       onChange={(e) => handleInputChange('minimumWage', parseFloat(e.target.value))}
+                      className={errors.minimumWage ? 'border-red-500' : 'border-blue-300'}
                       step="0.01"
                     />
-                    {errors.minimumWage && <p className="text-red-500 text-sm mt-1">{errors.minimumWage}</p>}
+                    {errors.minimumWage && (
+                      <p className="text-red-500 text-xs mt-1">{errors.minimumWage}</p>
+                    )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">Holiday Allowance (%)</label>
+                    <label className="block text-sm font-medium text-blue-900 mb-2">
+                      Holiday Allowance Rate (%)
+                    </label>
                     <Input
                       type="number"
                       value={formData.holidayAllowanceRate}
                       onChange={(e) => handleInputChange('holidayAllowanceRate', parseFloat(e.target.value))}
+                      className="border-blue-300"
                       step="0.01"
                     />
                   </div>
                 </div>
 
-                {/* Social Security */}
+                {/* Tax Rates */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-3 flex items-center">
-                    <Euro className="w-5 h-5 mr-2" />
-                    Social Security Contributions (Loonheffing)
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">AOW Rate (%) - Pension</label>
-                        <Input
-                          type="number"
-                          value={formData.aowRate}
-                          onChange={(e) => handleInputChange('aowRate', parseFloat(e.target.value))}
-                          step="0.01"
-                        />
-                        {errors.aowRate && <p className="text-red-500 text-sm mt-1">{errors.aowRate}</p>}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">WLZ Rate (%) - Long-term Care</label>
-                        <Input
-                          type="number"
-                          value={formData.wlzRate}
-                          onChange={(e) => handleInputChange('wlzRate', parseFloat(e.target.value))}
-                          step="0.01"
-                        />
-                        {errors.wlzRate && <p className="text-red-500 text-sm mt-1">{errors.wlzRate}</p>}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">ZVW Rate (%) - Health Insurance</label>
-                        <Input
-                          type="number"
-                          value={formData.zvwRate}
-                          onChange={(e) => handleInputChange('zvwRate', parseFloat(e.target.value))}
-                          step="0.01"
-                        />
-                        {errors.zvwRate && <p className="text-red-500 text-sm mt-1">{errors.zvwRate}</p>}
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">WW Rate (%) - Unemployment</label>
-                        <Input
-                          type="number"
-                          value={formData.wwRate}
-                          onChange={(e) => handleInputChange('wwRate', parseFloat(e.target.value))}
-                          step="0.01"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">WIA Rate (%) - Disability</label>
-                        <Input
-                          type="number"
-                          value={formData.wiaRate}
-                          onChange={(e) => handleInputChange('wiaRate', parseFloat(e.target.value))}
-                          step="0.01"
-                        />
-                      </div>
+                  <h4 className="text-lg font-semibold text-blue-900 mb-4">Tax Rates (%)</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-blue-900 mb-2">
+                        AOW (Pension)
+                      </label>
+                      <Input
+                        type="number"
+                        value={formData.aowRate}
+                        onChange={(e) => handleInputChange('aowRate', parseFloat(e.target.value))}
+                        className={errors.aowRate ? 'border-red-500' : 'border-blue-300'}
+                        step="0.01"
+                      />
+                      {errors.aowRate && (
+                        <p className="text-red-500 text-xs mt-1">{errors.aowRate}</p>
+                      )}
                     </div>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-2">AOW Max Base (€)</label>
-                        <Input
-                          type="number"
-                          value={formData.aowMaxBase}
-                          onChange={(e) => handleInputChange('aowMaxBase', parseFloat(e.target.value))}
-                          step="1"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">WLZ Max Base (€)</label>
-                        <Input
-                          type="number"
-                          value={formData.wlzMaxBase}
-                          onChange={(e) => handleInputChange('wlzMaxBase', parseFloat(e.target.value))}
-                          step="1"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">WW Max Base (€)</label>
-                        <Input
-                          type="number"
-                          value={formData.wwMaxBase}
-                          onChange={(e) => handleInputChange('wwMaxBase', parseFloat(e.target.value))}
-                          step="1"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-2">WIA Max Base (€)</label>
-                        <Input
-                          type="number"
-                          value={formData.wiaMaxBase}
-                          onChange={(e) => handleInputChange('wiaMaxBase', parseFloat(e.target.value))}
-                          step="1"
-                        />
-                      </div>
-                      <div className="bg-blue-50 p-3 rounded-lg">
-                        <p className="text-sm font-medium text-blue-800">Total Tax Rate</p>
-                        <p className="text-lg font-bold text-blue-900">
-                          {formatPercentage(formData.aowRate + formData.wlzRate + formData.wwRate + formData.wiaRate + formData.zvwRate)}
-                        </p>
-                      </div>
+                    <div>
+                      <label className="block text-sm font-medium text-blue-900 mb-2">
+                        WLZ (Long-term Care)
+                      </label>
+                      <Input
+                        type="number"
+                        value={formData.wlzRate}
+                        onChange={(e) => handleInputChange('wlzRate', parseFloat(e.target.value))}
+                        className={errors.wlzRate ? 'border-red-500' : 'border-blue-300'}
+                        step="0.01"
+                      />
+                      {errors.wlzRate && (
+                        <p className="text-red-500 text-xs mt-1">{errors.wlzRate}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-blue-900 mb-2">
+                        ZVW (Health Insurance)
+                      </label>
+                      <Input
+                        type="number"
+                        value={formData.zvwRate}
+                        onChange={(e) => handleInputChange('zvwRate', parseFloat(e.target.value))}
+                        className={errors.zvwRate ? 'border-red-500' : 'border-blue-300'}
+                        step="0.01"
+                      />
+                      {errors.zvwRate && (
+                        <p className="text-red-500 text-xs mt-1">{errors.zvwRate}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-blue-900 mb-2">
+                        WW (Unemployment)
+                      </label>
+                      <Input
+                        type="number"
+                        value={formData.wwRate}
+                        onChange={(e) => handleInputChange('wwRate', parseFloat(e.target.value))}
+                        className="border-blue-300"
+                        step="0.01"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-blue-900 mb-2">
+                        WIA (Disability)
+                      </label>
+                      <Input
+                        type="number"
+                        value={formData.wiaRate}
+                        onChange={(e) => handleInputChange('wiaRate', parseFloat(e.target.value))}
+                        className="border-blue-300"
+                        step="0.01"
+                      />
                     </div>
                   </div>
                 </div>
 
-                {/* Active Setting */}
+                {/* Maximum Bases */}
+                <div>
+                  <h4 className="text-lg font-semibold text-blue-900 mb-4">Maximum Contribution Bases (€)</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-blue-900 mb-2">
+                        AOW Max Base
+                      </label>
+                      <Input
+                        type="number"
+                        value={formData.aowMaxBase}
+                        onChange={(e) => handleInputChange('aowMaxBase', parseFloat(e.target.value))}
+                        className="border-blue-300"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-blue-900 mb-2">
+                        WLZ Max Base
+                      </label>
+                      <Input
+                        type="number"
+                        value={formData.wlzMaxBase}
+                        onChange={(e) => handleInputChange('wlzMaxBase', parseFloat(e.target.value))}
+                        className="border-blue-300"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-blue-900 mb-2">
+                        WW Max Base
+                      </label>
+                      <Input
+                        type="number"
+                        value={formData.wwMaxBase}
+                        onChange={(e) => handleInputChange('wwMaxBase', parseFloat(e.target.value))}
+                        className="border-blue-300"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-blue-900 mb-2">
+                        WIA Max Base
+                      </label>
+                      <Input
+                        type="number"
+                        value={formData.wiaMaxBase}
+                        onChange={(e) => handleInputChange('wiaMaxBase', parseFloat(e.target.value))}
+                        className="border-blue-300"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Active Status */}
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
                     id="isActive"
                     checked={formData.isActive}
                     onChange={(e) => handleInputChange('isActive', e.target.checked)}
-                    className="rounded border-gray-300"
+                    className="rounded border-blue-300"
                   />
-                  <label htmlFor="isActive" className="text-sm font-medium">
-                    Set as active tax settings (will deactivate other years)
+                  <label htmlFor="isActive" className="text-sm font-medium text-blue-900">
+                    Set as active tax year
                   </label>
                 </div>
 
+                {/* Error Display */}
                 {errors.submit && (
-                  <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                    <p className="text-red-600 text-sm">{errors.submit}</p>
+                  <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                    <p className="text-red-800">{errors.submit}</p>
                   </div>
                 )}
 
                 {/* Form Actions */}
-                <div className="flex items-center space-x-4">
-                  <Button type="submit" disabled={loading}>
-                    <Save className="w-4 h-4 mr-2" />
-                    {editingId ? 'Update Settings' : 'Save Settings'}
-                  </Button>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                <div className="flex items-center justify-end space-x-3 pt-4 border-t border-blue-200">
+                  <Button
+                    type="button"
+                    variant="outline"
                     onClick={() => {
                       setShowForm(false)
                       setEditingId(null)
                       resetForm()
                     }}
+                    className="border-blue-300 text-blue-700 hover:bg-blue-50"
                   >
                     <X className="w-4 h-4 mr-2" />
                     Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    {loading ? 'Saving...' : (editingId ? 'Update' : 'Save')}
                   </Button>
                 </div>
               </form>
@@ -678,43 +719,47 @@ export default function TaxSettingsPage() {
           </Card>
         )}
 
-        {/* Tax Settings History */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Tax Settings History</CardTitle>
-            <CardDescription>
-              All configured tax years and their settings
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {taxSettings.length === 0 ? (
-              <div className="text-center py-8">
-                <Settings className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-lg font-medium text-gray-900">No tax settings configured</p>
-                <p className="text-sm text-gray-500 mb-4">Get started by adding tax settings for the current year</p>
-                <Button onClick={() => setShowForm(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Tax Settings
-                </Button>
-              </div>
-            ) : (
+        {/* Historical Tax Settings */}
+        {taxSettings.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-gray-900">All Tax Years</CardTitle>
+              <CardDescription className="text-gray-600">
+                Manage historical and future tax configurations
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-4">
                 {taxSettings.map((settings) => (
-                  <div key={settings.id} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-3">
-                        <h3 className="text-lg font-semibold">{settings.taxYear}</h3>
-                        {settings.isActive && <Badge variant="success">Active</Badge>}
-                        <Badge variant="outline">
-                          Total: {formatPercentage(calculateTotalTaxRate(settings))}
-                        </Badge>
+                  <div
+                    key={settings.id}
+                    className={`p-4 rounded-lg border ${
+                      settings.isActive 
+                        ? 'border-green-200 bg-green-50' 
+                        : 'border-gray-200 bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div>
+                          <h4 className="font-semibold text-gray-900">
+                            Tax Year {settings.taxYear}
+                          </h4>
+                          <p className="text-sm text-gray-600">
+                            Total Rate: {formatPercentage(calculateTotalTaxRate(settings))} | 
+                            Min Wage: {formatCurrency(settings.minimumWage)}
+                          </p>
+                        </div>
+                        {settings.isActive && (
+                          <Badge variant="success">Active</Badge>
+                        )}
                       </div>
                       <div className="flex items-center space-x-2">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => duplicateSettings(settings)}
-                          title="Duplicate for new year"
+                          className="border-blue-300 text-blue-700 hover:bg-blue-50"
                         >
                           <Copy className="w-4 h-4" />
                         </Button>
@@ -722,75 +767,52 @@ export default function TaxSettingsPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => startEdit(settings)}
+                          className="border-blue-300 text-blue-700 hover:bg-blue-50"
                         >
-                          <Edit className="w-4 h-4 mr-2" />
-                          Edit
+                          <Edit className="w-4 h-4" />
                         </Button>
                         {!settings.isActive && (
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleDelete(settings.id)}
-                            className="text-red-600 hover:text-red-700"
+                            className="border-red-300 text-red-700 hover:bg-red-50"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         )}
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                      <div>
-                        <p className="font-medium text-gray-600">AOW</p>
-                        <p>{formatPercentage(settings.aowRate)}</p>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-600">WLZ</p>
-                        <p>{formatPercentage(settings.wlzRate)}</p>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-600">WW</p>
-                        <p>{formatPercentage(settings.wwRate)}</p>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-600">WIA</p>
-                        <p>{formatPercentage(settings.wiaRate)}</p>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-600">ZVW</p>
-                        <p>{formatPercentage(settings.zvwRate)}</p>
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-600">Holiday Allowance</p>
-                        <p>{formatPercentage(settings.holidayAllowanceRate)}</p>
-                      </div>
-                    </div>
                   </div>
                 ))}
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Information Card */}
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader>
-            <CardTitle className="text-blue-800 flex items-center">
-              <Info className="w-5 h-5 mr-2" />
-              Dutch Tax Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-blue-700">
-            <div className="space-y-2 text-sm">
-              <p><strong>Income Tax:</strong> NOT calculated in payroll software - handled by tax advisors annually</p>
-              <p><strong>AOW:</strong> Old-age pension contribution, typically around 17.90%</p>
-              <p><strong>WLZ:</strong> Long-term care insurance, typically around 9.65%</p>
-              <p><strong>WW:</strong> Unemployment insurance, varies by sector (around 2.94%)</p>
-              <p><strong>WIA:</strong> Work and income capacity insurance (around 0.58%)</p>
-              <p><strong>ZVW:</strong> Health insurance contribution, typically around 5.65%</p>
-              <p><strong>Holiday Allowance:</strong> Mandatory 8% of annual salary (vakantiegeld)</p>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Empty State */}
+        {taxSettings.length === 0 && !loading && (
+          <Card className="border-dashed border-2 border-blue-300">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Calculator className="w-12 h-12 text-blue-400 mb-4" />
+              <h3 className="text-lg font-semibold text-blue-900 mb-2">No Tax Settings Configured</h3>
+              <p className="text-blue-600 text-center mb-6 max-w-md">
+                Get started by adding your first tax year configuration. This will enable payroll processing with Dutch tax compliance.
+              </p>
+              <Button
+                onClick={() => {
+                  resetForm()
+                  setShowForm(true)
+                  setEditingId(null)
+                }}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add First Tax Year
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </DashboardLayout>
   )
