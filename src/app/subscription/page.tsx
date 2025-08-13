@@ -58,9 +58,9 @@ export default function SubscriptionPage() {
   const [loading, setLoading] = useState(true);
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const [usageStats, setUsageStats] = useState<UsageStats>({
-    employees: { current: 12, limit: 50 },
-    payrolls: { current: 8, limit: -1 },
-    storage: { current: 2.1, limit: 10 }
+    employees: { current: 0, limit: 50 },
+    payrolls: { current: 0, limit: -1 },
+    storage: { current: 0, limit: 10 }
   });
 
   useEffect(() => {
@@ -88,6 +88,13 @@ export default function SubscriptionPage() {
       if (subscriptionResponse.ok) {
         const subscriptionData = await subscriptionResponse.json();
         setCurrentSubscription(subscriptionData.subscription || null);
+      }
+
+      // Fetch real usage statistics
+      const usageResponse = await fetch('/api/usage-stats');
+      if (usageResponse.ok) {
+        const usageData = await usageResponse.json();
+        setUsageStats(usageData.usageStats);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
