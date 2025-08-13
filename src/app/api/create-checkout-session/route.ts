@@ -26,6 +26,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate Stripe configuration
+    if (!process.env.STRIPE_SECRET_KEY) {
+      console.error('STRIPE_SECRET_KEY is not configured');
+      return NextResponse.json(
+        { error: 'Payment system not configured' },
+        { status: 500 }
+      );
+    }
+
+    if (!process.env.NEXTAUTH_URL) {
+      console.error('NEXTAUTH_URL is not configured');
+      return NextResponse.json(
+        { error: 'Application URL not configured' },
+        { status: 500 }
+      );
+    }
+
     // Create Stripe checkout session directly (simplified version)
     const checkoutSession = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -59,14 +76,13 @@ export async function POST(request: NextRequest) {
     console.error('Error details:', {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
-      priceId,
-      planId,
-      companyId: session?.user?.companyId
+      priceId: request.body ? JSON.parse(await request.text()).priceId : 'unknown',
+      planId: request.body ? JSON.parse(await request.text()).planId : 'unknown'
     });
     return NextResponse.json(
       { 
-        error: 'Failed to create checkout session',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        error: 'Failed to start checkout process. Please try again.',
+        details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : 'Unknown error') : undefined
       },
       { status: 500 }
     );
