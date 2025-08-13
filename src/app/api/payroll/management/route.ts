@@ -199,8 +199,42 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    console.log("Employee lookup details:")
+    console.log("- Requested employee IDs:", employeeIds)
+    console.log("- Company ID:", session.user.companyId)
+    console.log("- Found employees:", employees.length)
+    console.log("- Employee details:", employees.map(emp => ({
+      id: emp.id,
+      name: `${emp.firstName} ${emp.lastName}`,
+      companyId: emp.companyId,
+      isActive: emp.isActive
+    })))
+
     if (employees.length === 0) {
-      return NextResponse.json({ error: "No valid employees found" }, { status: 404 })
+      // Additional debugging - check if employees exist without company filter
+      const allEmployees = await hrClient.employee.findMany({
+        where: {
+          id: { in: employeeIds }
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          companyId: true,
+          isActive: true
+        }
+      })
+      
+      console.log("All employees with these IDs (no company filter):", allEmployees)
+      
+      return NextResponse.json({ 
+        error: "No valid employees found",
+        debug: {
+          requestedIds: employeeIds,
+          companyId: session.user.companyId,
+          foundEmployees: allEmployees
+        }
+      }, { status: 404 })
     }
 
     // Fetch company data
