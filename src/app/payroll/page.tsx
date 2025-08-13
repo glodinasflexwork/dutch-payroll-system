@@ -817,42 +817,45 @@ export default function PayrollPage() {
                         <h3 className="text-xl font-bold text-gray-900">Calculation Results</h3>
                       </div>
                       
-                      {/* Show batch results if available */}
-                      {batchResults.length > 0 ? (
+                      {/* Show calculation results if available */}
+                      {(batchResults.length > 0 || Object.keys(calculations).length > 0) ? (
                         <div className="space-y-6">
-                          {/* Enhanced Batch Summary */}
-                          <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-lg p-6 border border-blue-200">
-                            <h4 className="font-bold text-gray-900 mb-4 flex items-center">
-                              <CheckCircle className="w-6 h-6 text-green-500 mr-2" />
-                              Batch Processing Results
-                            </h4>
-                            <div className="grid grid-cols-3 gap-4 text-center">
-                              <div className="bg-white p-4 rounded-lg shadow-sm">
-                                <p className="text-sm text-gray-600">Total Processed</p>
-                                <p className="text-2xl font-bold text-gray-900">{batchResults.length}</p>
+                          {/* Show batch results if available, otherwise show calculations */}
+                          {batchResults.length > 0 ? (
+                            <>
+                              {/* Enhanced Batch Summary */}
+                              <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-lg p-6 border border-blue-200">
+                                <h4 className="font-bold text-gray-900 mb-4 flex items-center">
+                                  <CheckCircle className="w-6 h-6 text-green-500 mr-2" />
+                                  Batch Processing Results
+                                </h4>
+                                <div className="grid grid-cols-3 gap-4 text-center">
+                                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <p className="text-sm text-gray-600">Total Processed</p>
+                                    <p className="text-2xl font-bold text-gray-900">{batchResults.length}</p>
+                                  </div>
+                                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <p className="text-sm text-gray-600">Total Gross</p>
+                                    <p className="text-2xl font-bold text-green-600">
+                                      €{batchResults.reduce((sum, result) => 
+                                        sum + (result.calculation?.grossMonthlySalary || 0), 0
+                                      ).toLocaleString()}
+                                    </p>
+                                  </div>
+                                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <p className="text-sm text-gray-600">Total Net</p>
+                                    <p className="text-2xl font-bold text-blue-600">
+                                      €{batchResults.reduce((sum, result) => 
+                                        sum + (result.calculation?.netMonthlySalary || 0), 0
+                                      ).toLocaleString()}
+                                    </p>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="bg-white p-4 rounded-lg shadow-sm">
-                                <p className="text-sm text-gray-600">Total Gross</p>
-                                <p className="text-2xl font-bold text-green-600">
-                                  €{batchResults.reduce((sum, result) => 
-                                    sum + (result.calculation?.grossMonthlySalary || 0), 0
-                                  ).toLocaleString()}
-                                </p>
-                              </div>
-                              <div className="bg-white p-4 rounded-lg shadow-sm">
-                                <p className="text-sm text-gray-600">Total Net</p>
-                                <p className="text-2xl font-bold text-blue-600">
-                                  €{batchResults.reduce((sum, result) => 
-                                    sum + (result.calculation?.netMonthlySalary || 0), 0
-                                  ).toLocaleString()}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
 
-                          {/* Enhanced Individual Results */}
-                          <div className="space-y-4 max-h-96 overflow-y-auto">
-                            {batchResults.map((result, index) => {
+                              {/* Enhanced Individual Results */}
+                              <div className="space-y-4 max-h-96 overflow-y-auto">
+                                {batchResults.map((result, index) => {
                               const calculation = result.calculation;
                               
                               if (!calculation) {
@@ -920,6 +923,90 @@ export default function PayrollPage() {
                               );
                             })}
                           </div>
+                            </>
+                          ) : (
+                            /* Show calculations results */
+                            <>
+                              {/* Calculation Summary */}
+                              <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-lg p-6 border border-blue-200">
+                                <h4 className="font-bold text-gray-900 mb-4 flex items-center">
+                                  <Calculator className="w-6 h-6 text-blue-500 mr-2" />
+                                  Calculation Results
+                                </h4>
+                                <div className="grid grid-cols-3 gap-4 text-center">
+                                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <p className="text-sm text-gray-600">Employees Calculated</p>
+                                    <p className="text-2xl font-bold text-gray-900">{Object.keys(calculations).length}</p>
+                                  </div>
+                                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <p className="text-sm text-gray-600">Total Gross</p>
+                                    <p className="text-2xl font-bold text-green-600">
+                                      €{Object.values(calculations).reduce((sum, calc) => 
+                                        sum + (calc.grossMonthlySalary || 0), 0
+                                      ).toLocaleString()}
+                                    </p>
+                                  </div>
+                                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <p className="text-sm text-gray-600">Total Net</p>
+                                    <p className="text-2xl font-bold text-blue-600">
+                                      €{Object.values(calculations).reduce((sum, calc) => 
+                                        sum + (calc.netMonthlySalary || 0), 0
+                                      ).toLocaleString()}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Individual Calculation Results */}
+                              <div className="space-y-4 max-h-96 overflow-y-auto">
+                                {Object.entries(calculations).map(([employeeId, calculation]) => {
+                                  const employee = employees.find(emp => emp.id === employeeId);
+                                  
+                                  return (
+                                    <div key={employeeId} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-white">
+                                      <div className="flex items-center justify-between mb-3">
+                                        <h4 className="font-medium text-gray-900">
+                                          {employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown Employee'}
+                                        </h4>
+                                        <div className="flex items-center space-x-2">
+                                          <span className="text-xs text-gray-500">#{employee?.employeeNumber || 'N/A'}</span>
+                                          <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                                            calculated
+                                          </span>
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="grid grid-cols-2 gap-4 mb-3">
+                                        <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                                          <p className="text-xs text-green-600 font-medium">Gross Monthly</p>
+                                          <p className="text-lg font-bold text-green-900">
+                                            €{calculation.grossMonthlySalary.toLocaleString()}
+                                          </p>
+                                        </div>
+                                        <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                                          <p className="text-xs text-blue-600 font-medium">Net Monthly</p>
+                                          <p className="text-lg font-bold text-blue-900">
+                                            €{calculation.netMonthlySalary.toLocaleString()}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="text-xs text-gray-600 space-y-1 bg-gray-50 p-3 rounded-lg">
+                                        <div className="flex justify-between">
+                                          <span>Tax (after credits):</span>
+                                          <span className="font-medium">€{(calculation.incomeTaxAfterCredits / 12).toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span>Employer costs:</span>
+                                          <span className="font-medium">€{(calculation.totalEmployerCosts / 12).toLocaleString()}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          )}
                         </div>
                       ) : (
                         /* Enhanced Empty State */
