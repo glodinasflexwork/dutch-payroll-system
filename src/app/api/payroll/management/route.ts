@@ -276,37 +276,37 @@ export async function POST(request: NextRequest) {
         const payrollResult = calculateDutchPayroll(employeeData, companyData)
 
         if (!dryRun) {
-          // Check if record already exists
+          // Parse pay period dates to get year and month
+          const payPeriodStartDate = new Date(payPeriodStart)
+          const year = payPeriodStartDate.getFullYear()
+          const month = payPeriodStartDate.getMonth() + 1
+
+          // Check if record already exists using year and month (schema fields)
           const existingRecord = await payrollClient.payrollRecord.findFirst({
             where: {
               employeeId: employee.id,
-              payPeriodStart: new Date(payPeriodStart),
-              payPeriodEnd: new Date(payPeriodEnd)
+              year: year,
+              month: month
             }
           })
 
           if (existingRecord) {
-            // Update existing record
+            // Update existing record with schema-compliant fields
             const updatedRecord = await payrollClient.payrollRecord.update({
               where: { id: existingRecord.id },
               data: {
-                baseSalary: employee.salary,
-                hoursWorked: 0,
-                overtimeHours: 0,
-                overtimeRate: 1.5,
-                regularPay: employee.salary,
-                overtimePay: 0,
-                holidayAllowance: payrollResult.holidayAllowanceGross / 12, // Annual to monthly
-                grossPay: payrollResult.grossMonthlySalary, // Already monthly
-                incomeTax: payrollResult.incomeTaxAfterCredits / 12, // Annual to monthly
-                aowContribution: payrollResult.aowContribution / 12, // Annual to monthly
-                wlzContribution: payrollResult.wlzContribution / 12, // Annual to monthly
-                wwContribution: payrollResult.wwContribution / 12, // Annual to monthly
-                wiaContribution: payrollResult.wiaContribution / 12, // Annual to monthly
-                totalDeductions: payrollResult.totalTaxAndInsurance / 12, // Annual to monthly
-                netPay: payrollResult.netMonthlySalary, // Already monthly
-                employerCosts: payrollResult.totalEmployerCosts / 12, // Annual to monthly
-                processedDate: new Date()
+                employeeNumber: employee.employeeNumber || `EMP${employee.id.slice(-4)}`,
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                period: `${year}-${month.toString().padStart(2, '0')}`,
+                grossSalary: payrollResult.grossMonthlySalary,
+                netSalary: payrollResult.netMonthlySalary,
+                taxDeduction: 0, // Dutch payroll doesn't include income tax
+                socialSecurity: (payrollResult.aowContribution + payrollResult.wlzContribution) / 12,
+                pensionDeduction: (payrollResult.wwContribution + payrollResult.wiaContribution) / 12,
+                holidayAllowance: payrollResult.holidayAllowanceGross / 12,
+                paymentDate: new Date(),
+                status: 'processed'
               }
             })
 
@@ -321,32 +321,25 @@ export async function POST(request: NextRequest) {
               calculation: payrollResult
             })
           } else {
-            // Create new payroll record
+            // Create new payroll record with schema-compliant fields
             const payrollRecord = await payrollClient.payrollRecord.create({
               data: {
                 employeeId: employee.id,
-                companyId: session.user.companyId,
-                payPeriodStart: new Date(payPeriodStart),
-                payPeriodEnd: new Date(payPeriodEnd),
-                baseSalary: employee.salary,
-                hoursWorked: 0,
-                overtimeHours: 0,
-                overtimeRate: 1.5,
-                regularPay: employee.salary,
-                overtimePay: 0,
-                holidayAllowance: payrollResult.holidayAllowanceGross / 12, // Annual to monthly
-                grossPay: payrollResult.grossMonthlySalary, // Already monthly
-                incomeTax: payrollResult.incomeTaxAfterCredits / 12, // Annual to monthly
-                aowContribution: payrollResult.aowContribution / 12, // Annual to monthly
-                wlzContribution: payrollResult.wlzContribution / 12, // Annual to monthly
-                wwContribution: payrollResult.wwContribution / 12, // Annual to monthly
-                wiaContribution: payrollResult.wiaContribution / 12, // Annual to monthly
-                totalDeductions: payrollResult.totalTaxAndInsurance / 12, // Annual to monthly
-                netPay: payrollResult.netMonthlySalary, // Already monthly
-                employerCosts: payrollResult.totalEmployerCosts / 12, // Annual to monthly
-                taxTable: employee.taxTable || 'wit', // Add the missing taxTable field
-                taxYear: new Date(payPeriodStart).getFullYear(), // Add taxYear field
-                processedDate: new Date()
+                employeeNumber: employee.employeeNumber || `EMP${employee.id.slice(-4)}`,
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                companyId: companyId,
+                period: `${year}-${month.toString().padStart(2, '0')}`,
+                year: year,
+                month: month,
+                grossSalary: payrollResult.grossMonthlySalary,
+                netSalary: payrollResult.netMonthlySalary,
+                taxDeduction: 0, // Dutch payroll doesn't include income tax
+                socialSecurity: (payrollResult.aowContribution + payrollResult.wlzContribution) / 12,
+                pensionDeduction: (payrollResult.wwContribution + payrollResult.wiaContribution) / 12,
+                holidayAllowance: payrollResult.holidayAllowanceGross / 12,
+                paymentDate: new Date(),
+                status: 'processed'
               }
             })
 

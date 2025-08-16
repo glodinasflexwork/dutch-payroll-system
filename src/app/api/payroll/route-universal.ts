@@ -288,25 +288,24 @@ export async function PUT(request: NextRequest) {
     if (existingRecord) {
       console.log(`🔄 [PayrollAPI] Updating existing payroll record for period: ${year}-${month}`)
       
-      // Update existing record with schema-compliant fields including employee data
+      // Update existing record with schema-compliant fields
       const updatedRecord = await payrollClient.payrollRecord.update({
         where: { id: existingRecord.id },
         data: {
-          employeeNumber: employee.employeeNumber || `EMP${employee.id.slice(-4)}`, // Ensure employeeNumber is set
-          firstName: employee.firstName,
-          lastName: employee.lastName,
           period: `${year}-${month.toString().padStart(2, '0')}`,
           grossSalary: grossPay,
           netSalary: payrollResult.netMonthlySalary,
-          taxDeduction: 0, // Dutch payroll calculation doesn't include income tax - handled separately
-          socialSecurity: (payrollResult.aowContribution + payrollResult.wlzContribution) / 12, // REQUIRED FIELD
+          taxDeduction: payrollResult.incomeTax / 12, // Monthly portion
+          socialSecurity: (payrollResult.aowContribution + payrollResult.wlzContribution) / 12,
           pensionDeduction: (payrollResult.wwContribution + payrollResult.wiaContribution) / 12,
           otherDeductions: deductions || 0,
           bonus: bonuses || 0,
           overtime: overtimePay,
           expenses: 0, // Could be added from request
           paymentDate: new Date(),
-          status: 'processed'
+          status: 'processed',
+          notes: `Updated: Hours: ${hoursWorked || 0}, Overtime: ${overtimeHours || 0}`,
+          updatedAt: new Date()
         }
       })
 
@@ -325,28 +324,28 @@ export async function PUT(request: NextRequest) {
     } else {
       console.log(`📝 [PayrollAPI] Creating new payroll record for period: ${year}-${month}`)
       
-      // Create new payroll record with schema-compliant fields including required employee data
+      // Create new payroll record with schema-compliant fields
       const payrollRecord = await payrollClient.payrollRecord.create({
         data: {
           employeeId: employeeId,
-          employeeNumber: employee.employeeNumber || `EMP${employee.id.slice(-4)}`, // Use employeeNumber or generate from ID
-          firstName: employee.firstName,
-          lastName: employee.lastName,
           companyId: companyId,
           period: `${year}-${month.toString().padStart(2, '0')}`,
           year: year,
           month: month,
           grossSalary: grossPay,
           netSalary: payrollResult.netMonthlySalary,
-          taxDeduction: 0, // Dutch payroll calculation doesn't include income tax - handled separately
-          socialSecurity: (payrollResult.aowContribution + payrollResult.wlzContribution) / 12, // REQUIRED FIELD
+          taxDeduction: payrollResult.incomeTax / 12, // Monthly portion
+          socialSecurity: (payrollResult.aowContribution + payrollResult.wlzContribution) / 12,
           pensionDeduction: (payrollResult.wwContribution + payrollResult.wiaContribution) / 12,
           otherDeductions: deductions || 0,
           bonus: bonuses || 0,
           overtime: overtimePay,
           expenses: 0, // Could be added from request
           paymentDate: new Date(),
-          status: 'processed'
+          status: 'processed',
+          notes: `Hours: ${hoursWorked || 0}, Overtime: ${overtimeHours || 0}`,
+          createdAt: new Date(),
+          updatedAt: new Date()
         }
       })
 
