@@ -407,6 +407,52 @@ export default function PayrollPage() {
     }
   };
 
+  const generatePayslip = async (record: any) => {
+    try {
+      const loadingToastId = toast.loading('Generating payslip', `Creating payslip for ${record.firstName} ${record.lastName}...`);
+      
+      console.log('=== GENERATING PAYSLIP ===');
+      console.log('Record:', record);
+      
+      const response = await fetch('/api/payslips', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          employeeId: record.employeeId,
+          year: record.year,
+          month: record.month
+        }),
+      });
+      
+      console.log('Payslip generation response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Payslip generation result:', data);
+        
+        toast.removeToast(loadingToastId);
+        toast.success('Payslip generated successfully', 
+          `Payslip created for ${record.firstName} ${record.lastName}`);
+        
+        // Open the generated payslip in a new tab
+        if (data.file?.downloadUrl) {
+          window.open(data.file.downloadUrl, '_blank');
+        }
+        
+      } else {
+        const errorData = await response.json();
+        console.error('Error generating payslip:', errorData);
+        toast.removeToast(loadingToastId);
+        toast.error('Payslip generation failed', errorData.error || 'Unknown error occurred');
+      }
+    } catch (error) {
+      console.error('Error generating payslip:', error);
+      toast.error('Payslip generation failed', error instanceof Error ? error.message : 'Network error occurred');
+    }
+  };
+
   const tabs = [
     { id: 'calculate', name: 'Calculate Payroll', icon: Calculator },
     { id: 'records', name: 'Payroll Records', icon: FileText },
@@ -1073,6 +1119,9 @@ export default function PayrollPage() {
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Processed
                           </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
@@ -1081,24 +1130,35 @@ export default function PayrollPage() {
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div>
                                 <div className="text-sm font-medium text-gray-900">
-                                  {record.employee.firstName} {record.employee.lastName}
+                                  {record.firstName} {record.lastName}
                                 </div>
                                 <div className="text-sm text-gray-500">
-                                  {record.employee.employeeNumber}
+                                  {record.employeeNumber}
                                 </div>
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {new Date(record.payPeriodStart).toLocaleDateString()} - {new Date(record.payPeriodEnd).toLocaleDateString()}
+                              {record.period}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                              €{record.grossPay.toLocaleString()}
+                              €{record.grossSalary.toLocaleString()}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">
-                              €{record.netPay.toLocaleString()}
+                              €{record.netSalary.toLocaleString()}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {new Date(record.processedDate).toLocaleDateString()}
+                              {record.paymentDate ? new Date(record.paymentDate).toLocaleDateString() : 'Pending'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <button
+                                onClick={() => generatePayslip(record)}
+                                className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                              >
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Generate Payslip
+                              </button>
                             </td>
                           </tr>
                         ))}

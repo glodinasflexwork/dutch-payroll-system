@@ -1,9 +1,15 @@
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { } from "@/lib/database-clients"
+import { payrollClient, hrClient } from "@/lib/database-clients"
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { calculateDutchPayroll, type EmployeeData, type CompanyData } from "@/lib/payroll-calculations"
+import fs from 'fs'
+import path from 'path'
+import { promisify } from 'util'
+
+const writeFile = promisify(fs.writeFile)
+const mkdir = promisify(fs.mkdir)
 
 // Validation schema for payslip generation
 const payslipSchema = z.object({
@@ -38,8 +44,8 @@ export async function GET(request: NextRequest) {
       year: parseInt(year)
     })
 
-    // Get employee information
-    const employee = await payrollClient.employee.findFirst({
+    // Get employee information from HR database
+    const employee = await hrClient.employee.findFirst({
       where: {
         id: validatedData.employeeId,
         companyId: session.user.companyId,
@@ -51,8 +57,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 })
     }
 
-    // Get company information
-    const company = await payrollClient.company.findUnique({
+    // Get company information from HR database
+    const company = await hrClient.company.findUnique({
       where: { id: session.user.companyId }
     })
 
@@ -62,16 +68,20 @@ export async function GET(request: NextRequest) {
 
     // Prepare data for payroll calculation
     const employeeData: EmployeeData = {
-      annualSalary: employee.annualSalary,
-      age: new Date().getFullYear() - new Date(employee.dateOfBirth).getFullYear(),
-      hasAOWExemption: employee.hasAOWExemption || false,
-      taxTable: employee.taxTable || 'green',
-      payrollTaxCredit: employee.payrollTaxCredit || 0
+      grossMonthlySalary: (employee.salary || 42000) / 12, // Convert annual to monthly
+      dateOfBirth: employee.dateOfBirth,
+      isDGA: false, // Default value
+      taxTable: employee.taxTable === 'green' ? 'groen' : 'wit',
+      taxCredit: 0, // Default value
+      isYoungDisabled: false, // Default value
+      hasMultipleJobs: false // Default value
     }
 
     const companyData: CompanyData = {
+      size: 'medium', // Default value
       sector: company.sector || 'general',
-      hasCollectiveAgreement: company.hasCollectiveAgreement || false
+      awfRate: 'low', // Default value
+      aofRate: 'low' // Default value
     }
 
     // Calculate using the corrected Dutch payroll library
@@ -179,8 +189,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = payslipSchema.parse(body)
 
-    // Get employee information
-    const employee = await payrollClient.employee.findFirst({
+    // Get employee information from HR database
+    const employee = await hrClient.employee.findFirst({
       where: {
         id: validatedData.employeeId,
         companyId: session.user.companyId,
@@ -192,8 +202,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 })
     }
 
-    // Get company information
-    const company = await payrollClient.company.findUnique({
+    // Get company information from HR database
+    const company = await hrClient.company.findUnique({
       where: { id: session.user.companyId }
     })
 
@@ -203,16 +213,20 @@ export async function POST(request: NextRequest) {
 
     // Prepare data for payroll calculation
     const employeeData: EmployeeData = {
-      annualSalary: employee.annualSalary,
-      age: new Date().getFullYear() - new Date(employee.dateOfBirth).getFullYear(),
-      hasAOWExemption: employee.hasAOWExemption || false,
-      taxTable: employee.taxTable || 'green',
-      payrollTaxCredit: employee.payrollTaxCredit || 0
+      grossMonthlySalary: (employee.salary || 42000) / 12, // Convert annual to monthly
+      dateOfBirth: employee.dateOfBirth,
+      isDGA: false, // Default value
+      taxTable: employee.taxTable === 'green' ? 'groen' : 'wit',
+      taxCredit: 0, // Default value
+      isYoungDisabled: false, // Default value
+      hasMultipleJobs: false // Default value
     }
 
     const companyData: CompanyData = {
+      size: 'medium', // Default value
       sector: company.sector || 'general',
-      hasCollectiveAgreement: company.hasCollectiveAgreement || false
+      awfRate: 'low', // Default value
+      aofRate: 'low' // Default value
     }
 
     // Calculate using the corrected Dutch payroll library
@@ -311,18 +325,18 @@ export async function POST(request: NextRequest) {
         <div class="header">
             <h1>Loonstrook</h1>
             <div class="company-info">
-                <strong>${payslipData.company.name}</strong><br>
-                ${payslipData.company.address}<br>
-                ${payslipData.company.postalCode} ${payslipData.company.city}<br>
-                KvK: ${payslipData.company.kvkNumber} | BTW: ${payslipData.company.taxNumber}
+                <strong>${payslipData.Company.name}</strong><br>
+                ${payslipData.Company.address}<br>
+                ${payslipData.Company.postalCode} ${payslipData.Company.city}<br>
+                KvK: ${payslipData.Company.kvkNumber} | BTW: ${payslipData.Company.taxNumber}
             </div>
         </div>
 
         <div class="employee-info">
             <h3>Werknemergegevens</h3>
-            <p><strong>Naam:</strong> ${payslipData.employee.firstName} ${payslipData.employee.lastName}</p>
-            <p><strong>Personeelsnummer:</strong> ${payslipData.employee.employeeNumber}</p>
-            <p><strong>Functie:</strong> ${payslipData.employee.position}</p>
+            <p><strong>Naam:</strong> ${payslipData.Employee.firstName} ${payslipData.Employee.lastName}</p>
+            <p><strong>Personeelsnummer:</strong> ${payslipData.Employee.employeeNumber}</p>
+            <p><strong>Functie:</strong> ${payslipData.Employee.position}</p>
             <p><strong>Periode:</strong> ${payslipData.payPeriod.monthName} ${payslipData.payPeriod.year}</p>
         </div>
 
@@ -379,10 +393,55 @@ export async function POST(request: NextRequest) {
     </html>
     `
 
+    // Create payslips directory if it doesn't exist
+    const payslipsDir = path.join(process.cwd(), 'public', 'payslips')
+    try {
+      await mkdir(payslipsDir, { recursive: true })
+    } catch (error) {
+      // Directory might already exist
+    }
+
+    // Generate filename
+    const fileName = `payslip-${employee.employeeNumber || employee.id}-${validatedData.year}-${validatedData.month.toString().padStart(2, '0')}.html`
+    const filePath = path.join(payslipsDir, fileName)
+    const publicPath = `/payslips/${fileName}`
+
+    // Save HTML file
+    await writeFile(filePath, htmlContent, 'utf8')
+
+    // Find the matching payroll record
+    const payrollRecord = await payrollClient.payrollRecord.findFirst({
+      where: {
+        employeeId: validatedData.employeeId,
+        companyId: session.user.companyId,
+        year: validatedData.year,
+        month: validatedData.month
+      }
+    })
+
+    // Create PayslipGeneration record
+    const payslipRecord = await payrollClient.payslipGeneration.create({
+      data: {
+        payrollRecordId: payrollRecord?.id || '', // Link to payroll record if exists
+        employeeId: validatedData.employeeId,
+        fileName: fileName,
+        filePath: publicPath,
+        status: 'generated',
+        generatedAt: new Date(),
+        companyId: session.user.companyId
+      }
+    })
+
     return NextResponse.json({
       success: true,
-      html: htmlContent,
-      payslip: payslipData
+      message: 'Payslip generated successfully',
+      payslip: payslipData,
+      file: {
+        fileName: fileName,
+        filePath: publicPath,
+        downloadUrl: publicPath
+      },
+      payslipRecord: payslipRecord
     })
 
   } catch (error) {
