@@ -50,13 +50,20 @@ const createAuthClient = () => {
     const baseUrl = getAuthDatabaseUrl()
     const urlWithPooling = `${baseUrl}?connection_limit=5&pool_timeout=20&connect_timeout=10`
     
-    return new AuthClient({
+    const client = new AuthClient({
       datasources: {
         db: {
           url: urlWithPooling
         }
       }
     })
+    
+    // Explicitly connect the client to ensure connection is established
+    client.$connect().catch(error => {
+      console.error('Auth client connection failed:', error)
+    })
+    
+    return client
   } catch (error) {
     console.error('Failed to create auth client:', error)
     // Return a client that will fail gracefully
@@ -64,19 +71,25 @@ const createAuthClient = () => {
   }
 }
 
-// Create HR client with connection pooling
-const createHRClient = () => {
+// Create HR client with connection pooling and explicit connection
+const createHRClient = async () => {
   try {
     const baseUrl = getHRDatabaseUrl()
     const urlWithPooling = `${baseUrl}?connection_limit=5&pool_timeout=20&connect_timeout=10`
     
-    return new HRClient({
+    const client = new HRClient({
       datasources: {
         db: {
           url: urlWithPooling
         }
       }
     })
+    
+    // Explicitly connect the client to avoid "Engine is not yet connected" errors
+    await client.$connect()
+    console.log('HR client connected successfully')
+    
+    return client
   } catch (error) {
     console.error('Failed to create HR client:', error)
     return new HRClient()
@@ -89,13 +102,20 @@ const createPayrollClient = () => {
     const baseUrl = getPayrollDatabaseUrl()
     const urlWithPooling = `${baseUrl}?connection_limit=5&pool_timeout=20&connect_timeout=10`
     
-    return new PayrollClient({
+    const client = new PayrollClient({
       datasources: {
         db: {
           url: urlWithPooling
         }
       }
     })
+    
+    // Explicitly connect the client to ensure connection is established
+    client.$connect().catch(error => {
+      console.error('Payroll client connection failed:', error)
+    })
+    
+    return client
   } catch (error) {
     console.error('Failed to create Payroll client:', error)
     return new PayrollClient()
@@ -115,11 +135,90 @@ if (process.env.NODE_ENV !== 'production') {
   globalThis.__authClient = auth
 }
 
-// HR Database Client
-export const hrClient = globalThis.__hrClient ?? createHRClient()
-if (process.env.NODE_ENV !== 'production') {
-  globalThis.__hrClient = hrClient
+// HR Database Client with robust connection handling
+let hrClientInstance: HRClient | null = null
+let hrConnectionPromise: Promise<HRClient> | null = null
+
+const createHRClientWithRetry = async (): Promise<HRClient> => {
+  const maxRetries = 3
+  let attempt = 0
+  
+  while (attempt < maxRetries) {
+    try {
+      const baseUrl = getHRDatabaseUrl()
+      const urlWithPooling = `${baseUrl}?connection_limit=5&pool_timeout=20&connect_timeout=10`
+      
+      const client = new HRClient({
+        datasources: {
+          db: {
+            url: urlWithPooling
+          }
+        }
+      })
+      
+      // Test the connection with a simple query
+      await client.$queryRaw`SELECT 1`
+      console.log(`HR client connected successfully on attempt ${attempt + 1}`)
+      
+      return client
+    } catch (error) {
+      attempt++
+      console.error(`HR client connection attempt ${attempt} failed:`, error)
+      
+      if (attempt >= maxRetries) {
+        console.error('HR client connection failed after all retries')
+        throw error
+      }
+      
+      // Wait before retry (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)))
+    }
+  }
+  
+  throw new Error('Failed to create HR client after all retries')
 }
+
+export const getHRClient = async (): Promise<HRClient> => {
+  if (hrClientInstance) {
+    try {
+      // Test if existing connection is still alive
+      await hrClientInstance.$queryRaw`SELECT 1`
+      return hrClientInstance
+    } catch (error) {
+      console.warn('Existing HR client connection failed, creating new one')
+      hrClientInstance = null
+      hrConnectionPromise = null
+    }
+  }
+  
+  if (!hrConnectionPromise) {
+    hrConnectionPromise = createHRClientWithRetry()
+  }
+  
+  hrClientInstance = await hrConnectionPromise
+  return hrClientInstance
+}
+
+// Synchronous HR client for backwards compatibility (will connect on first use)
+export const hrClient = (() => {
+  const baseUrl = getHRDatabaseUrl()
+  const urlWithPooling = `${baseUrl}?connection_limit=5&pool_timeout=20&connect_timeout=10`
+  
+  const client = new HRClient({
+    datasources: {
+      db: {
+        url: urlWithPooling
+      }
+    }
+  })
+  
+  // Connect in background but don't block
+  client.$connect()
+    .then(() => console.log('HR client background connection successful'))
+    .catch(error => console.error('HR client background connection failed:', error))
+  
+  return client
+})()
 
 // Payroll Database Client
 export const payrollClient = globalThis.__payrollClient ?? createPayrollClient()

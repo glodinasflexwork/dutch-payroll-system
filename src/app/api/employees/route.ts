@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { validateAuth, createCompanyFilter } from "@/lib/auth-utils"
-import { DatabaseClients, hrClient, authClient } from "@/lib/database-clients"
+import { DatabaseClients, hrClient, authClient, getHRClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { ensureHRInitialized } from "@/lib/lazy-initialization"
 
@@ -93,7 +93,9 @@ export async function GET(request: NextRequest) {
     // Ensure HR database is initialized AFTER subscription validation
     await ensureHRInitialized(context.companyId)
 
-    const employees = await hrClient.employee.findMany({
+    // Use robust HR client connection
+    const hrClientInstance = await getHRClient()
+    const employees = await hrClientInstance.employee.findMany({
       where: {
         companyId: context.companyId,
         isActive: true
