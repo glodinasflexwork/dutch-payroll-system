@@ -438,7 +438,7 @@ export default function PayrollPage() {
         // Show individual errors if any
         if (errors.length > 0) {
           errors.forEach((err: any) => {
-            toast.error(`Error for ${err.employee?.name || 'Unknown'}`, err.error);
+            toast.error(`Error for ${err.Employee?.name || 'Unknown'}`, err.error);
           });
         }
         
@@ -972,9 +972,9 @@ export default function PayrollPage() {
                                   <div key={index} className="border border-red-200 rounded-lg p-4 bg-red-50">
                                     <div className="flex items-center justify-between mb-3">
                                       <h4 className="font-medium text-red-900">
-                                        {result.employee?.name || 'Unknown Employee'}
+                                        {result.Employee?.name || 'Unknown Employee'}
                                       </h4>
-                                      <span className="text-xs text-red-500">#{result.employee?.employeeNumber || 'N/A'}</span>
+                                      <span className="text-xs text-red-500">#{result.Employee?.employeeNumber || 'N/A'}</span>
                                     </div>
                                     <p className="text-sm text-red-700 flex items-center">
                                       <AlertCircle className="w-4 h-4 mr-2" />
@@ -988,10 +988,10 @@ export default function PayrollPage() {
                                 <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-white">
                                   <div className="flex items-center justify-between mb-3">
                                     <h4 className="font-medium text-gray-900">
-                                      {result.employee?.name || 'Unknown Employee'}
+                                      {result.Employee?.name || 'Unknown Employee'}
                                     </h4>
                                     <div className="flex items-center space-x-2">
-                                      <span className="text-xs text-gray-500">#{result.employee?.employeeNumber || 'N/A'}</span>
+                                      <span className="text-xs text-gray-500">#{result.Employee?.employeeNumber || 'N/A'}</span>
                                       <span className={`text-xs px-2 py-1 rounded-full ${
                                         result.status === 'created' ? 'bg-green-100 text-green-800' :
                                         result.status === 'updated' ? 'bg-blue-100 text-blue-800' :
