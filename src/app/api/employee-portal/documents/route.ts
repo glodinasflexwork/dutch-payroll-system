@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PrismaClient as HRClient } from '@prisma/hr-client'
-
-const hrClient = new HRClient()
+import { hrClient } from '@/lib/database-clients'
 
 export async function GET(request: NextRequest) {
   try {
