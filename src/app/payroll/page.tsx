@@ -81,6 +81,11 @@ export default function PayrollPage() {
   const { data: session } = useSession();
   const toast = useToast();
   
+  // Add loading states for better UX
+  const [isLoadingEmployees, setIsLoadingEmployees] = useState(true);
+  const [isLoadingPayrollRecords, setIsLoadingPayrollRecords] = useState(true);
+  const [isLoadingCompany, setIsLoadingCompany] = useState(true);
+  
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [payrollRecords, setPayrollRecords] = useState<PayrollRecord[]>([]);
   const [company, setCompany] = useState<{ createdAt: string, name?: string } | null>(null);
@@ -102,12 +107,27 @@ export default function PayrollPage() {
   const [isDryRun, setIsDryRun] = useState(false);
 
   useEffect(() => {
+    console.log('=== PAYROLL PAGE USEEFFECT TRIGGERED ===');
+    console.log('Session status:', session ? 'authenticated' : 'not authenticated');
+    console.log('Current employees state in useEffect:', employees);
+    
     if (session) {
+      console.log('Session found, fetching data...');
       fetchEmployees();
       fetchPayrollRecords();
       fetchCompany();
+    } else {
+      console.log('No session, skipping data fetch');
     }
   }, [session]);
+
+  // Add effect to monitor employees state changes
+  useEffect(() => {
+    console.log('=== EMPLOYEES STATE CHANGED ===');
+    console.log('New employees state:', employees);
+    console.log('Employees count:', employees.length);
+    console.log('Employees array:', employees);
+  }, [employees]);
 
   useEffect(() => {
     // Set default pay period to current month
@@ -187,23 +207,53 @@ export default function PayrollPage() {
   };
 
   const fetchEmployees = async () => {
+    setIsLoadingEmployees(true);
     try {
-      console.log('=== FETCHING EMPLOYEES ===');
+      console.log('=== FETCHING EMPLOYEES START ===');
+      console.log('Current employees state before fetch:', employees);
+      
       const response = await fetch('/api/employees');
       console.log('Employees response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Employees data:', data);
-        setEmployees(data.employees || []);
+        console.log('=== API RESPONSE DATA ===');
+        console.log('Full response:', data);
+        console.log('Success flag:', data.success);
+        console.log('Employees array:', data.employees);
+        console.log('Employees array length:', data.employees ? data.employees.length : 'undefined');
+        console.log('Employees array type:', typeof data.employees);
+        
+        if (data.employees && Array.isArray(data.employees)) {
+          console.log('=== SETTING EMPLOYEES STATE ===');
+          console.log('About to set employees to:', data.employees);
+          
+          // Use functional update to ensure we get the latest state
+          setEmployees(prevEmployees => {
+            console.log('Previous employees state:', prevEmployees);
+            console.log('Setting new employees state:', data.employees);
+            return data.employees;
+          });
+          
+          console.log('✅ Successfully set employees state');
+        } else {
+          console.warn('⚠️ No valid employees array in response');
+          setEmployees([]);
+        }
       } else {
         const errorData = await response.json();
-        console.error('Error fetching employees:', errorData);
+        console.error('❌ API Error:', errorData);
         toast.error('Failed to load employees', errorData.error || 'Unknown error occurred');
+        setEmployees([]);
       }
     } catch (error) {
-      console.error('Error fetching employees:', error);
+      console.error('❌ Fetch Error:', error);
       toast.error('Failed to load employees', error instanceof Error ? error.message : 'Network error occurred');
+      setEmployees([]);
+    } finally {
+      setIsLoadingEmployees(false);
+      console.log('=== FETCHING EMPLOYEES END ===');
     }
   };
 
@@ -570,7 +620,20 @@ export default function PayrollPage() {
             {/* Calculate Payroll Tab */}
             {activeTab === 'calculate' && (
               <div className="p-6">
-                {employees.length === 0 ? (
+                {isLoadingEmployees ? (
+                  /* Loading State */
+                  <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-lg p-8 border border-blue-200">
+                    <div className="text-center">
+                      <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">Loading Employee Data...</h3>
+                      <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
+                        Please wait while we fetch your employee information.
+                      </p>
+                    </div>
+                  </div>
+                ) : employees.length === 0 ? (
                   /* Getting Started Guide */
                   <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-lg p-8 border border-blue-200">
                     <div className="text-center">
