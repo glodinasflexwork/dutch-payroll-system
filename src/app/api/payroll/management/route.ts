@@ -328,7 +328,7 @@ export async function POST(request: NextRequest) {
                 employeeNumber: employee.employeeNumber || `EMP${employee.id.slice(-4)}`,
                 firstName: employee.firstName,
                 lastName: employee.lastName,
-                companyId: companyId,
+                companyId: session.user.companyId,
                 period: `${year}-${month.toString().padStart(2, '0')}`,
                 year: year,
                 month: month,
