@@ -44,13 +44,16 @@ const getPayrollDatabaseUrl = () => {
   }
 }
 
-// Configure auth client with AUTH_DATABASE_URL
+// Configure auth client with AUTH_DATABASE_URL and connection pooling
 const createAuthClient = () => {
   try {
+    const baseUrl = getAuthDatabaseUrl()
+    const urlWithPooling = `${baseUrl}?connection_limit=5&pool_timeout=20&connect_timeout=10`
+    
     return new AuthClient({
       datasources: {
         db: {
-          url: getAuthDatabaseUrl()
+          url: urlWithPooling
         }
       }
     })
@@ -61,13 +64,16 @@ const createAuthClient = () => {
   }
 }
 
-// Create HR client
+// Create HR client with connection pooling
 const createHRClient = () => {
   try {
+    const baseUrl = getHRDatabaseUrl()
+    const urlWithPooling = `${baseUrl}?connection_limit=5&pool_timeout=20&connect_timeout=10`
+    
     return new HRClient({
       datasources: {
         db: {
-          url: getHRDatabaseUrl()
+          url: urlWithPooling
         }
       }
     })
@@ -77,13 +83,16 @@ const createHRClient = () => {
   }
 }
 
-// Create Payroll client
+// Create Payroll client with connection pooling
 const createPayrollClient = () => {
   try {
+    const baseUrl = getPayrollDatabaseUrl()
+    const urlWithPooling = `${baseUrl}?connection_limit=5&pool_timeout=20&connect_timeout=10`
+    
     return new PayrollClient({
       datasources: {
         db: {
-          url: getPayrollDatabaseUrl()
+          url: urlWithPooling
         }
       }
     })
