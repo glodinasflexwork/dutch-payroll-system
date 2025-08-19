@@ -422,7 +422,7 @@ export async function POST(request: NextRequest) {
     // Create PayslipGeneration record
     const payslipRecord = await payrollClient.payslipGeneration.create({
       data: {
-        payrollRecordId: payrollRecord?.id || '', // Link to payroll record if exists
+        ...(payrollRecord?.id && { payrollRecordId: payrollRecord.id }), // Only include if payroll record exists
         employeeId: validatedData.employeeId,
         fileName: fileName,
         filePath: publicPath,
