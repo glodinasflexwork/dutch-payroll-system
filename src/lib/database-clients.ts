@@ -1,6 +1,7 @@
 import { PrismaClient as AuthClient } from '@prisma/client'
 import { PrismaClient as HRClient } from '@prisma/hr-client'
 import { PrismaClient as PayrollClient } from '@prisma/payroll-client'
+import { withRetry, createRetryableClient, handleDatabaseError, checkDatabaseHealth } from './database-retry'
 
 // Validate environment variables
 function validateDatabaseUrl(url: string | undefined, name: string): string {
@@ -58,16 +59,18 @@ const createAuthClient = () => {
       }
     })
     
+    // Wrap with retry logic for stability
+    const retryableClient = createRetryableClient(client)
+    
     // Explicitly connect the client to ensure connection is established
     client.$connect().catch(error => {
       console.error('Auth client connection failed:', error)
     })
     
-    return client
+    return retryableClient
   } catch (error) {
     console.error('Failed to create auth client:', error)
-    // Return a client that will fail gracefully
-    return new AuthClient()
+    handleDatabaseError(error, 'createAuthClient')
   }
 }
 
@@ -110,15 +113,18 @@ const createPayrollClient = () => {
       }
     })
     
+    // Wrap with retry logic for stability
+    const retryableClient = createRetryableClient(client)
+    
     // Explicitly connect the client to ensure connection is established
     client.$connect().catch(error => {
       console.error('Payroll client connection failed:', error)
     })
     
-    return client
+    return retryableClient
   } catch (error) {
     console.error('Failed to create Payroll client:', error)
-    return new PayrollClient()
+    handleDatabaseError(error, 'createPayrollClient')
   }
 }
 
