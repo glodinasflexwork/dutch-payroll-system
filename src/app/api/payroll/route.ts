@@ -5,6 +5,7 @@ import { payrollClient, hrClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { calculateDutchPayroll, generatePayrollBreakdown, formatCurrency } from "@/lib/payroll-calculations"
 import { ensurePayrollInitialized } from "@/lib/lazy-initialization"
+import { generatePayslip } from "@/lib/payslip-generator"
 import { 
   resolveCompanyFromSession, 
   handleCompanyResolutionError 
@@ -312,11 +313,34 @@ export async function PUT(request: NextRequest) {
 
       console.log(`✅ [PayrollAPI] Payroll record updated successfully`)
 
+      // 🎯 AUTO-GENERATE PAYSLIP AFTER SUCCESSFUL PAYROLL UPDATE
+      console.log(`🎯 [PayrollAPI] Auto-generating payslip for updated payroll record`)
+      const payslipResult = await generatePayslip({
+        employeeId: employeeId,
+        year: year,
+        month: month,
+        companyId: companyId
+      })
+
+      if (payslipResult.success) {
+        console.log(`✅ [PayrollAPI] Payslip auto-generated successfully: ${payslipResult.fileName}`)
+      } else {
+        console.error(`❌ [PayrollAPI] Payslip auto-generation failed: ${payslipResult.error}`)
+      }
+
       return NextResponse.json({
         success: true,
         message: "Payroll record updated successfully",
         payrollRecord: updatedRecord,
         calculation: payrollResult,
+        payslip: payslipResult.success ? {
+          generated: true,
+          fileName: payslipResult.fileName,
+          filePath: payslipResult.filePath
+        } : {
+          generated: false,
+          error: payslipResult.error
+        },
         company: {
           id: company.id,
           name: company.name
@@ -352,11 +376,34 @@ export async function PUT(request: NextRequest) {
 
       console.log(`✅ [PayrollAPI] Payroll record created successfully`)
 
+      // 🎯 AUTO-GENERATE PAYSLIP AFTER SUCCESSFUL PAYROLL CREATION
+      console.log(`🎯 [PayrollAPI] Auto-generating payslip for new payroll record`)
+      const payslipResult = await generatePayslip({
+        employeeId: employeeId,
+        year: year,
+        month: month,
+        companyId: companyId
+      })
+
+      if (payslipResult.success) {
+        console.log(`✅ [PayrollAPI] Payslip auto-generated successfully: ${payslipResult.fileName}`)
+      } else {
+        console.error(`❌ [PayrollAPI] Payslip auto-generation failed: ${payslipResult.error}`)
+      }
+
       return NextResponse.json({
         success: true,
         message: "Payroll processed and saved successfully",
         payrollRecord: payrollRecord,
         calculation: payrollResult,
+        payslip: payslipResult.success ? {
+          generated: true,
+          fileName: payslipResult.fileName,
+          filePath: payslipResult.filePath
+        } : {
+          generated: false,
+          error: payslipResult.error
+        },
         company: {
           id: company.id,
           name: company.name
