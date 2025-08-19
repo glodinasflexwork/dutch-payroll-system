@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { payrollClient, hrClient } from "@/lib/database-clients"
+import { payrollClient, hrClient, checkDatabaseConnections } from "@/lib/database-clients"
+import { withRetry, handleDatabaseError } from "@/lib/database-retry"
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { calculateDutchPayroll, type EmployeeData, type CompanyData } from "@/lib/payroll-calculations"
@@ -18,19 +19,76 @@ const payslipSchema = z.object({
   year: z.number().min(2020).max(2030),
 })
 
-// GET /api/payslips - Generate payslip for an employee
+// Health check endpoint - GET /api/payslips (without parameters)
+async function handleHealthCheck(): Promise<NextResponse> {
+  try {
+    console.log('🏥 Payslips API health check initiated')
+    
+    // Check database connections
+    const dbHealth = await checkDatabaseConnections()
+    
+    const healthStatus = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      api: 'payslips',
+      version: '2.0.0',
+      databases: {
+        auth: dbHealth.auth ? 'connected' : 'disconnected',
+        hr: dbHealth.hr ? 'connected' : 'disconnected', 
+        payroll: dbHealth.payroll ? 'connected' : 'disconnected'
+      },
+      environment: {
+        nodeEnv: process.env.NODE_ENV,
+        isVercel: !!process.env.VERCEL,
+        isServerless: !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME)
+      }
+    }
+    
+    // If any database is down, return degraded status
+    if (!dbHealth.auth || !dbHealth.hr || !dbHealth.payroll) {
+      healthStatus.status = 'degraded'
+      console.warn('⚠️ Some databases are not responding:', dbHealth.errors)
+    } else {
+      console.log('✅ All systems healthy')
+    }
+    
+    return NextResponse.json(healthStatus, { 
+      status: healthStatus.status === 'healthy' ? 200 : 503,
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'X-Health-Check': 'true'
+      }
+    })
+  } catch (error) {
+    console.error('❌ Health check failed:', error)
+    return NextResponse.json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 503 })
+  }
+}
+
+// GET /api/payslips - Health check or generate payslip for an employee
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const employeeId = searchParams.get('employeeId')
+    const month = searchParams.get('month')
+    const year = searchParams.get('year')
+
+    // If no parameters provided, return health check
+    if (!employeeId && !month && !year) {
+      return await handleHealthCheck()
+    }
+
+    console.log('🚀 Payslip generation request initiated', { employeeId, month, year })
+
     const session = await getServerSession(authOptions)
     
     if (!session?.user?.companyId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-
-    const { searchParams } = new URL(request.url)
-    const employeeId = searchParams.get('employeeId')
-    const month = searchParams.get('month')
-    const year = searchParams.get('year')
 
     if (!employeeId || !month || !year) {
       return NextResponse.json({ 
@@ -44,10 +102,12 @@ export async function GET(request: NextRequest) {
       year: parseInt(year)
     })
 
-    // Get employee information from HR database
-    const employee = await hrClient.employee.findFirst({
-      where: {
-        id: validatedData.employeeId,
+    // Get employee information from HR database with retry logic
+    const employee = await withRetry(async () => {
+      console.log('🔍 Looking up employee in HR database')
+      return await hrClient.employee.findFirst({
+        where: {
+          id: validatedData.employeeId,
         companyId: session.user.companyId,
         isActive: true
       }
@@ -209,6 +269,8 @@ export async function GET(request: NextRequest) {
 // POST /api/payslips - Generate PDF payslip
 export async function POST(request: NextRequest) {
   try {
+    console.log('🚀 PDF Payslip generation request initiated')
+    
     const session = await getServerSession(authOptions)
     
     if (!session?.user?.companyId) {
@@ -218,25 +280,37 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = payslipSchema.parse(body)
 
-    // Get employee information from HR database
-    const employee = await hrClient.employee.findFirst({
-      where: {
-        id: validatedData.employeeId,
-        companyId: session.user.companyId,
-        isActive: true
-      }
-    })
+    console.log('📋 Validated payslip request:', validatedData)
+
+    // Get employee information from HR database with retry logic
+    const employee = await withRetry(async () => {
+      console.log('🔍 Looking up employee in HR database')
+      return await hrClient.employee.findFirst({
+        where: {
+          id: validatedData.employeeId,
+          companyId: session.user.companyId,
+          isActive: true
+        }
+      })
+    }, { maxRetries: 2, baseDelay: 500 })
 
     if (!employee) {
+      console.error('❌ Employee not found:', validatedData.employeeId)
       return NextResponse.json({ error: "Employee not found" }, { status: 404 })
     }
 
-    // Get company information from HR database
-    const company = await hrClient.company.findUnique({
-      where: { id: session.user.companyId }
-    })
+    console.log('✅ Employee found:', employee.firstName, employee.lastName)
+
+    // Get company information from HR database with retry logic
+    const company = await withRetry(async () => {
+      console.log('🏢 Looking up company in HR database')
+      return await hrClient.company.findUnique({
+        where: { id: session.user.companyId }
+      })
+    }, { maxRetries: 2, baseDelay: 500 })
 
     if (!company) {
+      console.error('❌ Company not found:', session.user.companyId)
       return NextResponse.json({ error: "Company not found" }, { status: 404 })
     }
 
