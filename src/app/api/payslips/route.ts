@@ -451,21 +451,43 @@ export async function POST(request: NextRequest) {
     </html>
     `
 
-    // Create payslips directory if it doesn't exist
-    const payslipsDir = path.join(process.cwd(), 'public', 'payslips')
+    // 🚀 SERVERLESS FIX: Use temporary directory for read-only file systems
+    const isProduction = process.env.NODE_ENV === 'production'
+    const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
+    
+    let payslipsDir: string
+    let publicPath: string
+    
+    if (isServerless || isProduction) {
+      // Use /tmp/ directory which is writable in serverless environments
+      payslipsDir = path.join('/tmp', 'payslips')
+      console.log('🔧 Using temporary directory for serverless environment:', payslipsDir)
+    } else {
+      // Local development: use public directory
+      payslipsDir = path.join(process.cwd(), 'public', 'payslips')
+    }
+    
     try {
       await mkdir(payslipsDir, { recursive: true })
     } catch (error) {
-      // Directory might already exist
+      console.log('📁 Directory creation result:', error)
     }
 
     // Generate filename
     const fileName = `payslip-${employee.employeeNumber || employee.id}-${validatedData.year}-${validatedData.month.toString().padStart(2, '0')}.html`
     const filePath = path.join(payslipsDir, fileName)
-    const publicPath = `/payslips/${fileName}`
+    
+    if (isServerless || isProduction) {
+      // For serverless: return file content directly instead of public path
+      publicPath = fileName // Just the filename, we'll serve content directly
+    } else {
+      // Local development: use public path
+      publicPath = `/payslips/${fileName}`
+    }
 
-    // Save HTML file
+    // Save HTML file to appropriate directory
     await writeFile(filePath, htmlContent, 'utf8')
+    console.log('💾 Payslip saved to:', filePath)
 
     // Create PayslipGeneration record (payrollRecord already fetched at the beginning)
     const payslipRecord = await payrollClient.payslipGeneration.create({
@@ -480,17 +502,37 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({
-      success: true,
-      message: 'Payslip generated successfully',
-      payslip: payslipData,
-      file: {
-        fileName: fileName,
-        filePath: publicPath,
-        downloadUrl: publicPath
-      },
-      payslipRecord: payslipRecord
-    })
+    // 🚀 SERVERLESS RESPONSE: Handle different environments appropriately
+    if (isServerless || isProduction) {
+      // For serverless: redirect to the HTML content directly
+      const payslipUrl = `/payslips/${fileName}`
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Payslip generated successfully',
+        payslip: payslipData,
+        file: {
+          fileName: fileName,
+          filePath: payslipUrl,
+          downloadUrl: payslipUrl,
+          temporaryFile: true // Indicates this is a temporary file
+        },
+        payslipRecord: payslipRecord
+      })
+    } else {
+      // Local development: use public path as before
+      return NextResponse.json({
+        success: true,
+        message: 'Payslip generated successfully',
+        payslip: payslipData,
+        file: {
+          fileName: fileName,
+          filePath: publicPath,
+          downloadUrl: publicPath
+        },
+        payslipRecord: payslipRecord
+      })
+    }
 
   } catch (error) {
     if (error instanceof z.ZodError) {
