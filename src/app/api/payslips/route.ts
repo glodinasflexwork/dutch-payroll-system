@@ -102,7 +102,15 @@ export async function GET(request: NextRequest) {
       year: parseInt(year)
     })
 
+    console.log('🚀 Payslip generation request initiated', { 
+      employeeId: validatedData.employeeId, 
+      month: validatedData.month, 
+      year: validatedData.year,
+      companyId: session.user.companyId
+    })
+
     // Find the matching payroll record first to get the correct employee mapping
+    console.log('🔍 Step 1: Looking up payroll record...')
     const payrollRecord = await payrollClient.payrollRecord.findFirst({
       where: {
         employeeId: validatedData.employeeId,
@@ -115,18 +123,41 @@ export async function GET(request: NextRequest) {
     console.log('🔍 Payroll record lookup result:', payrollRecord ? 'Found' : 'Not found')
     if (payrollRecord) {
       console.log('📊 Payroll record details:', {
+        id: payrollRecord.id,
         employeeId: payrollRecord.employeeId,
         employeeNumber: payrollRecord.employeeNumber,
-        name: `${payrollRecord.firstName} ${payrollRecord.lastName}`
+        name: `${payrollRecord.firstName} ${payrollRecord.lastName}`,
+        period: `${payrollRecord.month}/${payrollRecord.year}`
       })
+    } else {
+      console.log('❌ No payroll record found for:', {
+        employeeId: validatedData.employeeId,
+        year: validatedData.year,
+        month: validatedData.month,
+        companyId: session.user.companyId
+      })
+      
+      // Try to find any payroll records for this company to debug
+      const anyRecords = await payrollClient.payrollRecord.findMany({
+        where: { companyId: session.user.companyId },
+        take: 3
+      })
+      console.log('📋 Sample payroll records in database:', anyRecords.map(r => ({
+        id: r.id,
+        employeeId: r.employeeId,
+        employeeNumber: r.employeeNumber,
+        name: `${r.firstName} ${r.lastName}`,
+        period: `${r.month}/${r.year}`
+      })))
     }
 
     // Get employee information from HR database with retry logic
+    console.log('🔍 Step 2: Looking up employee in HR database...')
     const employee = await withRetry(async () => {
-      console.log('🔍 Looking up employee in HR database')
-      console.log('🔍 Searching for employeeId:', validatedData.employeeId)
+      console.log('🔍 HR Database lookup for employeeId:', validatedData.employeeId)
       
       // First try by ID (direct match with payroll record employeeId)
+      console.log('🔍 Attempt 1: Direct ID match...')
       let emp = await hrClient.employee.findFirst({
         where: {
           id: validatedData.employeeId,
@@ -135,9 +166,18 @@ export async function GET(request: NextRequest) {
         }
       })
       
+      if (emp) {
+        console.log('✅ Found employee by direct ID match:', {
+          id: emp.id,
+          employeeNumber: emp.employeeNumber,
+          name: `${emp.firstName} ${emp.lastName}`
+        })
+        return emp
+      }
+      
       // If not found by ID and we have payroll record, try by employeeNumber from payroll
       if (!emp && payrollRecord) {
-        console.log('🔍 Employee not found by ID, trying by employeeNumber from payroll record:', payrollRecord.employeeNumber)
+        console.log('🔍 Attempt 2: Employee number from payroll record:', payrollRecord.employeeNumber)
         emp = await hrClient.employee.findFirst({
           where: {
             employeeNumber: payrollRecord.employeeNumber,
@@ -145,21 +185,52 @@ export async function GET(request: NextRequest) {
             isActive: true
           }
         })
+        
+        if (emp) {
+          console.log('✅ Found employee by payroll employeeNumber:', {
+            id: emp.id,
+            employeeNumber: emp.employeeNumber,
+            name: `${emp.firstName} ${emp.lastName}`
+          })
+          return emp
+        }
       }
       
       // Final fallback: try treating the employeeId as an employeeNumber
-      if (!emp) {
-        console.log('🔍 Employee not found by payroll mapping, trying employeeId as employeeNumber')
-        emp = await hrClient.employee.findFirst({
-          where: {
-            employeeNumber: validatedData.employeeId,
-            companyId: session.user.companyId,
-            isActive: true
-          }
+      console.log('🔍 Attempt 3: Treating employeeId as employeeNumber...')
+      emp = await hrClient.employee.findFirst({
+        where: {
+          employeeNumber: validatedData.employeeId,
+          companyId: session.user.companyId,
+          isActive: true
+        }
+      })
+      
+      if (emp) {
+        console.log('✅ Found employee by employeeId as employeeNumber:', {
+          id: emp.id,
+          employeeNumber: emp.employeeNumber,
+          name: `${emp.firstName} ${emp.lastName}`
         })
+        return emp
       }
       
-      return emp
+      // If still not found, show what employees exist
+      console.log('❌ Employee not found by any method. Checking available employees...')
+      const availableEmployees = await hrClient.employee.findMany({
+        where: {
+          companyId: session.user.companyId,
+          isActive: true
+        },
+        take: 5
+      })
+      console.log('📋 Available employees in HR database:', availableEmployees.map(e => ({
+        id: e.id,
+        employeeNumber: e.employeeNumber,
+        name: `${e.firstName} ${e.lastName}`
+      })))
+      
+      return null
     }, { maxRetries: 2, baseDelay: 500 })
 
     if (!employee) {
