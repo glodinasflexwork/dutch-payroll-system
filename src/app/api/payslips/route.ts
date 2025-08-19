@@ -108,10 +108,11 @@ export async function GET(request: NextRequest) {
       return await hrClient.employee.findFirst({
         where: {
           id: validatedData.employeeId,
-        companyId: session.user.companyId,
-        isActive: true
-      }
-    })
+          companyId: session.user.companyId,
+          isActive: true
+        }
+      })
+    }, { maxRetries: 2, baseDelay: 500 })
 
     if (!employee) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 })
