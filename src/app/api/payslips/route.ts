@@ -102,12 +102,31 @@ export async function GET(request: NextRequest) {
       year: parseInt(year)
     })
 
+    // Find the matching payroll record first to get the correct employee mapping
+    const payrollRecord = await payrollClient.payrollRecord.findFirst({
+      where: {
+        employeeId: validatedData.employeeId,
+        year: validatedData.year,
+        month: validatedData.month,
+        companyId: session.user.companyId
+      }
+    })
+
+    console.log('🔍 Payroll record lookup result:', payrollRecord ? 'Found' : 'Not found')
+    if (payrollRecord) {
+      console.log('📊 Payroll record details:', {
+        employeeId: payrollRecord.employeeId,
+        employeeNumber: payrollRecord.employeeNumber,
+        name: `${payrollRecord.firstName} ${payrollRecord.lastName}`
+      })
+    }
+
     // Get employee information from HR database with retry logic
     const employee = await withRetry(async () => {
       console.log('🔍 Looking up employee in HR database')
       console.log('🔍 Searching for employeeId:', validatedData.employeeId)
       
-      // First try by ID (direct match)
+      // First try by ID (direct match with payroll record employeeId)
       let emp = await hrClient.employee.findFirst({
         where: {
           id: validatedData.employeeId,
@@ -116,9 +135,21 @@ export async function GET(request: NextRequest) {
         }
       })
       
-      // If not found by ID, try by employeeNumber (fallback for payroll records)
+      // If not found by ID and we have payroll record, try by employeeNumber from payroll
+      if (!emp && payrollRecord) {
+        console.log('🔍 Employee not found by ID, trying by employeeNumber from payroll record:', payrollRecord.employeeNumber)
+        emp = await hrClient.employee.findFirst({
+          where: {
+            employeeNumber: payrollRecord.employeeNumber,
+            companyId: session.user.companyId,
+            isActive: true
+          }
+        })
+      }
+      
+      // Final fallback: try treating the employeeId as an employeeNumber
       if (!emp) {
-        console.log('🔍 Employee not found by ID, trying by employeeNumber')
+        console.log('🔍 Employee not found by payroll mapping, trying employeeId as employeeNumber')
         emp = await hrClient.employee.findFirst({
           where: {
             employeeNumber: validatedData.employeeId,
@@ -143,16 +174,6 @@ export async function GET(request: NextRequest) {
     if (!company) {
       return NextResponse.json({ error: "Company not found" }, { status: 404 })
     }
-
-    // Find the matching payroll record first for performance optimization
-    const payrollRecord = await payrollClient.payrollRecord.findFirst({
-      where: {
-        employeeId: validatedData.employeeId,
-        companyId: session.user.companyId,
-        year: validatedData.year,
-        month: validatedData.month
-      }
-    })
 
     let grossPay, holidayAllowance, loonheffing, grossPayAfterContributions;
     let aowContribution, wlzContribution, zvwContribution;
