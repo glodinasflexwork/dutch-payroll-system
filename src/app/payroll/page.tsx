@@ -477,25 +477,62 @@ export default function PayrollPage() {
       });
       
       console.log('Payslip generation response status:', response.status);
+      console.log('Response content type:', response.headers.get('content-type'));
       
       if (response.ok) {
-        const data = await response.json();
-        console.log('Payslip generation result:', data);
+        const contentType = response.headers.get('content-type');
         
-        toast.removeToast(loadingToastId);
-        toast.success('Payslip generated successfully', 
-          `Payslip created for ${record.firstName} ${record.lastName}`);
-        
-        // Open the generated payslip in a new tab
-        if (data.file?.downloadUrl) {
-          window.open(data.file.downloadUrl, '_blank');
+        // 🎯 ENHANCED: Handle both HTML and JSON responses
+        if (contentType?.includes('text/html')) {
+          // Serverless environment: Direct HTML content
+          console.log('📄 Received HTML payslip content (serverless mode)');
+          const htmlContent = await response.text();
+          
+          toast.removeToast(loadingToastId);
+          toast.success('Payslip generated successfully', 
+            `Payslip created for ${record.firstName} ${record.lastName}`);
+          
+          // Create a blob URL for the HTML content and open in new tab
+          const blob = new Blob([htmlContent], { type: 'text/html' });
+          const url = URL.createObjectURL(blob);
+          const newWindow = window.open(url, '_blank');
+          
+          // Clean up the blob URL after a delay
+          setTimeout(() => {
+            URL.revokeObjectURL(url);
+          }, 1000);
+          
+        } else {
+          // Local development: JSON response with file path
+          console.log('📋 Received JSON response (local development mode)');
+          const data = await response.json();
+          console.log('Payslip generation result:', data);
+          
+          toast.removeToast(loadingToastId);
+          toast.success('Payslip generated successfully', 
+            `Payslip created for ${record.firstName} ${record.lastName}`);
+          
+          // Open the generated payslip in a new tab
+          if (data.file?.downloadUrl) {
+            window.open(data.file.downloadUrl, '_blank');
+          }
         }
         
       } else {
-        const errorData = await response.json();
-        console.error('Error generating payslip:', errorData);
+        // Handle error responses
+        let errorMessage = 'Unknown error occurred';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If JSON parsing fails, try to get text content
+          const errorText = await response.text();
+          errorMessage = errorText || `HTTP ${response.status} error`;
+        }
+        
+        console.error('Error generating payslip:', errorMessage);
         toast.removeToast(loadingToastId);
-        toast.error('Payslip generation failed', errorData.error || 'Unknown error occurred');
+        toast.error('Payslip generation failed', errorMessage);
       }
     } catch (error) {
       console.error('Error generating payslip:', error);
