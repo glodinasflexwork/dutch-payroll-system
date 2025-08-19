@@ -457,86 +457,53 @@ export default function PayrollPage() {
     }
   };
 
-  const generatePayslip = async (record: any) => {
+  const downloadPayslip = async (record: any) => {
     try {
-      const loadingToastId = toast.loading('Generating payslip', `Creating payslip for ${record.firstName} ${record.lastName}...`);
+      const loadingToastId = toast.loading('Downloading payslip', `Preparing payslip for ${record.firstName} ${record.lastName}...`);
       
-      console.log('=== GENERATING PAYSLIP ===');
+      console.log('=== DOWNLOADING PAYSLIP ===');
       console.log('Record:', record);
       
-      const response = await fetch('/api/payslips', {
+      // First check if payslip is available
+      const availabilityResponse = await fetch('/api/payslips/download', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          employeeId: record.employeeNumber || record.employeeId, // Use employeeNumber first, fallback to employeeId
+          employeeId: record.employeeNumber || record.employeeId,
           year: record.year,
           month: record.month
         }),
       });
       
-      console.log('Payslip generation response status:', response.status);
-      console.log('Response content type:', response.headers.get('content-type'));
+      const availabilityData = await availabilityResponse.json();
       
-      if (response.ok) {
-        const contentType = response.headers.get('content-type');
-        
-        // 🎯 ENHANCED: Handle both HTML and JSON responses
-        if (contentType?.includes('text/html')) {
-          // Serverless environment: Direct HTML content
-          console.log('📄 Received HTML payslip content (serverless mode)');
-          const htmlContent = await response.text();
-          
-          toast.removeToast(loadingToastId);
-          toast.success('Payslip generated successfully', 
-            `Payslip created for ${record.firstName} ${record.lastName}`);
-          
-          // Create a blob URL for the HTML content and open in new tab
-          const blob = new Blob([htmlContent], { type: 'text/html' });
-          const url = URL.createObjectURL(blob);
-          const newWindow = window.open(url, '_blank');
-          
-          // Clean up the blob URL after a delay
-          setTimeout(() => {
-            URL.revokeObjectURL(url);
-          }, 1000);
-          
-        } else {
-          // Local development: JSON response with file path
-          console.log('📋 Received JSON response (local development mode)');
-          const data = await response.json();
-          console.log('Payslip generation result:', data);
-          
-          toast.removeToast(loadingToastId);
-          toast.success('Payslip generated successfully', 
-            `Payslip created for ${record.firstName} ${record.lastName}`);
-          
-          // Open the generated payslip in a new tab
-          if (data.file?.downloadUrl) {
-            window.open(data.file.downloadUrl, '_blank');
-          }
-        }
-        
-      } else {
-        // Handle error responses
-        let errorMessage = 'Unknown error occurred';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch {
-          // If JSON parsing fails, try to get text content
-          const errorText = await response.text();
-          errorMessage = errorText || `HTTP ${response.status} error`;
-        }
-        
-        console.error('Error generating payslip:', errorMessage);
+      if (!availabilityData.available) {
         toast.removeToast(loadingToastId);
-        toast.error('Payslip generation failed', errorMessage);
+        toast.error('Payslip not available', 
+          'Please process payroll for this period first before downloading the payslip.');
+        return;
       }
+      
+      console.log('✅ Payslip available, downloading...');
+      
+      // Download the payslip
+      const downloadUrl = `/api/payslips/download?employeeId=${encodeURIComponent(record.employeeNumber || record.employeeId)}&year=${record.year}&month=${record.month}`;
+      
+      console.log('Download URL:', downloadUrl);
+      
+      toast.removeToast(loadingToastId);
+      toast.success('Opening payslip', 
+        `Payslip for ${record.firstName} ${record.lastName} is ready`);
+      
+      // Open the payslip in a new tab
+      window.open(downloadUrl, '_blank');
+      
     } catch (error) {
-      console.error('Error generating payslip:', error);
-      toast.error('Payslip generation failed', error instanceof Error ? error.message : 'Network error occurred');
+      console.error('Error downloading payslip:', error);
+      toast.error('Download failed', 
+        error instanceof Error ? error.message : 'Failed to download payslip');
     }
   };
 
@@ -1251,13 +1218,11 @@ export default function PayrollPage() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                               <button
-                                onClick={() => generatePayslip(record)}
-                                className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                onClick={() => downloadPayslip(record)}
+                                className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                               >
-                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                Generate Payslip
+                                <Download className="w-4 h-4 mr-1" />
+                                Download Payslip
                               </button>
                             </td>
                           </tr>
