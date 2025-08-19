@@ -66,39 +66,68 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Company not found" }, { status: 404 })
     }
 
-    // Prepare data for payroll calculation
-    const employeeData: EmployeeData = {
-      grossMonthlySalary: (employee.salary || 42000) / 12, // Convert annual to monthly
-      dateOfBirth: employee.dateOfBirth,
-      isDGA: false, // Default value
-      taxTable: employee.taxTable === 'green' ? 'groen' : 'wit',
-      taxCredit: 0, // Default value
-      isYoungDisabled: false, // Default value
-      hasMultipleJobs: false // Default value
+    // Find the matching payroll record first for performance optimization
+    const payrollRecord = await payrollClient.payrollRecord.findFirst({
+      where: {
+        employeeId: validatedData.employeeId,
+        companyId: session.user.companyId,
+        year: validatedData.year,
+        month: validatedData.month
+      }
+    })
+
+    let grossPay, holidayAllowance, loonheffing, grossPayAfterContributions;
+    let aowContribution, wlzContribution, zvwContribution;
+
+    if (payrollRecord) {
+      // ✅ PERFORMANCE OPTIMIZATION: Use existing payroll data instead of recalculating
+      console.log(`🚀 Using cached payroll data for ${employee.firstName} ${employee.lastName} (${validatedData.month}/${validatedData.year})`)
+      
+      grossPay = payrollRecord.grossSalary
+      holidayAllowance = payrollRecord.holidayAllowance
+      grossPayAfterContributions = payrollRecord.netSalary
+      
+      // Use stored social security contributions
+      const totalSocialSecurity = payrollRecord.socialSecurity
+      loonheffing = totalSocialSecurity
+      
+      // Calculate individual components from stored data
+      // Standard Dutch rates for display purposes
+      aowContribution = grossPay * 0.1790 // 17.90% AOW
+      wlzContribution = grossPay * 0.0965 // 9.65% WLZ  
+      zvwContribution = grossPay * 0.0565 // 5.65% ZVW
+      
+    } else {
+      // ⚠️ FALLBACK: Calculate if no payroll record exists (should be rare)
+      console.log(`⚠️ No payroll record found, calculating from scratch for ${employee.firstName} ${employee.lastName} (${validatedData.month}/${validatedData.year})`)
+      
+      const employeeData: EmployeeData = {
+        grossMonthlySalary: (employee.salary || 42000) / 12,
+        dateOfBirth: employee.dateOfBirth,
+        isDGA: false,
+        taxTable: employee.taxTable === 'green' ? 'groen' : 'wit',
+        taxCredit: 0,
+        isYoungDisabled: false,
+        hasMultipleJobs: false
+      }
+
+      const companyData: CompanyData = {
+        size: 'medium',
+        sector: company.sector || 'general',
+        awfRate: 'low',
+        aofRate: 'low'
+      }
+
+      const payrollResult = calculateDutchPayroll(employeeData, companyData)
+      
+      grossPay = payrollResult.grossMonthlySalary
+      holidayAllowance = payrollResult.holidayAllowanceGross / 12
+      loonheffing = payrollResult.totalEmployeeContributions / 12
+      grossPayAfterContributions = payrollResult.netMonthlySalary
+      aowContribution = payrollResult.aowContribution / 12
+      wlzContribution = payrollResult.wlzContribution / 12
+      zvwContribution = (payrollResult.grossAnnualSalary * 0.0565) / 12
     }
-
-    const companyData: CompanyData = {
-      size: 'medium', // Default value
-      sector: company.sector || 'general',
-      awfRate: 'low', // Default value
-      aofRate: 'low' // Default value
-    }
-
-    // Calculate using the corrected Dutch payroll library
-    const payrollResult = calculateDutchPayroll(employeeData, companyData)
-
-    // Extract the correct values (no income tax, only social insurance)
-    const grossPay = payrollResult.grossMonthlySalary
-    const holidayAllowance = payrollResult.holidayAllowanceGross / 12 // Monthly portion
-    
-    // Loonheffing = only social insurance contributions (AOW + WLZ + ZVW)
-    const loonheffing = payrollResult.totalEmployeeContributions / 12 // Monthly portion
-    const grossPayAfterContributions = payrollResult.netMonthlySalary
-
-    // Individual components for display (monthly amounts)
-    const aowContribution = payrollResult.aowContribution / 12
-    const wlzContribution = payrollResult.wlzContribution / 12
-    const zvwContribution = (payrollResult.grossAnnualSalary * 0.0565) / 12 // ZVW health care
 
     // Create payslip data with corrected amounts
     const payslipData = {
@@ -211,39 +240,68 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Company not found" }, { status: 404 })
     }
 
-    // Prepare data for payroll calculation
-    const employeeData: EmployeeData = {
-      grossMonthlySalary: (employee.salary || 42000) / 12, // Convert annual to monthly
-      dateOfBirth: employee.dateOfBirth,
-      isDGA: false, // Default value
-      taxTable: employee.taxTable === 'green' ? 'groen' : 'wit',
-      taxCredit: 0, // Default value
-      isYoungDisabled: false, // Default value
-      hasMultipleJobs: false // Default value
+    // Find the matching payroll record first for performance optimization
+    const payrollRecord = await payrollClient.payrollRecord.findFirst({
+      where: {
+        employeeId: validatedData.employeeId,
+        companyId: session.user.companyId,
+        year: validatedData.year,
+        month: validatedData.month
+      }
+    })
+
+    let grossPay, holidayAllowance, loonheffing, grossPayAfterContributions;
+    let aowContribution, wlzContribution, zvwContribution;
+
+    if (payrollRecord) {
+      // ✅ PERFORMANCE OPTIMIZATION: Use existing payroll data instead of recalculating
+      console.log(`🚀 Using cached payroll data for ${employee.firstName} ${employee.lastName} (${validatedData.month}/${validatedData.year})`)
+      
+      grossPay = payrollRecord.grossSalary
+      holidayAllowance = payrollRecord.holidayAllowance
+      grossPayAfterContributions = payrollRecord.netSalary
+      
+      // Use stored social security contributions
+      const totalSocialSecurity = payrollRecord.socialSecurity
+      loonheffing = totalSocialSecurity
+      
+      // Calculate individual components from stored data
+      // Standard Dutch rates for display purposes
+      aowContribution = grossPay * 0.1790 // 17.90% AOW
+      wlzContribution = grossPay * 0.0965 // 9.65% WLZ  
+      zvwContribution = grossPay * 0.0565 // 5.65% ZVW
+      
+    } else {
+      // ⚠️ FALLBACK: Calculate if no payroll record exists (should be rare)
+      console.log(`⚠️ No payroll record found, calculating from scratch for ${employee.firstName} ${employee.lastName} (${validatedData.month}/${validatedData.year})`)
+      
+      const employeeData: EmployeeData = {
+        grossMonthlySalary: (employee.salary || 42000) / 12,
+        dateOfBirth: employee.dateOfBirth,
+        isDGA: false,
+        taxTable: employee.taxTable === 'green' ? 'groen' : 'wit',
+        taxCredit: 0,
+        isYoungDisabled: false,
+        hasMultipleJobs: false
+      }
+
+      const companyData: CompanyData = {
+        size: 'medium',
+        sector: company.sector || 'general',
+        awfRate: 'low',
+        aofRate: 'low'
+      }
+
+      const payrollResult = calculateDutchPayroll(employeeData, companyData)
+      
+      grossPay = payrollResult.grossMonthlySalary
+      holidayAllowance = payrollResult.holidayAllowanceGross / 12
+      loonheffing = payrollResult.totalEmployeeContributions / 12
+      grossPayAfterContributions = payrollResult.netMonthlySalary
+      aowContribution = payrollResult.aowContribution / 12
+      wlzContribution = payrollResult.wlzContribution / 12
+      zvwContribution = (payrollResult.grossAnnualSalary * 0.0565) / 12
     }
-
-    const companyData: CompanyData = {
-      size: 'medium', // Default value
-      sector: company.sector || 'general',
-      awfRate: 'low', // Default value
-      aofRate: 'low' // Default value
-    }
-
-    // Calculate using the corrected Dutch payroll library
-    const payrollResult = calculateDutchPayroll(employeeData, companyData)
-
-    // Extract the correct values (no income tax, only social insurance)
-    const grossPay = payrollResult.grossMonthlySalary
-    const holidayAllowance = payrollResult.holidayAllowanceGross / 12 // Monthly portion
-    
-    // Loonheffing = only social insurance contributions (AOW + WLZ + ZVW)
-    const loonheffing = payrollResult.totalEmployeeContributions / 12 // Monthly portion
-    const grossPayAfterContributions = payrollResult.netMonthlySalary
-
-    // Individual components for display (monthly amounts)
-    const aowContribution = payrollResult.aowContribution / 12
-    const wlzContribution = payrollResult.wlzContribution / 12
-    const zvwContribution = (payrollResult.grossAnnualSalary * 0.0565) / 12 // ZVW health care
 
     // Create payslip data with corrected amounts
     const payslipData = {
@@ -409,17 +467,7 @@ export async function POST(request: NextRequest) {
     // Save HTML file
     await writeFile(filePath, htmlContent, 'utf8')
 
-    // Find the matching payroll record
-    const payrollRecord = await payrollClient.payrollRecord.findFirst({
-      where: {
-        employeeId: validatedData.employeeId,
-        companyId: session.user.companyId,
-        year: validatedData.year,
-        month: validatedData.month
-      }
-    })
-
-    // Create PayslipGeneration record
+    // Create PayslipGeneration record (payrollRecord already fetched at the beginning)
     const payslipRecord = await payrollClient.payslipGeneration.create({
       data: {
         ...(payrollRecord?.id && { payrollRecordId: payrollRecord.id }), // Only include if payroll record exists
