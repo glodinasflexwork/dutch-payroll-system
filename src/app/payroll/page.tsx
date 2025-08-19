@@ -470,7 +470,7 @@ export default function PayrollPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          employeeId: record.employeeId,
+          employeeId: record.employeeNumber || record.employeeId, // Use employeeNumber first, fallback to employeeId
           year: record.year,
           month: record.month
         }),
