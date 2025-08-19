@@ -658,13 +658,19 @@ export async function POST(request: NextRequest) {
     
     const fileName = `payslip-${employee.employeeNumber || employee.id}-${validatedData.year}-${validatedData.month.toString().padStart(2, '0')}.html`
     
-    console.log('🚀 Generating payslip with enhanced serverless compatibility')
-    
     // Create PayslipGeneration record with retry logic
-    const payslipRecord = await withRetry(async () => {
+    const payslipGeneration = await withRetry(async () => {
+      console.log('💾 Creating PayslipGeneration record...')
+      
+      // Only create PayslipGeneration if we have a valid payrollRecord
+      if (!payrollRecord) {
+        console.log('⚠️ No payroll record found, skipping PayslipGeneration creation')
+        return null
+      }
+      
       return await payrollClient.payslipGeneration.create({
         data: {
-          ...(payrollRecord?.id && { payrollRecordId: payrollRecord.id }),
+          payrollRecordId: payrollRecord.id, // Required field
           employeeId: validatedData.employeeId,
           fileName: fileName,
           filePath: `/payslips/${fileName}`,
@@ -675,7 +681,11 @@ export async function POST(request: NextRequest) {
       })
     }, { maxRetries: 2, baseDelay: 300 })
 
-    console.log('✅ PayslipGeneration record created successfully')
+    if (payslipGeneration) {
+      console.log('✅ PayslipGeneration record created successfully')
+    } else {
+      console.log('ℹ️ PayslipGeneration record not created (no payroll record)')
+    }
 
     // 🎯 SERVERLESS-OPTIMIZED RESPONSE: Return HTML content directly
     if (isServerless || isProduction) {
