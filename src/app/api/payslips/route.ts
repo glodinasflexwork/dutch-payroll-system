@@ -105,13 +105,30 @@ export async function GET(request: NextRequest) {
     // Get employee information from HR database with retry logic
     const employee = await withRetry(async () => {
       console.log('🔍 Looking up employee in HR database')
-      return await hrClient.employee.findFirst({
+      console.log('🔍 Searching for employeeId:', validatedData.employeeId)
+      
+      // First try by ID (direct match)
+      let emp = await hrClient.employee.findFirst({
         where: {
           id: validatedData.employeeId,
           companyId: session.user.companyId,
           isActive: true
         }
       })
+      
+      // If not found by ID, try by employeeNumber (fallback for payroll records)
+      if (!emp) {
+        console.log('🔍 Employee not found by ID, trying by employeeNumber')
+        emp = await hrClient.employee.findFirst({
+          where: {
+            employeeNumber: validatedData.employeeId,
+            companyId: session.user.companyId,
+            isActive: true
+          }
+        })
+      }
+      
+      return emp
     }, { maxRetries: 2, baseDelay: 500 })
 
     if (!employee) {
@@ -286,13 +303,30 @@ export async function POST(request: NextRequest) {
     // Get employee information from HR database with retry logic
     const employee = await withRetry(async () => {
       console.log('🔍 Looking up employee in HR database')
-      return await hrClient.employee.findFirst({
+      console.log('🔍 Searching for employeeId:', validatedData.employeeId)
+      
+      // First try by ID (direct match)
+      let emp = await hrClient.employee.findFirst({
         where: {
           id: validatedData.employeeId,
           companyId: session.user.companyId,
           isActive: true
         }
       })
+      
+      // If not found by ID, try by employeeNumber (fallback for payroll records)
+      if (!emp) {
+        console.log('🔍 Employee not found by ID, trying by employeeNumber')
+        emp = await hrClient.employee.findFirst({
+          where: {
+            employeeNumber: validatedData.employeeId,
+            companyId: session.user.companyId,
+            isActive: true
+          }
+        })
+      }
+      
+      return emp
     }, { maxRetries: 2, baseDelay: 500 })
 
     if (!employee) {
