@@ -18,7 +18,6 @@ import {
   validatePayrollContext,
   type PayrollContext 
 } from "@/lib/payroll-config"
-import { cache } from "@/lib/cache-manager"
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { calculateDutchPayroll, type EmployeeData, type CompanyData } from "@/lib/payroll-calculations"
@@ -225,23 +224,19 @@ export async function POST(request: NextRequest) {
  * Find payroll record for the given context
  */
 async function findPayrollRecord(context: any) {
-  const cacheKey = `payroll:${context.companyId}:${context.employeeId}:${context.period.year}:${context.period.month}`
-  
-  return await cache.getOrSet(cacheKey, async () => {
-    return await withRetry(async () => {
-      console.log('🔍 Looking up payroll record')
-      
-      return await payrollClient.payrollRecord.findFirst({
-        where: {
-          companyId: context.companyId,
-          employeeId: context.employeeId,
-          year: context.period.year,
-          month: context.period.month
-        },
-        orderBy: { createdAt: 'desc' }
-      })
-    }, { maxRetries: 2, baseDelay: 500 })
-  }, { ttl: 180000 }) // Cache for 3 minutes (shorter for payroll data)
+  return await withRetry(async () => {
+    console.log('🔍 Looking up payroll record')
+    
+    return await payrollClient.payrollRecord.findFirst({
+      where: {
+        companyId: context.companyId,
+        employeeId: context.employeeId,
+        year: context.period.year,
+        month: context.period.month
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+  }, { maxRetries: 2, baseDelay: 500 })
 }
 
 /**
