@@ -2,6 +2,10 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { payrollClient, hrClient, checkDatabaseConnections } from "@/lib/database-clients"
 import { withRetry, handleDatabaseError } from "@/lib/database-retry"
+import { 
+  resolveCompanyFromSession, 
+  handleCompanyResolutionError 
+} from "@/lib/universal-company-resolver"
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { calculateDutchPayroll, type EmployeeData, type CompanyData } from "@/lib/payroll-calculations"
@@ -86,9 +90,23 @@ export async function GET(request: NextRequest) {
 
     const session = await getServerSession(authOptions)
     
-    if (!session?.user?.companyId) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    // Use Universal Company Resolution Service
+    const resolution = await resolveCompanyFromSession(session)
+
+    if (!resolution.success) {
+      console.log(`❌ [PayslipGeneration] Company resolution failed:`, resolution.error)
+      const errorResponse = handleCompanyResolutionError(resolution)
+      return NextResponse.json(errorResponse, { status: errorResponse.statusCode })
+    }
+
+    const company = resolution.company!
+    const companyId = company.id
+
+    console.log(`✅ [PayslipGeneration] Successfully resolved company: ${company.name}`)
 
     if (!employeeId || !month || !year) {
       return NextResponse.json({ 
@@ -106,7 +124,7 @@ export async function GET(request: NextRequest) {
       employeeId: validatedData.employeeId, 
       month: validatedData.month, 
       year: validatedData.year,
-      companyId: session.user.companyId
+      companyId: companyId
     })
 
     // Find the matching payroll record first to get the correct employee mapping
@@ -116,7 +134,7 @@ export async function GET(request: NextRequest) {
         employeeId: validatedData.employeeId,
         year: validatedData.year,
         month: validatedData.month,
-        companyId: session.user.companyId
+        companyId: companyId
       }
     })
 
@@ -134,12 +152,12 @@ export async function GET(request: NextRequest) {
         employeeId: validatedData.employeeId,
         year: validatedData.year,
         month: validatedData.month,
-        companyId: session.user.companyId
+        companyId: companyId
       })
       
       // Try to find any payroll records for this company to debug
       const anyRecords = await payrollClient.payrollRecord.findMany({
-        where: { companyId: session.user.companyId },
+        where: { companyId: companyId },
         take: 3
       })
       console.log('📋 Sample payroll records in database:', anyRecords.map(r => ({
@@ -161,7 +179,7 @@ export async function GET(request: NextRequest) {
       let emp = await hrClient.employee.findFirst({
         where: {
           id: validatedData.employeeId,
-          companyId: session.user.companyId,
+          companyId: companyId,
           isActive: true
         }
       })
@@ -181,7 +199,7 @@ export async function GET(request: NextRequest) {
         emp = await hrClient.employee.findFirst({
           where: {
             employeeNumber: payrollRecord.employeeNumber,
-            companyId: session.user.companyId,
+            companyId: companyId,
             isActive: true
           }
         })
@@ -201,7 +219,7 @@ export async function GET(request: NextRequest) {
       emp = await hrClient.employee.findFirst({
         where: {
           employeeNumber: validatedData.employeeId,
-          companyId: session.user.companyId,
+          companyId: companyId,
           isActive: true
         }
       })
@@ -219,7 +237,7 @@ export async function GET(request: NextRequest) {
       console.log('❌ Employee not found by any method. Checking available employees...')
       const availableEmployees = await hrClient.employee.findMany({
         where: {
-          companyId: session.user.companyId,
+          companyId: companyId,
           isActive: true
         },
         take: 5
@@ -239,7 +257,7 @@ export async function GET(request: NextRequest) {
 
     // Get company information from HR database
     const company = await hrClient.company.findUnique({
-      where: { id: session.user.companyId }
+      where: { id: companyId }
     })
 
     if (!company) {
@@ -401,7 +419,7 @@ export async function POST(request: NextRequest) {
       let emp = await hrClient.employee.findFirst({
         where: {
           id: validatedData.employeeId,
-          companyId: session.user.companyId,
+          companyId: companyId,
           isActive: true
         }
       })
@@ -412,7 +430,7 @@ export async function POST(request: NextRequest) {
         emp = await hrClient.employee.findFirst({
           where: {
             employeeNumber: validatedData.employeeId,
-            companyId: session.user.companyId,
+            companyId: companyId,
             isActive: true
           }
         })
@@ -432,12 +450,12 @@ export async function POST(request: NextRequest) {
     const company = await withRetry(async () => {
       console.log('🏢 Looking up company in HR database')
       return await hrClient.company.findUnique({
-        where: { id: session.user.companyId }
+        where: { id: companyId }
       })
     }, { maxRetries: 2, baseDelay: 500 })
 
     if (!company) {
-      console.error('❌ Company not found:', session.user.companyId)
+      console.error('❌ Company not found:', companyId)
       return NextResponse.json({ error: "Company not found" }, { status: 404 })
     }
 
@@ -445,7 +463,7 @@ export async function POST(request: NextRequest) {
     const payrollRecord = await payrollClient.payrollRecord.findFirst({
       where: {
         employeeId: validatedData.employeeId,
-        companyId: session.user.companyId,
+        companyId: companyId,
         year: validatedData.year,
         month: validatedData.month
       }
@@ -676,7 +694,7 @@ export async function POST(request: NextRequest) {
           filePath: `/payslips/${fileName}`,
           status: 'generated',
           generatedAt: new Date(),
-          companyId: session.user.companyId
+          companyId: companyId
         }
       })
     }, { maxRetries: 2, baseDelay: 300 })

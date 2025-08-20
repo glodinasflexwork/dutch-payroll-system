@@ -74,8 +74,10 @@ export async function generatePayslip(params: PayslipGenerationParams): Promise<
       return { success: false, error: "Company not found" }
     }
 
-    // Find the matching payroll record
-    const payrollRecord = await payrollClient.payrollRecord.findFirst({
+    // Find the matching payroll record with enhanced lookup strategy
+    console.log(`🔍 Looking up payroll record for employee: ${params.employeeId}, period: ${params.year}-${params.month}`)
+    
+    let payrollRecord = await payrollClient.payrollRecord.findFirst({
       where: {
         employeeId: params.employeeId,
         companyId: params.companyId,
@@ -83,6 +85,63 @@ export async function generatePayslip(params: PayslipGenerationParams): Promise<
         month: params.month
       }
     })
+
+    // If not found by employeeId, try by employeeNumber (fallback strategy)
+    if (!payrollRecord && employee.employeeNumber) {
+      console.log(`🔄 Payroll record not found by employeeId, trying employeeNumber: ${employee.employeeNumber}`)
+      payrollRecord = await payrollClient.payrollRecord.findFirst({
+        where: {
+          employeeId: employee.employeeNumber,
+          companyId: params.companyId,
+          year: params.year,
+          month: params.month
+        }
+      })
+    }
+
+    // Additional fallback: try by employeeNumber field directly
+    if (!payrollRecord && employee.employeeNumber) {
+      console.log(`🔄 Trying payroll lookup by employeeNumber field`)
+      payrollRecord = await payrollClient.payrollRecord.findFirst({
+        where: {
+          employeeNumber: employee.employeeNumber,
+          companyId: params.companyId,
+          year: params.year,
+          month: params.month
+        }
+      })
+    }
+
+    if (payrollRecord) {
+      console.log(`✅ Found payroll record: ${payrollRecord.id} for ${payrollRecord.firstName} ${payrollRecord.lastName}`)
+    } else {
+      console.log(`⚠️ No payroll record found for employee: ${params.employeeId} (${employee.employeeNumber}), period: ${params.year}-${params.month}`)
+      
+      // Debug: Let's see what payroll records exist for this company and employee
+      console.log(`🔍 Debug: Checking all payroll records for company ${params.companyId}`)
+      const allRecords = await payrollClient.payrollRecord.findMany({
+        where: { companyId: params.companyId },
+        select: { 
+          id: true, 
+          employeeId: true, 
+          employeeNumber: true, 
+          firstName: true, 
+          lastName: true, 
+          year: true, 
+          month: true 
+        },
+        take: 10
+      })
+      console.log(`📋 Found ${allRecords.length} payroll records:`, allRecords)
+      
+      // Check for records with this specific employee
+      const employeeRecords = allRecords.filter(r => 
+        r.employeeId === params.employeeId || 
+        r.employeeId === employee.employeeNumber ||
+        r.employeeNumber === employee.employeeNumber
+      )
+      console.log(`👤 Records for this employee:`, employeeRecords)
+    }
 
     let grossPay, holidayAllowance, loonheffing, grossPayAfterContributions;
     let aowContribution, wlzContribution, zvwContribution;
