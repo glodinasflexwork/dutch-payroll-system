@@ -190,8 +190,10 @@ export async function POST(request: NextRequest) {
     console.log("Pay period:", payPeriodStart, "to", payPeriodEnd)
     console.log("Dry run:", dryRun)
 
-    // Fetch employees
-    const employees = await hrClient.employee.findMany({
+    // Fetch employees with dual lookup strategy
+    console.log("🔍 Looking up employees with identifiers:", employeeIds)
+    
+    let employees = await hrClient.employee.findMany({
       where: {
         id: { in: employeeIds },
         companyId: session.user.companyId,
@@ -199,12 +201,25 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // If no employees found by ID, try by employeeNumber
+    if (employees.length === 0) {
+      console.log("🔄 No employees found by ID, trying employeeNumber lookup")
+      employees = await hrClient.employee.findMany({
+        where: {
+          employeeNumber: { in: employeeIds },
+          companyId: session.user.companyId,
+          isActive: true
+        }
+      })
+    }
+
     console.log("Employee lookup details:")
     console.log("- Requested employee IDs:", employeeIds)
     console.log("- Company ID:", session.user.companyId)
     console.log("- Found employees:", employees.length)
     console.log("- Employee details:", employees.map(emp => ({
       id: emp.id,
+      employeeNumber: emp.employeeNumber,
       name: `${emp.firstName} ${emp.lastName}`,
       companyId: emp.companyId,
       isActive: emp.isActive
