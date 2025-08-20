@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     console.log(`🔍 [PayslipDownload] Looking for payslip: employee=${employeeId}, period=${yearNum}-${monthNum}`)
 
     // Find the PayslipGeneration record
-    const payslipGeneration = await withRetry(async () => {
+    let payslipGeneration = await withRetry(async () => {
       return await payrollClient.payslipGeneration.findFirst({
         where: {
           employeeId: employeeId,
@@ -75,12 +75,72 @@ export async function GET(request: NextRequest) {
       })
     }, { maxRetries: 2, baseDelay: 500 })
 
+    // If no PayslipGeneration record exists, generate payslip on-demand
     if (!payslipGeneration) {
-      console.log(`❌ [PayslipDownload] Payslip not found for employee: ${employeeId}, period: ${yearNum}-${monthNum}`)
-      return NextResponse.json({
-        error: "Payslip not found. Please ensure payroll has been processed for this period.",
-        code: "PAYSLIP_NOT_FOUND"
-      }, { status: 404 })
+      console.log(`🔄 [PayslipDownload] No PayslipGeneration record found, generating payslip on-demand...`)
+      
+      // First, verify the PayrollRecord exists
+      const payrollRecord = await withRetry(async () => {
+        return await payrollClient.payrollRecord.findFirst({
+          where: {
+            employeeId: employeeId,
+            companyId: companyId,
+            year: yearNum,
+            month: monthNum
+          }
+        })
+      }, { maxRetries: 2, baseDelay: 500 })
+
+      if (!payrollRecord) {
+        console.log(`❌ [PayslipDownload] PayrollRecord not found for employee: ${employeeId}, period: ${yearNum}-${monthNum}`)
+        return NextResponse.json({
+          error: "Payslip not available - Please process payroll for this period first before downloading the payslip.",
+          code: "PAYROLL_NOT_PROCESSED"
+        }, { status: 404 })
+      }
+
+      console.log(`✅ [PayslipDownload] Found PayrollRecord, generating payslip on-demand...`)
+
+      // Generate payslip using the main payslips API
+      try {
+        const payslipResponse = await fetch(`${request.nextUrl.origin}/api/payslips?employeeId=${employeeId}&year=${yearNum}&month=${monthNum}`, {
+          method: 'GET',
+          headers: {
+            'Cookie': request.headers.get('Cookie') || '',
+            'Authorization': request.headers.get('Authorization') || ''
+          }
+        })
+
+        if (payslipResponse.ok) {
+          const payslipContent = await payslipResponse.text()
+          
+          console.log(`✅ [PayslipDownload] Successfully generated payslip on-demand`)
+          
+          // Return the generated payslip directly
+          return new NextResponse(payslipContent, {
+            status: 200,
+            headers: {
+              'Content-Type': 'text/html; charset=utf-8',
+              'Content-Disposition': `inline; filename="payslip-${employeeId}-${yearNum}-${String(monthNum).padStart(2, '0')}.html"`,
+              'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          })
+        } else {
+          console.error(`❌ [PayslipDownload] Failed to generate payslip on-demand: ${payslipResponse.status}`)
+          return NextResponse.json({
+            error: "Failed to generate payslip on-demand",
+            code: "GENERATION_FAILED"
+          }, { status: 500 })
+        }
+      } catch (generationError) {
+        console.error(`❌ [PayslipDownload] Error generating payslip on-demand:`, generationError)
+        return NextResponse.json({
+          error: "Failed to generate payslip on-demand",
+          code: "GENERATION_ERROR"
+        }, { status: 500 })
+      }
     }
 
     console.log(`✅ [PayslipDownload] Found payslip: ${payslipGeneration.fileName}`)
