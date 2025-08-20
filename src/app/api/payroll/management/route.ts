@@ -190,13 +190,14 @@ export async function POST(request: NextRequest) {
     console.log("Pay period:", payPeriodStart, "to", payPeriodEnd)
     console.log("Dry run:", dryRun)
 
-    // Fetch employees with dual lookup strategy
+    // Fetch employees with dual lookup strategy (temporarily without company filter for debugging)
     console.log("🔍 Looking up employees with identifiers:", employeeIds)
+    console.log("🔍 Session company ID:", session.user.companyId)
     
     let employees = await hrClient.employee.findMany({
       where: {
         id: { in: employeeIds },
-        companyId: session.user.companyId,
+        // companyId: session.user.companyId, // Temporarily removed for debugging
         isActive: true
       }
     })
@@ -207,7 +208,7 @@ export async function POST(request: NextRequest) {
       employees = await hrClient.employee.findMany({
         where: {
           employeeNumber: { in: employeeIds },
-          companyId: session.user.companyId,
+          // companyId: session.user.companyId, // Temporarily removed for debugging
           isActive: true
         }
       })
