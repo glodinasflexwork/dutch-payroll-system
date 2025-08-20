@@ -102,7 +102,7 @@ model TaxCalculation {
 
 model PayslipGeneration {
   id              String        @id @default(cuid())
-  payrollRecordId String
+  payrollRecordId String        @unique
   employeeId      String
   fileName        String
   filePath        String?

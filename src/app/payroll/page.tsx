@@ -471,7 +471,7 @@ export default function PayrollPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          employeeId: record.employeeNumber || record.employeeId,
+          employeeId: record.employeeId || record.employeeNumber,
           year: record.year,
           month: record.month
         }),
@@ -489,7 +489,7 @@ export default function PayrollPage() {
       console.log('✅ Payslip available, downloading...');
       
       // Download the payslip
-      const downloadUrl = `/api/payslips/download?employeeId=${encodeURIComponent(record.employeeNumber || record.employeeId)}&year=${record.year}&month=${record.month}`;
+      const downloadUrl = `/api/payslips/download?employeeId=${encodeURIComponent(record.employeeId || record.employeeNumber)}&year=${record.year}&month=${record.month}`;
       
       console.log('Download URL:', downloadUrl);
       

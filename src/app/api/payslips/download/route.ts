@@ -3,13 +3,17 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { payrollClient } from "@/lib/database-clients"
 import { withRetry } from "@/lib/database-retry"
+import { 
+  resolveCompanyFromSession, 
+  handleCompanyResolutionError 
+} from "@/lib/universal-company-resolver"
 import fs from 'fs/promises'
 import path from 'path'
 
 // GET /api/payslips/download - Download pre-generated payslip
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 [PayslipDownload] Starting payslip download request')
+    console.log('🔍 [PayslipDownload] Starting payslip download request with Universal Company Resolution')
     
     const session = await getServerSession(authOptions)
     
@@ -19,6 +23,22 @@ export async function GET(request: NextRequest) {
         code: "ACCESS_DENIED" 
       }, { status: 401 })
     }
+
+    console.log(`🔍 [PayslipDownload] Resolving company for user: ${session.user.id}`)
+
+    // Use Universal Company Resolution Service
+    const resolution = await resolveCompanyFromSession(session)
+
+    if (!resolution.success) {
+      console.log(`❌ [PayslipDownload] Company resolution failed:`, resolution.error)
+      const errorResponse = handleCompanyResolutionError(resolution)
+      return NextResponse.json(errorResponse, { status: errorResponse.statusCode })
+    }
+
+    const company = resolution.company!
+    const companyId = company.id
+
+    console.log(`✅ [PayslipDownload] Successfully resolved company: ${company.name}`)
 
     // Get query parameters
     const { searchParams } = new URL(request.url)
@@ -43,7 +63,7 @@ export async function GET(request: NextRequest) {
       return await payrollClient.payslipGeneration.findFirst({
         where: {
           employeeId: employeeId,
-          companyId: session.user.companyId,
+          companyId: companyId,
           PayrollRecord: {
             year: yearNum,
             month: monthNum
@@ -106,7 +126,7 @@ export async function GET(request: NextRequest) {
         employeeId: employeeId,
         year: yearNum,
         month: monthNum,
-        companyId: session.user.companyId
+        companyId: companyId
       })
 
       if (!regenerationResult.success) {
@@ -166,7 +186,7 @@ export async function GET(request: NextRequest) {
 // POST /api/payslips/download - Check payslip availability
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔍 [PayslipDownload] Checking payslip availability')
+    console.log('🔍 [PayslipDownload] Checking payslip availability with Universal Company Resolution')
     
     const session = await getServerSession(authOptions)
     
@@ -176,6 +196,22 @@ export async function POST(request: NextRequest) {
         code: "ACCESS_DENIED" 
       }, { status: 401 })
     }
+
+    console.log(`🔍 [PayslipDownload] Resolving company for user: ${session.user.id}`)
+
+    // Use Universal Company Resolution Service
+    const resolution = await resolveCompanyFromSession(session)
+
+    if (!resolution.success) {
+      console.log(`❌ [PayslipDownload] Company resolution failed:`, resolution.error)
+      const errorResponse = handleCompanyResolutionError(resolution)
+      return NextResponse.json(errorResponse, { status: errorResponse.statusCode })
+    }
+
+    const company = resolution.company!
+    const companyId = company.id
+
+    console.log(`✅ [PayslipDownload] Successfully resolved company: ${company.name}`)
 
     const requestBody = await request.json()
     const { employeeId, year, month } = requestBody
@@ -194,7 +230,7 @@ export async function POST(request: NextRequest) {
       return await payrollClient.payslipGeneration.findFirst({
         where: {
           employeeId: employeeId,
-          companyId: session.user.companyId,
+          companyId: companyId,
           PayrollRecord: {
             year: year,
             month: month
