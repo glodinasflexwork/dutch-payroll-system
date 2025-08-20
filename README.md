@@ -89,3 +89,7 @@ To set up and run this project locally:
     ```
 6.  **Access the Application:** Open your browser and navigate to `http://localhost:3000` (or the exposed URL if running in a sandbox).
 
+
+
+<!-- Deployment trigger: 2025-08-20 10:17 - Employee lookup fixes deployed -->
+
