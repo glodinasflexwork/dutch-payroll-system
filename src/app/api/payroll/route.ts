@@ -217,8 +217,10 @@ export async function PUT(request: NextRequest) {
 
     console.log(`💾 [PayrollAPI] Processing payroll for employee: ${employeeId}`)
 
-    // Fetch employee data from HR database
-    const employee = await hrClient.employee.findFirst({
+    // Fetch employee data from HR database with dual lookup strategy
+    console.log(`🔍 [PayrollAPI] Looking up employee with identifier: ${employeeId}`)
+    
+    let employee = await hrClient.employee.findFirst({
       where: {
         id: employeeId,
         companyId: companyId,
@@ -229,13 +231,30 @@ export async function PUT(request: NextRequest) {
       }
     })
 
+    // If not found by ID, try by employeeNumber
     if (!employee) {
-      console.log(`❌ [PayrollAPI] Employee not found: ${employeeId}`)
+      console.log(`🔄 [PayrollAPI] Employee not found by ID, trying employeeNumber lookup`)
+      employee = await hrClient.employee.findFirst({
+        where: {
+          employeeNumber: employeeId,
+          companyId: companyId,
+          isActive: true
+        },
+        include: {
+          contracts: true
+        }
+      })
+    }
+
+    if (!employee) {
+      console.log(`❌ [PayrollAPI] Employee not found with either ID or employeeNumber: ${employeeId}`)
       return NextResponse.json({ 
         error: "Employee not found or not active",
         code: "EMPLOYEE_NOT_FOUND" 
       }, { status: 404 })
     }
+
+    console.log(`✅ [PayrollAPI] Found employee: ${employee.firstName} ${employee.lastName} (${employee.employeeNumber})`)
 
     // Calculate base salary (could be adjusted for hours worked)
     let baseSalary = employee.salary
