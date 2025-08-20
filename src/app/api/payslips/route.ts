@@ -256,11 +256,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Get company information from HR database
-    const companyInfo = await hrClient.company.findUnique({
+    const companyDetails = await hrClient.company.findUnique({
       where: { id: companyId }
     })
 
-    if (!companyInfo) {
+    if (!companyDetails) {
       return NextResponse.json({ error: "Company not found" }, { status: 404 })
     }
 
@@ -301,7 +301,7 @@ export async function GET(request: NextRequest) {
 
       const companyData: CompanyData = {
         size: 'medium',
-        sector: companyInfo.sector || 'general',
+        sector: companyDetails.sector || 'general',
         awfRate: 'low',
         aofRate: 'low'
       }
@@ -320,12 +320,12 @@ export async function GET(request: NextRequest) {
     // Create payslip data with corrected amounts
     const payslipData = {
       Company: {
-        name: companyInfo.name,
-        address: companyInfo.address || '',
-        city: companyInfo.city || '',
-        postalCode: companyInfo.postalCode || '',
-        kvkNumber: companyInfo.kvkNumber || '',
-        taxNumber: companyInfo.taxNumber || ''
+        name: companyDetails.name,
+        address: companyDetails.address || '',
+        city: companyDetails.city || '',
+        postalCode: companyDetails.postalCode || '',
+        kvkNumber: companyDetails.kvkNumber || '',
+        taxNumber: companyDetails.taxNumber || ''
       },
       Employee: {
         firstName: employee.firstName,
@@ -520,7 +520,7 @@ export async function POST(request: NextRequest) {
 
       const companyData: CompanyData = {
         size: 'medium',
-        sector: companyInfo.sector || 'general',
+        sector: companyDetails.sector || 'general',
         awfRate: 'low',
         aofRate: 'low'
       }
@@ -539,12 +539,12 @@ export async function POST(request: NextRequest) {
     // Create payslip data with corrected amounts
     const payslipData = {
       Company: {
-        name: companyInfo.name,
-        address: companyInfo.address || '',
-        city: companyInfo.city || '',
-        postalCode: companyInfo.postalCode || '',
-        kvkNumber: companyInfo.kvkNumber || '',
-        taxNumber: companyInfo.taxNumber || ''
+        name: companyDetails.name,
+        address: companyDetails.address || '',
+        city: companyDetails.city || '',
+        postalCode: companyDetails.postalCode || '',
+        kvkNumber: companyDetails.kvkNumber || '',
+        taxNumber: companyDetails.taxNumber || ''
       },
       Employee: {
         firstName: employee.firstName,
@@ -772,7 +772,7 @@ export async function POST(request: NextRequest) {
           filePath: `/payslips/${fileName}`,
           downloadUrl: `/payslips/${fileName}`
         },
-        payslipRecord: payslipRecord
+        payslipGeneration: payslipGeneration
       })
     }
 

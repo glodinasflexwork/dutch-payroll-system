@@ -1,7 +1,10 @@
 /**
  * Refactored Payslips API Route
- * Future-proof implementation with proper import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+ * Future-proof implementation with proper separation of concerns
+ */
+
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import { payrollClient, hrClient, checkDatabaseConnections } from "@/lib/database-clients"
 import { withRetry, handleDatabaseError } from "@/lib/database-retry"
 import { 
@@ -12,9 +15,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { calculateDutchPayroll, type EmployeeData, type CompanyData } from "@/lib/payroll-calculations"
 import { generatePayslipHTML } from "@/lib/payslip-generator"
-import * as fs from 'fs'
-import * as path from 'path'
-import { promisify } from 'util'e = promisify(fs.writeFile)
+import fs from 'fs'
+import path from 'path'
+import { promisify } from 'util'
+
+const writeFile = promisify(fs.writeFile)
 const mkdir = promisify(fs.mkdir)
 
 // Validation schemas
@@ -69,6 +74,111 @@ async function handleHealthCheck(): Promise<NextResponse> {
   }
 }
 
+// Validate session and return user context
+async function validateSession() {
+  const session = await getServerSession(authOptions)
+  
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized: No valid session')
+  }
+
+  return session
+}
+
+// Get employee with retry logic and multiple lookup strategies
+async function getEmployeeWithRetry(companyId: string, employeeId: string) {
+  return await withRetry(async () => {
+    console.log('🔍 Looking up employee in HR database')
+    console.log('🔍 Searching for employeeId:', employeeId)
+    
+    // First try by ID (direct match)
+    let employee = await hrClient.employee.findFirst({
+      where: {
+        id: employeeId,
+        companyId: companyId,
+        isActive: true
+      }
+    })
+    
+    // If not found by ID, try by employeeNumber (fallback for payroll records)
+    if (!employee) {
+      console.log('🔍 Employee not found by ID, trying by employeeNumber')
+      employee = await hrClient.employee.findFirst({
+        where: {
+          employeeNumber: employeeId,
+          companyId: companyId,
+          isActive: true
+        }
+      })
+    }
+
+    // If still not found, try partial matches
+    if (!employee) {
+      console.log('🔍 Employee not found by employeeNumber, trying partial matches')
+      const employees = await hrClient.employee.findMany({
+        where: {
+          companyId: companyId,
+          isActive: true,
+          OR: [
+            { id: { contains: employeeId } },
+            { employeeNumber: { contains: employeeId } }
+          ]
+        },
+        take: 1
+      })
+      
+      if (employees.length > 0) {
+        employee = employees[0]
+        console.log('✅ Found employee via partial match:', employee.firstName, employee.lastName)
+      }
+    }
+
+    if (!employee) {
+      // Log available employees for debugging
+      const availableEmployees = await hrClient.employee.findMany({
+        where: {
+          companyId: companyId,
+          isActive: true
+        },
+        take: 5
+      })
+      console.log('📋 Available employees in HR database:', availableEmployees.map(e => ({
+        id: e.id,
+        employeeNumber: e.employeeNumber,
+        name: `${e.firstName} ${e.lastName}`
+      })))
+      
+      return null
+    }
+
+    console.log('✅ Employee found:', employee.firstName, employee.lastName)
+    return employee
+  }, { maxRetries: 2, baseDelay: 500 })
+}
+
+// Handle request context errors consistently
+function handleRequestContextError(error: any) {
+  if (error.message.includes('Company resolution failed')) {
+    return {
+      error: "Company access denied",
+      statusCode: 403
+    }
+  }
+
+  if (error.message.includes('Employee not found')) {
+    return {
+      error: "Employee not found",
+      statusCode: 404
+    }
+  }
+
+  console.error('Request context error:', error)
+  return {
+    error: "Internal server error",
+    statusCode: 500
+  }
+}
+
 // GET /api/payslips - Generate HTML payslip for viewing
 export async function GET(request: NextRequest) {
   try {
@@ -93,26 +203,32 @@ export async function GET(request: NextRequest) {
 
     // Validate session and get context
     const session = await validateSession()
-    const context = await getPayrollRequestContext(
-      session,
-      validatedParams.employeeId,
-      validatedParams.year,
-      validatedParams.month
-    )
+    
+    // Use Universal Company Resolution Service
+    const resolution = await resolveCompanyFromSession(session)
 
-    // Validate payroll context
-    const validation = validatePayrollContext(context.payrollContext)
-    if (!validation.valid) {
+    if (!resolution.success) {
+      throw new Error(`Company resolution failed: ${resolution.error}`)
+    }
+
+    const company = resolution.company!
+    const companyId = company.id
+
+    console.log(`✅ Successfully resolved context for: ${company.name}`)
+
+    // Get employee data
+    const employee = await getEmployeeWithRetry(companyId, validatedParams.employeeId)
+    if (!employee) {
       return NextResponse.json(
-        { error: "Invalid payroll context", details: validation.errors },
-        { status: 400 }
+        { error: "Employee not found" },
+        { status: 404 }
       )
     }
 
-    console.log(`✅ Successfully resolved context for: ${context.company.name} - ${context.employee?.firstName} ${context.employee?.lastName}`)
+    console.log(`✅ Found employee: ${employee.firstName} ${employee.lastName}`)
 
     // Find payroll record
-    const payrollRecord = await findPayrollRecord(context)
+    const payrollRecord = await findPayrollRecord(companyId, validatedParams.employeeId, validatedParams.year, validatedParams.month)
     if (!payrollRecord) {
       return NextResponse.json(
         { error: "Please process payroll for this period first before downloading the payslip" },
@@ -121,7 +237,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate payroll data
-    const payrollData = calculatePayrollFromContext(context.payrollContext, payrollRecord)
+    const payrollData = calculatePayrollFromRecord(company, employee, payrollRecord, validatedParams.year, validatedParams.month)
 
     // Generate payslip HTML
     const payslipHtml = await generatePayslipHTML(payrollData)
@@ -155,27 +271,31 @@ export async function POST(request: NextRequest) {
     const validatedData = payslipSchema.parse(body)
     console.log('📋 Validated payslip request:', validatedData)
 
-    // Get request context
-    const context = await getPayrollRequestContext(
-      session,
-      validatedData.employeeId,
-      validatedData.year,
-      validatedData.month
-    )
+    // Use Universal Company Resolution Service
+    const resolution = await resolveCompanyFromSession(session)
 
-    // Validate payroll context
-    const validation = validatePayrollContext(context.payrollContext)
-    if (!validation.valid) {
+    if (!resolution.success) {
+      throw new Error(`Company resolution failed: ${resolution.error}`)
+    }
+
+    const company = resolution.company!
+    const companyId = company.id
+
+    console.log(`✅ Successfully resolved context for: ${company.name}`)
+
+    // Get employee data
+    const employee = await getEmployeeWithRetry(companyId, validatedData.employeeId)
+    if (!employee) {
       return NextResponse.json(
-        { error: "Invalid payroll context", details: validation.errors },
-        { status: 400 }
+        { error: "Employee not found" },
+        { status: 404 }
       )
     }
 
-    console.log(`✅ Successfully resolved context for: ${context.company.name} - ${context.employee?.firstName} ${context.employee?.lastName}`)
+    console.log(`✅ Found employee: ${employee.firstName} ${employee.lastName}`)
 
     // Find payroll record
-    const payrollRecord = await findPayrollRecord(context)
+    const payrollRecord = await findPayrollRecord(companyId, validatedData.employeeId, validatedData.year, validatedData.month)
     if (!payrollRecord) {
       return NextResponse.json(
         { error: "Payroll record not found for this period" },
@@ -184,20 +304,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate payroll data
-    const payrollData = calculatePayrollFromContext(context.payrollContext, payrollRecord)
+    const payrollData = calculatePayrollFromRecord(company, employee, payrollRecord, validatedData.year, validatedData.month)
 
     // Generate and save payslip
-    const payslipPath = await generateAndSavePayslip(context, payrollData)
+    const payslipPath = await generateAndSavePayslip(employee, payrollData, validatedData.year, validatedData.month)
 
     // Create or update payslip generation record
-    await createPayslipRecord(context, payrollRecord.id, payslipPath)
+    await createPayslipRecord(payrollRecord.id, payslipPath)
 
     return NextResponse.json({
       success: true,
       message: "Payslip generated successfully",
       payslipPath,
-      employee: `${context.employee?.firstName} ${context.employee?.lastName}`,
-      period: `${context.period.year}-${String(context.period.month).padStart(2, '0')}`
+      employee: `${employee.firstName} ${employee.lastName}`,
+      period: `${validatedData.year}-${String(validatedData.month).padStart(2, '0')}`
     })
 
   } catch (error) {
@@ -211,16 +331,16 @@ export async function POST(request: NextRequest) {
 /**
  * Find payroll record for the given context
  */
-async function findPayrollRecord(context: any) {
+async function findPayrollRecord(companyId: string, employeeId: string, year: number, month: number) {
   return await withRetry(async () => {
     console.log('🔍 Looking up payroll record')
     
     return await payrollClient.payrollRecord.findFirst({
       where: {
-        companyId: context.companyId,
-        employeeId: context.employeeId,
-        year: context.period.year,
-        month: context.period.month
+        companyId: companyId,
+        employeeId: employeeId,
+        year: year,
+        month: month
       },
       orderBy: { createdAt: 'desc' }
     })
@@ -228,25 +348,23 @@ async function findPayrollRecord(context: any) {
 }
 
 /**
- * Calculate payroll data from context and record
+ * Calculate payroll data from record
  */
-function calculatePayrollFromContext(payrollContext: PayrollContext, payrollRecord: any) {
-  const { company, employee, config } = payrollContext
-
-  // Use configuration-driven approach
+function calculatePayrollFromRecord(company: any, employee: any, payrollRecord: any, year: number, month: number) {
+  // Use existing payroll calculation logic
   const employeeData: EmployeeData = {
-    grossMonthlySalary: employee.grossSalary || config.defaultGrossSalary,
-    taxTable: employee.taxTable || config.taxSettings.defaultTaxTable,
+    grossMonthlySalary: employee.grossSalary || 3500,
+    taxTable: employee.taxTable || 'table1',
     age: calculateAge(employee.startDate),
     hasAOW: false,
-    holidayAllowanceRate: config.holidayAllowanceRate
+    holidayAllowanceRate: 0.08
   }
 
   const companyData: CompanyData = {
-    size: config.companySize,
-    sector: config.sector,
-    awfRate: config.awfRate,
-    aofRate: config.aofRate
+    size: 'medium',
+    sector: 'technology',
+    awfRate: 'low',
+    aofRate: 'low'
   }
 
   const payrollResult = calculateDutchPayroll(employeeData, companyData)
@@ -254,25 +372,25 @@ function calculatePayrollFromContext(payrollContext: PayrollContext, payrollReco
   return {
     Company: {
       name: company.name,
-      address: company.address,
-      city: company.city,
-      postalCode: company.postalCode,
-      kvkNumber: company.kvkNumber,
-      taxNumber: company.taxNumber
+      address: company.address || '',
+      city: company.city || '',
+      postalCode: company.postalCode || '',
+      kvkNumber: company.kvkNumber || '',
+      taxNumber: company.taxNumber || ''
     },
     Employee: {
       firstName: employee.firstName,
       lastName: employee.lastName,
-      employeeNumber: employee.employeeNumber,
-      position: employee.position,
-      department: employee.department,
+      employeeNumber: employee.employeeNumber || '',
+      position: employee.position || '',
+      department: employee.department || '',
       bsn: employee.bsn,
       startDate: employee.startDate,
       employmentType: employee.employmentType,
       taxTable: employee.taxTable
     },
     Payroll: {
-      period: `${payrollContext.period.year}-${String(payrollContext.period.month).padStart(2, '0')}`,
+      period: `${year}-${String(month).padStart(2, '0')}`,
       grossPay: payrollResult.grossMonthlySalary,
       holidayAllowance: payrollResult.holidayAllowanceGross / 12,
       loonheffing: payrollResult.totalEmployeeContributions / 12,
@@ -287,7 +405,7 @@ function calculatePayrollFromContext(payrollContext: PayrollContext, payrollReco
 /**
  * Generate and save payslip file
  */
-async function generateAndSavePayslip(context: any, payrollData: any): Promise<string> {
+async function generateAndSavePayslip(employee: any, payrollData: any, year: number, month: number): Promise<string> {
   const payslipHtml = await generatePayslipHTML(payrollData)
   
   // Create payslips directory if it doesn't exist
@@ -295,7 +413,7 @@ async function generateAndSavePayslip(context: any, payrollData: any): Promise<s
   await mkdir(payslipsDir, { recursive: true })
   
   // Generate filename
-  const filename = `payslip_${context.employee?.employeeNumber || context.employeeId}_${context.period.year}_${String(context.period.month).padStart(2, '0')}.html`
+  const filename = `payslip_${employee.employeeNumber || employee.id}_${year}_${String(month).padStart(2, '0')}.html`
   const payslipPath = path.join(payslipsDir, filename)
   
   // Save file
@@ -308,7 +426,7 @@ async function generateAndSavePayslip(context: any, payrollData: any): Promise<s
 /**
  * Create payslip generation record
  */
-async function createPayslipRecord(context: any, payrollRecordId: string, payslipPath: string) {
+async function createPayslipRecord(payrollRecordId: string, payslipPath: string) {
   return await withRetry(async () => {
     return await payrollClient.payslipGeneration.upsert({
       where: {
