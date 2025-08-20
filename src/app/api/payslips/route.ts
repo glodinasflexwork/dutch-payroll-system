@@ -1,28 +1,14 @@
-/**
- * Refactored Payslips API Route
- * Future-proof implementation with proper separation of concerns
- */
-
-import { getServerSession } from "next-auth"
+import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
 import { payrollClient, hrClient, checkDatabaseConnections } from "@/lib/database-clients"
 import { withRetry, handleDatabaseError } from "@/lib/database-retry"
 import { 
-  getRequestContext, 
-  getPayrollRequestContext, 
-  handleRequestContextError,
-  validateSession 
-} from "@/lib/request-context"
-import { 
-  createPayrollContext, 
-  validatePayrollContext,
-  type PayrollContext 
-} from "@/lib/payroll-config"
-import { cache } from "@/lib/cache-manager"
+  resolveCompanyFromSession, 
+  handleCompanyResolutionError 
+} from "@/lib/universal-company-resolver"
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { calculateDutchPayroll, type EmployeeData, type CompanyData } from "@/lib/payroll-calculations"
-import { generatePayslipHTML } from "@/lib/payslip-generator"
 import fs from 'fs'
 import path from 'path'
 import { promisify } from 'util'
@@ -30,17 +16,11 @@ import { promisify } from 'util'
 const writeFile = promisify(fs.writeFile)
 const mkdir = promisify(fs.mkdir)
 
-// Validation schemas
+// Validation schema for payslip generation
 const payslipSchema = z.object({
   employeeId: z.string().min(1, "Employee ID is required"),
   month: z.number().min(1).max(12),
   year: z.number().min(2020).max(2030),
-})
-
-const querySchema = z.object({
-  employeeId: z.string().min(1),
-  month: z.string().transform(Number),
-  year: z.string().transform(Number),
 })
 
 // Health check endpoint - GET /api/payslips (without parameters)
@@ -48,13 +28,14 @@ async function handleHealthCheck(): Promise<NextResponse> {
   try {
     console.log('🏥 Payslips API health check initiated')
     
+    // Check database connections
     const dbHealth = await checkDatabaseConnections()
     
     const healthStatus = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
       api: 'payslips',
-      version: '3.0.0',
+      version: '2.0.0',
       databases: {
         auth: dbHealth.auth ? 'connected' : 'disconnected',
         hr: dbHealth.hr ? 'connected' : 'disconnected', 
@@ -67,91 +48,349 @@ async function handleHealthCheck(): Promise<NextResponse> {
       }
     }
     
-    console.log('✅ Payslips API health check completed:', healthStatus)
-    return NextResponse.json(healthStatus)
+    // If any database is down, return degraded status
+    if (!dbHealth.auth || !dbHealth.hr || !dbHealth.payroll) {
+      healthStatus.status = 'degraded'
+      console.warn('⚠️ Some databases are not responding:', dbHealth.errors)
+    } else {
+      console.log('✅ All systems healthy')
+    }
+    
+    return NextResponse.json(healthStatus, { 
+      status: healthStatus.status === 'healthy' ? 200 : 503,
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'X-Health-Check': 'true'
+      }
+    })
   } catch (error) {
-    console.error('❌ Payslips API health check failed:', error)
-    return NextResponse.json(
-      { 
-        status: 'unhealthy', 
-        error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString()
-      }, 
-      { status: 500 }
-    )
+    console.error('❌ Health check failed:', error)
+    return NextResponse.json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 503 })
   }
 }
 
-// GET /api/payslips - Generate HTML payslip for viewing
+// GET /api/payslips - Health check or generate payslip for an employee
 export async function GET(request: NextRequest) {
   try {
-    console.log('🚀 Payslip generation request initiated')
-    
-    // Parse and validate query parameters
     const { searchParams } = new URL(request.url)
-    const rawParams = {
-      employeeId: searchParams.get('employeeId'),
-      month: searchParams.get('month'),
-      year: searchParams.get('year'),
+    const employeeId = searchParams.get('employeeId')
+    const month = searchParams.get('month')
+    const year = searchParams.get('year')
+
+    // If no parameters provided, return health check
+    if (!employeeId && !month && !year) {
+      return await handleHealthCheck()
     }
 
-    // Health check if no parameters
-    if (!rawParams.employeeId && !rawParams.month && !rawParams.year) {
-      return handleHealthCheck()
+    console.log('🚀 Payslip generation request initiated', { employeeId, month, year })
+
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Validate parameters
-    const validatedParams = querySchema.parse(rawParams)
-    console.log('📋 Validated payslip request:', validatedParams)
+    // Use Universal Company Resolution Service
+    const resolution = await resolveCompanyFromSession(session)
 
-    // Validate session and get context
-    const session = await validateSession()
-    const context = await getPayrollRequestContext(
-      session,
-      validatedParams.employeeId,
-      validatedParams.year,
-      validatedParams.month
-    )
+    if (!resolution.success) {
+      console.log(`❌ [PayslipGeneration] Company resolution failed:`, resolution.error)
+      const errorResponse = handleCompanyResolutionError(resolution)
+      return NextResponse.json(errorResponse, { status: errorResponse.statusCode })
+    }
 
-    // Validate payroll context
-    const validation = validatePayrollContext(context.payrollContext)
-    if (!validation.valid) {
+    const company = resolution.company!
+    const companyId = company.id
+
+    console.log(`✅ [PayslipGeneration] Successfully resolved company: ${company.name}`)
+
+    if (!employeeId || !month || !year) {
+      return NextResponse.json({ 
+        error: "Missing required parameters: employeeId, month, year" 
+      }, { status: 400 })
+    }
+
+    const validatedData = payslipSchema.parse({
+      employeeId,
+      month: parseInt(month),
+      year: parseInt(year)
+    })
+
+    console.log('🚀 Payslip generation request initiated', { 
+      employeeId: validatedData.employeeId, 
+      month: validatedData.month, 
+      year: validatedData.year,
+      companyId: companyId
+    })
+
+    // Find the matching payroll record first to get the correct employee mapping
+    console.log('🔍 Step 1: Looking up payroll record...')
+    const payrollRecord = await payrollClient.payrollRecord.findFirst({
+      where: {
+        employeeId: validatedData.employeeId,
+        year: validatedData.year,
+        month: validatedData.month,
+        companyId: companyId
+      }
+    })
+
+    console.log('🔍 Payroll record lookup result:', payrollRecord ? 'Found' : 'Not found')
+    if (payrollRecord) {
+      console.log('📊 Payroll record details:', {
+        id: payrollRecord.id,
+        employeeId: payrollRecord.employeeId,
+        employeeNumber: payrollRecord.employeeNumber,
+        name: `${payrollRecord.firstName} ${payrollRecord.lastName}`,
+        period: `${payrollRecord.month}/${payrollRecord.year}`
+      })
+    } else {
+      console.log('❌ No payroll record found for:', {
+        employeeId: validatedData.employeeId,
+        year: validatedData.year,
+        month: validatedData.month,
+        companyId: companyId
+      })
+      
+      // Try to find any payroll records for this company to debug
+      const anyRecords = await payrollClient.payrollRecord.findMany({
+        where: { companyId: companyId },
+        take: 3
+      })
+      console.log('📋 Sample payroll records in database:', anyRecords.map(r => ({
+        id: r.id,
+        employeeId: r.employeeId,
+        employeeNumber: r.employeeNumber,
+        name: `${r.firstName} ${r.lastName}`,
+        period: `${r.month}/${r.year}`
+      })))
+    }
+
+    // Get employee information from HR database with retry logic
+    console.log('🔍 Step 2: Looking up employee in HR database...')
+    const employee = await withRetry(async () => {
+      console.log('🔍 HR Database lookup for employeeId:', validatedData.employeeId)
+      
+      // First try by ID (direct match with payroll record employeeId)
+      console.log('🔍 Attempt 1: Direct ID match...')
+      let emp = await hrClient.employee.findFirst({
+        where: {
+          id: validatedData.employeeId,
+          companyId: companyId,
+          isActive: true
+        }
+      })
+      
+      if (emp) {
+        console.log('✅ Found employee by direct ID match:', {
+          id: emp.id,
+          employeeNumber: emp.employeeNumber,
+          name: `${emp.firstName} ${emp.lastName}`
+        })
+        return emp
+      }
+      
+      // If not found by ID and we have payroll record, try by employeeNumber from payroll
+      if (!emp && payrollRecord) {
+        console.log('🔍 Attempt 2: Employee number from payroll record:', payrollRecord.employeeNumber)
+        emp = await hrClient.employee.findFirst({
+          where: {
+            employeeNumber: payrollRecord.employeeNumber,
+            companyId: companyId,
+            isActive: true
+          }
+        })
+        
+        if (emp) {
+          console.log('✅ Found employee by payroll employeeNumber:', {
+            id: emp.id,
+            employeeNumber: emp.employeeNumber,
+            name: `${emp.firstName} ${emp.lastName}`
+          })
+          return emp
+        }
+      }
+      
+      // Final fallback: try treating the employeeId as an employeeNumber
+      console.log('🔍 Attempt 3: Treating employeeId as employeeNumber...')
+      emp = await hrClient.employee.findFirst({
+        where: {
+          employeeNumber: validatedData.employeeId,
+          companyId: companyId,
+          isActive: true
+        }
+      })
+      
+      if (emp) {
+        console.log('✅ Found employee by employeeId as employeeNumber:', {
+          id: emp.id,
+          employeeNumber: emp.employeeNumber,
+          name: `${emp.firstName} ${emp.lastName}`
+        })
+        return emp
+      }
+      
+      // If still not found, show what employees exist
+      console.log('❌ Employee not found by any method. Checking available employees...')
+      const availableEmployees = await hrClient.employee.findMany({
+        where: {
+          companyId: companyId,
+          isActive: true
+        },
+        take: 5
+      })
+      console.log('📋 Available employees in HR database:', availableEmployees.map(e => ({
+        id: e.id,
+        employeeNumber: e.employeeNumber,
+        name: `${e.firstName} ${e.lastName}`
+      })))
+      
+      return null
+    }, { maxRetries: 2, baseDelay: 500 })
+
+    if (!employee) {
+      return NextResponse.json({ error: "Employee not found" }, { status: 404 })
+    }
+
+    // Get company information from HR database
+    const companyInfo = await hrClient.company.findUnique({
+      where: { id: companyId }
+    })
+
+    if (!companyInfo) {
+      return NextResponse.json({ error: "Company not found" }, { status: 404 })
+    }
+
+    let grossPay, holidayAllowance, loonheffing, grossPayAfterContributions;
+    let aowContribution, wlzContribution, zvwContribution;
+
+    if (payrollRecord) {
+      // ✅ PERFORMANCE OPTIMIZATION: Use existing payroll data instead of recalculating
+      console.log(`🚀 Using cached payroll data for ${employee.firstName} ${employee.lastName} (${validatedData.month}/${validatedData.year})`)
+      
+      grossPay = payrollRecord.grossSalary
+      holidayAllowance = payrollRecord.holidayAllowance
+      grossPayAfterContributions = payrollRecord.netSalary
+      
+      // Use stored social security contributions
+      const totalSocialSecurity = payrollRecord.socialSecurity
+      loonheffing = totalSocialSecurity
+      
+      // Calculate individual components from stored data
+      // Standard Dutch rates for display purposes
+      aowContribution = grossPay * 0.1790 // 17.90% AOW
+      wlzContribution = grossPay * 0.0965 // 9.65% WLZ  
+      zvwContribution = grossPay * 0.0565 // 5.65% ZVW
+      
+    } else {
+      // ⚠️ FALLBACK: Calculate if no payroll record exists (should be rare)
+      console.log(`⚠️ No payroll record found, calculating from scratch for ${employee.firstName} ${employee.lastName} (${validatedData.month}/${validatedData.year})`)
+      
+      const employeeData: EmployeeData = {
+        grossMonthlySalary: (employee.salary || 42000) / 12,
+        dateOfBirth: employee.dateOfBirth,
+        isDGA: false,
+        taxTable: employee.taxTable === 'green' ? 'groen' : 'wit',
+        taxCredit: 0,
+        isYoungDisabled: false,
+        hasMultipleJobs: false
+      }
+
+      const companyData: CompanyData = {
+        size: 'medium',
+        sector: companyInfo.sector || 'general',
+        awfRate: 'low',
+        aofRate: 'low'
+      }
+
+      const payrollResult = calculateDutchPayroll(employeeData, companyData)
+      
+      grossPay = payrollResult.grossMonthlySalary
+      holidayAllowance = payrollResult.holidayAllowanceGross / 12
+      loonheffing = payrollResult.totalEmployeeContributions / 12
+      grossPayAfterContributions = payrollResult.netMonthlySalary
+      aowContribution = payrollResult.aowContribution / 12
+      wlzContribution = payrollResult.wlzContribution / 12
+      zvwContribution = (payrollResult.grossAnnualSalary * 0.0565) / 12
+    }
+
+    // Create payslip data with corrected amounts
+    const payslipData = {
+      Company: {
+        name: companyInfo.name,
+        address: companyInfo.address || '',
+        city: companyInfo.city || '',
+        postalCode: companyInfo.postalCode || '',
+        kvkNumber: companyInfo.kvkNumber || '',
+        taxNumber: companyInfo.taxNumber || ''
+      },
+      Employee: {
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+        employeeNumber: employee.employeeNumber || '',
+        position: employee.position || '',
+        department: employee.department || '',
+        bsn: employee.bsn,
+        startDate: employee.startDate,
+        employmentType: employee.employmentType,
+        taxTable: employee.taxTable
+      },
+      payPeriod: {
+        month: validatedData.month,
+        year: validatedData.year,
+        monthName: new Date(validatedData.year, validatedData.month - 1).toLocaleDateString('nl-NL', { month: 'long' })
+      },
+      earnings: {
+        baseSalary: Math.round(grossPay * 100) / 100,
+        holidayAllowance: Math.round(holidayAllowance * 100) / 100,
+        grossPay: Math.round(grossPay * 100) / 100,
+        hoursWorked: 160 // Standard monthly hours
+      },
+      deductions: {
+        // NO income tax in monthly payroll - handled annually
+        // incomeTax (handled by tax advisors): 0,
+        aowContribution: Math.round(aowContribution * 100) / 100,
+        wlzContribution: Math.round(wlzContribution * 100) / 100,
+        zvwContribution: Math.round(zvwContribution * 100) / 100,
+        // WW and WIA are employer-paid, not employee deductions
+        wwContribution: 0,
+        wiaContribution: 0,
+        totalDeductions: Math.round(loonheffing * 100) / 100
+      },
+      grossPayAfterContributions: Math.round(grossPayAfterContributions * 100) / 100,
+      taxRates: {
+        // Rates for reference only
+        aowRate: 17.90,
+        wlzRate: 9.65,
+        zvwRate: 5.65,
+        // WW and WIA are employer-paid
+        wwRate: 0,
+        wiaRate: 0
+      },
+      generatedAt: new Date().toISOString()
+    }
+
+    return NextResponse.json({
+      success: true,
+      payslip: payslipData
+    })
+
+  } catch (error) {
+    if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Invalid payroll context", details: validation.errors },
+        { error: "Validation error", details: error.errors },
         { status: 400 }
       )
     }
 
-    console.log(`✅ Successfully resolved context for: ${context.company.name} - ${context.employee?.firstName} ${context.employee?.lastName}`)
-
-    // Find payroll record
-    const payrollRecord = await findPayrollRecord(context)
-    if (!payrollRecord) {
-      return NextResponse.json(
-        { error: "Please process payroll for this period first before downloading the payslip" },
-        { status: 404 }
-      )
-    }
-
-    // Calculate payroll data
-    const payrollData = calculatePayrollFromContext(context.payrollContext, payrollRecord)
-
-    // Generate payslip HTML
-    const payslipHtml = await generatePayslipHTML(payrollData)
-
-    // Return HTML response
-    return new NextResponse(payslipHtml, {
-      headers: {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-      },
-    })
-
-  } catch (error) {
     console.error("Error generating payslip:", error)
-    
-    const errorResponse = handleRequestContextError(error)
-    return NextResponse.json(errorResponse, { status: errorResponse.statusCode })
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    )
   }
 }
 
@@ -160,197 +399,396 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🚀 PDF Payslip generation request initiated')
     
-    // Validate session
-    const session = await validateSession()
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
 
-    // Parse and validate request body
+    // Use Universal Company Resolution Service
+    const resolution = await resolveCompanyFromSession(session)
+
+    if (!resolution.success) {
+      console.log(`❌ [PayslipPDF] Company resolution failed:`, resolution.error)
+      const errorResponse = handleCompanyResolutionError(resolution)
+      return NextResponse.json(errorResponse, { status: errorResponse.statusCode })
+    }
+
+    const company = resolution.company!
+    const companyId = company.id
+
+    console.log(`✅ [PayslipPDF] Successfully resolved company: ${company.name}`)
+
     const body = await request.json()
     const validatedData = payslipSchema.parse(body)
+
     console.log('📋 Validated payslip request:', validatedData)
 
-    // Get request context
-    const context = await getPayrollRequestContext(
-      session,
-      validatedData.employeeId,
-      validatedData.year,
-      validatedData.month
-    )
+    // Get employee information from HR database with retry logic
+    const employee = await withRetry(async () => {
+      console.log('🔍 Looking up employee in HR database')
+      console.log('🔍 Searching for employeeId:', validatedData.employeeId)
+      
+      // First try by ID (direct match)
+      let emp = await hrClient.employee.findFirst({
+        where: {
+          id: validatedData.employeeId,
+          companyId: companyId,
+          isActive: true
+        }
+      })
+      
+      // If not found by ID, try by employeeNumber (fallback for payroll records)
+      if (!emp) {
+        console.log('🔍 Employee not found by ID, trying by employeeNumber')
+        emp = await hrClient.employee.findFirst({
+          where: {
+            employeeNumber: validatedData.employeeId,
+            companyId: companyId,
+            isActive: true
+          }
+        })
+      }
+      
+      return emp
+    }, { maxRetries: 2, baseDelay: 500 })
 
-    // Validate payroll context
-    const validation = validatePayrollContext(context.payrollContext)
-    if (!validation.valid) {
+    if (!employee) {
+      console.error('❌ Employee not found:', validatedData.employeeId)
+      return NextResponse.json({ error: "Employee not found" }, { status: 404 })
+    }
+
+    console.log('✅ Employee found:', employee.firstName, employee.lastName)
+
+    // Get company information from HR database with retry logic
+    const companyDetails = await withRetry(async () => {
+      console.log('🏢 Looking up company in HR database')
+      return await hrClient.company.findUnique({
+        where: { id: companyId }
+      })
+    }, { maxRetries: 2, baseDelay: 500 })
+
+    if (!companyDetails) {
+      console.error('❌ Company not found:', companyId)
+      return NextResponse.json({ error: "Company not found" }, { status: 404 })
+    }
+
+    // Find the matching payroll record first for performance optimization
+    const payrollRecord = await payrollClient.payrollRecord.findFirst({
+      where: {
+        employeeId: validatedData.employeeId,
+        companyId: companyId,
+        year: validatedData.year,
+        month: validatedData.month
+      }
+    })
+
+    let grossPay, holidayAllowance, loonheffing, grossPayAfterContributions;
+    let aowContribution, wlzContribution, zvwContribution;
+
+    if (payrollRecord) {
+      // ✅ PERFORMANCE OPTIMIZATION: Use existing payroll data instead of recalculating
+      console.log(`🚀 Using cached payroll data for ${employee.firstName} ${employee.lastName} (${validatedData.month}/${validatedData.year})`)
+      
+      grossPay = payrollRecord.grossSalary
+      holidayAllowance = payrollRecord.holidayAllowance
+      grossPayAfterContributions = payrollRecord.netSalary
+      
+      // Use stored social security contributions
+      const totalSocialSecurity = payrollRecord.socialSecurity
+      loonheffing = totalSocialSecurity
+      
+      // Calculate individual components from stored data
+      // Standard Dutch rates for display purposes
+      aowContribution = grossPay * 0.1790 // 17.90% AOW
+      wlzContribution = grossPay * 0.0965 // 9.65% WLZ  
+      zvwContribution = grossPay * 0.0565 // 5.65% ZVW
+      
+    } else {
+      // ⚠️ FALLBACK: Calculate if no payroll record exists (should be rare)
+      console.log(`⚠️ No payroll record found, calculating from scratch for ${employee.firstName} ${employee.lastName} (${validatedData.month}/${validatedData.year})`)
+      
+      const employeeData: EmployeeData = {
+        grossMonthlySalary: (employee.salary || 42000) / 12,
+        dateOfBirth: employee.dateOfBirth,
+        isDGA: false,
+        taxTable: employee.taxTable === 'green' ? 'groen' : 'wit',
+        taxCredit: 0,
+        isYoungDisabled: false,
+        hasMultipleJobs: false
+      }
+
+      const companyData: CompanyData = {
+        size: 'medium',
+        sector: companyInfo.sector || 'general',
+        awfRate: 'low',
+        aofRate: 'low'
+      }
+
+      const payrollResult = calculateDutchPayroll(employeeData, companyData)
+      
+      grossPay = payrollResult.grossMonthlySalary
+      holidayAllowance = payrollResult.holidayAllowanceGross / 12
+      loonheffing = payrollResult.totalEmployeeContributions / 12
+      grossPayAfterContributions = payrollResult.netMonthlySalary
+      aowContribution = payrollResult.aowContribution / 12
+      wlzContribution = payrollResult.wlzContribution / 12
+      zvwContribution = (payrollResult.grossAnnualSalary * 0.0565) / 12
+    }
+
+    // Create payslip data with corrected amounts
+    const payslipData = {
+      Company: {
+        name: companyInfo.name,
+        address: companyInfo.address || '',
+        city: companyInfo.city || '',
+        postalCode: companyInfo.postalCode || '',
+        kvkNumber: companyInfo.kvkNumber || '',
+        taxNumber: companyInfo.taxNumber || ''
+      },
+      Employee: {
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+        employeeNumber: employee.employeeNumber || '',
+        position: employee.position || '',
+        department: employee.department || '',
+        bsn: employee.bsn,
+        startDate: employee.startDate,
+        employmentType: employee.employmentType,
+        taxTable: employee.taxTable
+      },
+      payPeriod: {
+        month: validatedData.month,
+        year: validatedData.year,
+        monthName: new Date(validatedData.year, validatedData.month - 1).toLocaleDateString('nl-NL', { month: 'long' })
+      },
+      earnings: {
+        baseSalary: Math.round(grossPay * 100) / 100,
+        holidayAllowance: Math.round(holidayAllowance * 100) / 100,
+        grossPay: Math.round(grossPay * 100) / 100,
+        hoursWorked: 160 // Standard monthly hours
+      },
+      deductions: {
+        // NO income tax in monthly payroll - handled annually
+        // incomeTax (handled by tax advisors): 0,
+        aowContribution: Math.round(aowContribution * 100) / 100,
+        wlzContribution: Math.round(wlzContribution * 100) / 100,
+        zvwContribution: Math.round(zvwContribution * 100) / 100,
+        // WW and WIA are employer-paid, not employee deductions
+        wwContribution: 0,
+        wiaContribution: 0,
+        totalDeductions: Math.round(loonheffing * 100) / 100
+      },
+      grossPayAfterContributions: Math.round(grossPayAfterContributions * 100) / 100,
+      taxRates: {
+        // Rates for reference only
+        aowRate: 17.90,
+        wlzRate: 9.65,
+        zvwRate: 5.65,
+        // WW and WIA are employer-paid
+        wwRate: 0,
+        wiaRate: 0
+      },
+      generatedAt: new Date().toISOString()
+    }
+
+    // Generate HTML for PDF
+    const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Loonstrook ${payslipData.payPeriod.monthName} ${payslipData.payPeriod.year}</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+            .header { border-bottom: 2px solid #4F46E5; padding-bottom: 20px; margin-bottom: 30px; }
+            .company-info { margin-bottom: 20px; }
+            .employee-info { background: #F8FAFC; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+            .payslip-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            .payslip-table th, .payslip-table td { padding: 12px; text-align: left; border-bottom: 1px solid #E2E8F0; }
+            .payslip-table th { background: #F1F5F9; font-weight: bold; }
+            .amount { text-align: right; font-weight: bold; }
+            .total-row { background: #EEF2FF; font-weight: bold; }
+            .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #E2E8F0; font-size: 12px; color: #64748B; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>Loonstrook</h1>
+            <div class="company-info">
+                <strong>${payslipData.Company.name}</strong><br>
+                ${payslipData.Company.address}<br>
+                ${payslipData.Company.postalCode} ${payslipData.Company.city}<br>
+                KvK: ${payslipData.Company.kvkNumber} | BTW: ${payslipData.Company.taxNumber}
+            </div>
+        </div>
+
+        <div class="employee-info">
+            <h3>Werknemergegevens</h3>
+            <p><strong>Naam:</strong> ${payslipData.Employee.firstName} ${payslipData.Employee.lastName}</p>
+            <p><strong>Personeelsnummer:</strong> ${payslipData.Employee.employeeNumber}</p>
+            <p><strong>Functie:</strong> ${payslipData.Employee.position}</p>
+            <p><strong>Periode:</strong> ${payslipData.payPeriod.monthName} ${payslipData.payPeriod.year}</p>
+        </div>
+
+        <table class="payslip-table">
+            <thead>
+                <tr>
+                    <th>Omschrijving</th>
+                    <th class="amount">Bedrag (€)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Bruto loon</td>
+                    <td class="amount">${payslipData.earnings.grossPay.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td>Vakantietoeslag</td>
+                    <td class="amount">${payslipData.earnings.holidayAllowance.toFixed(2)}</td>
+                </tr>
+                <tr class="total-row">
+                    <td><strong>Totaal bruto</strong></td>
+                    <td class="amount"><strong>${payslipData.earnings.grossPay.toFixed(2)}</strong></td>
+                </tr>
+                <tr>
+                    <td>AOW-premie (${payslipData.taxRates.aowRate}%)</td>
+                    <td class="amount">-${payslipData.deductions.aowContribution.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td>WLZ-premie (${payslipData.taxRates.wlzRate}%)</td>
+                    <td class="amount">-${payslipData.deductions.wlzContribution.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td>ZVW-premie (${payslipData.taxRates.zvwRate}%)</td>
+                    <td class="amount">-${payslipData.deductions.zvwContribution.toFixed(2)}</td>
+                </tr>
+                <tr class="total-row">
+                    <td><strong>Totaal inhoudingen</strong></td>
+                    <td class="amount"><strong>-${payslipData.deductions.totalDeductions.toFixed(2)}</strong></td>
+                </tr>
+                <tr class="total-row">
+                    <td><strong>Netto uitbetaling</strong></td>
+                    <td class="amount"><strong>${payslipData.grossPayAfterContributions.toFixed(2)}</strong></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="footer">
+            <p><strong>Toelichting:</strong></p>
+            <p><em>Loonheffing bevat: AOW (${payslipData.taxRates.aowRate}%), WLZ (${payslipData.taxRates.wlzRate}%), ZVW (${payslipData.taxRates.zvwRate}%)</em><br>
+            <em>Inkomstenbelasting wordt jaarlijks afgerekend via de boekhoudingsoftware</em></p>
+            <p>Gegenereerd op: ${new Date(payslipData.generatedAt).toLocaleDateString('nl-NL')}</p>
+        </div>
+    </body>
+    </html>
+    `
+
+    // 🚀 ENHANCED SERVERLESS SOLUTION: Direct content delivery with fallback file storage
+    const isProduction = process.env.NODE_ENV === 'production'
+    const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
+    
+    const fileName = `payslip-${employee.employeeNumber || employee.id}-${validatedData.year}-${validatedData.month.toString().padStart(2, '0')}.html`
+    
+    // Create PayslipGeneration record with retry logic
+    const payslipGeneration = await withRetry(async () => {
+      console.log('💾 Creating PayslipGeneration record...')
+      
+      // Only create PayslipGeneration if we have a valid payrollRecord
+      if (!payrollRecord) {
+        console.log('⚠️ No payroll record found, skipping PayslipGeneration creation')
+        return null
+      }
+      
+      return await payrollClient.payslipGeneration.create({
+        data: {
+          payrollRecordId: payrollRecord.id, // Required field
+          employeeId: validatedData.employeeId,
+          fileName: fileName,
+          filePath: `/payslips/${fileName}`,
+          status: 'generated',
+          generatedAt: new Date(),
+          companyId: companyId
+        }
+      })
+    }, { maxRetries: 2, baseDelay: 300 })
+
+    if (payslipGeneration) {
+      console.log('✅ PayslipGeneration record created successfully')
+    } else {
+      console.log('ℹ️ PayslipGeneration record not created (no payroll record)')
+    }
+
+    // 🎯 SERVERLESS-OPTIMIZED RESPONSE: Return HTML content directly
+    if (isServerless || isProduction) {
+      console.log('🌐 Serverless environment detected - returning direct HTML content')
+      
+      // Store content in temporary directory as backup (non-blocking)
+      const saveToTemp = async () => {
+        try {
+          const payslipsDir = path.join('/tmp', 'payslips')
+          await mkdir(payslipsDir, { recursive: true })
+          const filePath = path.join(payslipsDir, fileName)
+          await writeFile(filePath, htmlContent, 'utf8')
+          console.log('💾 Backup saved to temporary directory:', filePath)
+        } catch (error) {
+          console.log('⚠️ Backup save failed (non-critical):', error)
+        }
+      }
+      
+      // Save backup asynchronously (don't wait for it)
+      saveToTemp()
+      
+      // Return HTML content directly in response for immediate display
+      return new NextResponse(htmlContent, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Content-Disposition': `inline; filename="${fileName}"`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'X-Payslip-Generated': 'true',
+          'X-Employee-ID': validatedData.employeeId,
+          'X-Period': `${validatedData.year}-${validatedData.month.toString().padStart(2, '0')}`
+        }
+      })
+    } else {
+      // Local development: save to public directory and return JSON response
+      console.log('🏠 Local development environment - using file-based approach')
+      
+      const payslipsDir = path.join(process.cwd(), 'public', 'payslips')
+      await mkdir(payslipsDir, { recursive: true })
+      const filePath = path.join(payslipsDir, fileName)
+      await writeFile(filePath, htmlContent, 'utf8')
+      console.log('💾 Payslip saved to public directory:', filePath)
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Payslip generated successfully',
+        payslip: payslipData,
+        file: {
+          fileName: fileName,
+          filePath: `/payslips/${fileName}`,
+          downloadUrl: `/payslips/${fileName}`
+        },
+        payslipRecord: payslipRecord
+      })
+    }
+
+  } catch (error) {
+    if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Invalid payroll context", details: validation.errors },
+        { error: "Validation error", details: error.errors },
         { status: 400 }
       )
     }
 
-    console.log(`✅ Successfully resolved context for: ${context.company.name} - ${context.employee?.firstName} ${context.employee?.lastName}`)
-
-    // Find payroll record
-    const payrollRecord = await findPayrollRecord(context)
-    if (!payrollRecord) {
-      return NextResponse.json(
-        { error: "Payroll record not found for this period" },
-        { status: 404 }
-      )
-    }
-
-    // Calculate payroll data
-    const payrollData = calculatePayrollFromContext(context.payrollContext, payrollRecord)
-
-    // Generate and save payslip
-    const payslipPath = await generateAndSavePayslip(context, payrollData)
-
-    // Create or update payslip generation record
-    await createPayslipRecord(context, payrollRecord.id, payslipPath)
-
-    return NextResponse.json({
-      success: true,
-      message: "Payslip generated successfully",
-      payslipPath,
-      employee: `${context.employee?.firstName} ${context.employee?.lastName}`,
-      period: `${context.period.year}-${String(context.period.month).padStart(2, '0')}`
-    })
-
-  } catch (error) {
-    console.error("Error generating PDF payslip:", error)
-    
-    const errorResponse = handleRequestContextError(error)
-    return NextResponse.json(errorResponse, { status: errorResponse.statusCode })
+    console.error("Error generating payslip PDF:", error)
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    )
   }
-}
-
-/**
- * Find payroll record for the given context
- */
-async function findPayrollRecord(context: any) {
-  const cacheKey = `payroll:${context.companyId}:${context.employeeId}:${context.period.year}:${context.period.month}`
-  
-  return await cache.getOrSet(cacheKey, async () => {
-    return await withRetry(async () => {
-      console.log('🔍 Looking up payroll record')
-      
-      return await payrollClient.payrollRecord.findFirst({
-        where: {
-          companyId: context.companyId,
-          employeeId: context.employeeId,
-          year: context.period.year,
-          month: context.period.month
-        },
-        orderBy: { createdAt: 'desc' }
-      })
-    }, { maxRetries: 2, baseDelay: 500 })
-  }, { ttl: 180000 }) // Cache for 3 minutes (shorter for payroll data)
-}
-
-/**
- * Calculate payroll data from context and record
- */
-function calculatePayrollFromContext(payrollContext: PayrollContext, payrollRecord: any) {
-  const { company, employee, config } = payrollContext
-
-  // Use configuration-driven approach
-  const employeeData: EmployeeData = {
-    grossMonthlySalary: employee.grossSalary || config.defaultGrossSalary,
-    taxTable: employee.taxTable || config.taxSettings.defaultTaxTable,
-    age: calculateAge(employee.startDate),
-    hasAOW: false,
-    holidayAllowanceRate: config.holidayAllowanceRate
-  }
-
-  const companyData: CompanyData = {
-    size: config.companySize,
-    sector: config.sector,
-    awfRate: config.awfRate,
-    aofRate: config.aofRate
-  }
-
-  const payrollResult = calculateDutchPayroll(employeeData, companyData)
-
-  return {
-    Company: {
-      name: company.name,
-      address: company.address,
-      city: company.city,
-      postalCode: company.postalCode,
-      kvkNumber: company.kvkNumber,
-      taxNumber: company.taxNumber
-    },
-    Employee: {
-      firstName: employee.firstName,
-      lastName: employee.lastName,
-      employeeNumber: employee.employeeNumber,
-      position: employee.position,
-      department: employee.department,
-      bsn: employee.bsn,
-      startDate: employee.startDate,
-      employmentType: employee.employmentType,
-      taxTable: employee.taxTable
-    },
-    Payroll: {
-      period: `${payrollContext.period.year}-${String(payrollContext.period.month).padStart(2, '0')}`,
-      grossPay: payrollResult.grossMonthlySalary,
-      holidayAllowance: payrollResult.holidayAllowanceGross / 12,
-      loonheffing: payrollResult.totalEmployeeContributions / 12,
-      netPay: payrollResult.netMonthlySalary,
-      aowContribution: payrollResult.aowContribution / 12,
-      wlzContribution: payrollResult.wlzContribution / 12,
-      zvwContribution: payrollResult.zvwContribution / 12
-    }
-  }
-}
-
-/**
- * Generate and save payslip file
- */
-async function generateAndSavePayslip(context: any, payrollData: any): Promise<string> {
-  const payslipHtml = await generatePayslipHTML(payrollData)
-  
-  // Create payslips directory if it doesn't exist
-  const payslipsDir = path.join(process.cwd(), 'payslips')
-  await mkdir(payslipsDir, { recursive: true })
-  
-  // Generate filename
-  const filename = `payslip_${context.employee?.employeeNumber || context.employeeId}_${context.period.year}_${String(context.period.month).padStart(2, '0')}.html`
-  const payslipPath = path.join(payslipsDir, filename)
-  
-  // Save file
-  await writeFile(payslipPath, payslipHtml, 'utf8')
-  console.log('💾 Payslip saved to:', payslipPath)
-  
-  return payslipPath
-}
-
-/**
- * Create payslip generation record
- */
-async function createPayslipRecord(context: any, payrollRecordId: string, payslipPath: string) {
-  return await withRetry(async () => {
-    return await payrollClient.payslipGeneration.upsert({
-      where: {
-        payrollRecordId: payrollRecordId
-      },
-      update: {
-        filePath: payslipPath,
-        generatedAt: new Date()
-      },
-      create: {
-        payrollRecordId: payrollRecordId,
-        filePath: payslipPath,
-        generatedAt: new Date()
-      }
-    })
-  }, { maxRetries: 2, baseDelay: 500 })
-}
-
-/**
- * Calculate age from start date (simplified)
- */
-function calculateAge(startDate: Date): number {
-  const today = new Date()
-  const birthYear = startDate.getFullYear()
-  const currentYear = today.getFullYear()
-  return Math.max(25, currentYear - birthYear) // Default to 25 if calculation seems wrong
 }
 
