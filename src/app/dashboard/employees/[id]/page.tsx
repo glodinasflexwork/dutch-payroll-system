@@ -74,6 +74,8 @@ interface Employee {
   vacationDaysTotal?: number
   lastPayrollDate?: string
   nextPayrollDate?: string
+  dateOfBirth?: string
+  gender?: string
   portalAccess?: {
     status?: string
     invitedAt?: string
@@ -478,6 +480,27 @@ export default function EmployeeDetailPage() {
                     </div>
 
                     <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-500 mb-1 block">Date of Birth</label>
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm">
+                            {employee?.dateOfBirth ? new Date(employee.dateOfBirth).toLocaleDateString('nl-NL') : 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-500 mb-1 block">Gender</label>
+                        <div className="flex items-center space-x-2">
+                          <User className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm">
+                            {employee?.gender === 'male' ? 'Male (De heer)' : 
+                             employee?.gender === 'female' ? 'Female (Mevrouw)' : 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+
                       <div>
                         <label className="text-sm font-medium text-gray-500 mb-1 block">Address</label>
                         <div className="flex items-start space-x-2">
