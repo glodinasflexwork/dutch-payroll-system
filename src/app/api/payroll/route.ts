@@ -6,6 +6,7 @@ import { validateSubscription } from "@/lib/subscription"
 import { calculateDutchPayroll, generatePayrollBreakdown, formatCurrency } from "@/lib/payroll-calculations"
 import { ensurePayrollInitialized } from "@/lib/lazy-initialization"
 import { generatePayslip } from "@/lib/payslip-generator"
+import { calculateProRataSalarySafe, formatProRataResult } from "@/lib/pro-rata-calculations"
 import { 
   resolveCompanyFromSession, 
   handleCompanyResolutionError 
@@ -256,10 +257,47 @@ export async function PUT(request: NextRequest) {
 
     console.log(`✅ [PayrollAPI] Found employee: ${employee.firstName} ${employee.lastName} (${employee.employeeNumber})`)
 
-    // Calculate base salary (could be adjusted for hours worked)
+    // Parse pay period dates for pro-rata calculation
+    const payPeriodStartDate = new Date(payPeriodStart)
+    const payPeriodEndDate = new Date(payPeriodEnd)
+
+    // 🎯 IMPLEMENT PRO-RATA SALARY CALCULATION
+    console.log(`🧮 [PayrollAPI] Calculating pro-rata salary for employee start date: ${employee.startDate}`)
+    
+    // Calculate base salary with pro-rata adjustment
     let baseSalary = employee.salary
-    if (hoursWorked && employee.salaryType === 'hourly' && employee.hourlyRate) {
+    let proRataDetails = null
+
+    // Apply pro-rata calculation for monthly salary employees
+    if (employee.salaryType === 'monthly' || !employee.salaryType) {
+      const proRataCalculation = calculateProRataSalarySafe({
+        monthlySalary: employee.salary,
+        employeeStartDate: new Date(employee.startDate),
+        employeeEndDate: employee.endDate ? new Date(employee.endDate) : undefined,
+        payPeriodStart: payPeriodStartDate,
+        payPeriodEnd: payPeriodEndDate,
+        calculationMethod: 'calendar'
+      })
+
+      if (proRataCalculation.success) {
+        baseSalary = proRataCalculation.result.proRataSalary
+        proRataDetails = proRataCalculation.result
+        
+        if (proRataCalculation.result.isProRataApplied) {
+          console.log(`✅ [PayrollAPI] Pro-rata calculation applied: €${employee.salary} → €${baseSalary.toFixed(2)}`)
+          console.log(`📊 [PayrollAPI] ${proRataCalculation.result.calculationDetails}`)
+        } else {
+          console.log(`ℹ️ [PayrollAPI] No pro-rata adjustment needed - employee worked full month`)
+        }
+      } else {
+        console.error(`❌ [PayrollAPI] Pro-rata calculation failed:`, proRataCalculation.errors)
+        // Fall back to original salary if calculation fails
+        baseSalary = employee.salary
+      }
+    } else if (hoursWorked && employee.salaryType === 'hourly' && employee.hourlyRate) {
+      // For hourly employees, calculate based on hours worked
       baseSalary = employee.hourlyRate * hoursWorked
+      console.log(`⏰ [PayrollAPI] Hourly calculation: ${hoursWorked} hours × €${employee.hourlyRate} = €${baseSalary}`)
     }
 
     // Calculate overtime pay
@@ -268,6 +306,8 @@ export async function PUT(request: NextRequest) {
 
     // Calculate gross pay including bonuses
     const grossPay = baseSalary + overtimePay + (bonuses || 0)
+
+    console.log(`💰 [PayrollAPI] Final salary calculation: Base €${baseSalary} + Overtime €${overtimePay} + Bonuses €${bonuses || 0} = €${grossPay}`)
 
     // Prepare data for Dutch payroll calculation
     const employeeData = {
@@ -290,9 +330,7 @@ export async function PUT(request: NextRequest) {
     // Calculate Dutch payroll
     const payrollResult = calculateDutchPayroll(employeeData, companyData)
 
-    // Parse pay period dates
-    const payPeriodStartDate = new Date(payPeriodStart)
-    const payPeriodEndDate = new Date(payPeriodEnd)
+    // Get year and month from already parsed dates
     const year = payPeriodStartDate.getFullYear()
     const month = payPeriodStartDate.getMonth() + 1
 
@@ -352,6 +390,17 @@ export async function PUT(request: NextRequest) {
         message: "Payroll record updated successfully",
         payrollRecord: updatedRecord,
         calculation: payrollResult,
+        proRataDetails: proRataDetails ? {
+          isProRataApplied: proRataDetails.isProRataApplied,
+          calculationMethod: proRataDetails.calculationMethod,
+          totalDaysInMonth: proRataDetails.totalDaysInMonth,
+          actualWorkingDays: proRataDetails.actualWorkingDays,
+          proRataFactor: proRataDetails.proRataFactor,
+          fullMonthlySalary: proRataDetails.fullMonthlySalary,
+          proRataSalary: proRataDetails.proRataSalary,
+          adjustment: proRataDetails.adjustment,
+          calculationDetails: proRataDetails.calculationDetails
+        } : null,
         payslip: payslipResult.success ? {
           generated: true,
           fileName: payslipResult.fileName,
@@ -415,6 +464,17 @@ export async function PUT(request: NextRequest) {
         message: "Payroll processed and saved successfully",
         payrollRecord: payrollRecord,
         calculation: payrollResult,
+        proRataDetails: proRataDetails ? {
+          isProRataApplied: proRataDetails.isProRataApplied,
+          calculationMethod: proRataDetails.calculationMethod,
+          totalDaysInMonth: proRataDetails.totalDaysInMonth,
+          actualWorkingDays: proRataDetails.actualWorkingDays,
+          proRataFactor: proRataDetails.proRataFactor,
+          fullMonthlySalary: proRataDetails.fullMonthlySalary,
+          proRataSalary: proRataDetails.proRataSalary,
+          adjustment: proRataDetails.adjustment,
+          calculationDetails: proRataDetails.calculationDetails
+        } : null,
         payslip: payslipResult.success ? {
           generated: true,
           fileName: payslipResult.fileName,
