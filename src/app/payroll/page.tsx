@@ -189,11 +189,19 @@ export default function PayrollPage() {
 
   // Employee selection helpers
   const toggleEmployeeSelection = (employeeId: string) => {
-    setSelectedEmployees(prev => 
-      prev.includes(employeeId) 
+    console.log('🔍 TOGGLE EMPLOYEE SELECTION DEBUG:');
+    console.log('employeeId:', employeeId);
+    console.log('current selectedEmployees:', selectedEmployees);
+    console.log('includes check:', selectedEmployees.includes(employeeId));
+    
+    setSelectedEmployees(prev => {
+      const newSelection = prev.includes(employeeId) 
         ? prev.filter(id => id !== employeeId)
-        : [...prev, employeeId]
-    );
+        : [...prev, employeeId];
+      
+      console.log('new selectedEmployees:', newSelection);
+      return newSelection;
+    });
   };
 
   const selectAllEmployees = () => {
