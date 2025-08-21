@@ -3,6 +3,7 @@ import { calculateDutchPayroll, EmployeeData, CompanyData } from '@/lib/payroll-
 import { withRetry } from '@/lib/database-retry'
 import { generateProfessionalDutchPayslip, PayslipData } from '@/lib/payslip-template-professional'
 import { formatDutchCurrency, formatDutchDate, generateLoonheffingennummer } from '@/lib/dutch-formatting'
+import { calculateCumulativeData } from '@/lib/cumulative-calculations'
 import path from 'path'
 import fs from 'fs/promises'
 
@@ -197,6 +198,15 @@ export async function generatePayslip(params: PayslipGenerationParams): Promise<
       zvwContribution = (payrollResult.grossAnnualSalary * 0.0565) / 12
     }
 
+    // Calculate proper cumulative (year-to-date) totals
+    console.log(`🧮 Calculating cumulative totals for ${employee.firstName} ${employee.lastName}`)
+    const cumulativeData = await calculateCumulativeData(
+      params.employeeId,
+      params.companyId,
+      params.year,
+      params.month
+    )
+
     // Create payslip data
     // Prepare data for professional Dutch payslip template
     const payslipData: PayslipData = {
@@ -226,7 +236,7 @@ export async function generatePayslip(params: PayslipGenerationParams): Promise<
         employmentType: employee.employmentType,
         taxTable: employee.taxTable || 'wit',
         hourlyRate: employee.hourlyRate,
-        gender: 'male' // Default, should be added to schema later
+        gender: employee.gender || 'male'
       },
       period: {
         year: params.year,
@@ -248,18 +258,7 @@ export async function generatePayslip(params: PayslipGenerationParams): Promise<
         expenses: 0,
         vacationReserve: holidayAllowance
       },
-      cumulative: {
-        workDays: 22, // Standard working days per month
-        workHours: 176, // Standard working hours per month (22 * 8)
-        grossSalary: grossPay,
-        otherGross: holidayAllowance,
-        taxableIncome: grossPay + holidayAllowance,
-        wga: 0,
-        taxDeduction: loonheffing,
-        workDiscount: 0,
-        vacationAllowance: holidayAllowance,
-        netSalary: grossPayAfterContributions
-      },
+      cumulative: cumulativeData, // ✅ Use proper cumulative calculations
       additional: {
         bankAccount: employee.bankAccount || '',
         paymentDate: new Date(params.year, params.month, 25), // 25th of the month
