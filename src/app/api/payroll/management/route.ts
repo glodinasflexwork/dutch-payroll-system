@@ -326,6 +326,32 @@ export async function POST(request: NextRequest) {
               }
             })
 
+            // Create or update corresponding PayslipGeneration record
+            const existingPayslipGeneration = await payrollClient.payslipGeneration.findFirst({
+              where: { payrollRecordId: existingRecord.id }
+            })
+
+            let payslipGeneration
+            if (existingPayslipGeneration) {
+              payslipGeneration = await payrollClient.payslipGeneration.update({
+                where: { id: existingPayslipGeneration.id },
+                data: {
+                  fileName: `payslip-${employee.employeeNumber || `EMP${employee.id.slice(-4)}`}-${year}-${month.toString().padStart(2, '0')}.html`,
+                  status: 'pending'
+                }
+              })
+            } else {
+              payslipGeneration = await payrollClient.payslipGeneration.create({
+                data: {
+                  payrollRecordId: existingRecord.id,
+                  employeeId: employee.id,
+                  companyId: session.user.companyId,
+                  fileName: `payslip-${employee.employeeNumber || `EMP${employee.id.slice(-4)}`}-${year}-${month.toString().padStart(2, '0')}.html`,
+                  status: 'pending'
+                }
+              })
+            }
+
             results.push({
               Employee: {
                 id: employee.id,
@@ -334,6 +360,7 @@ export async function POST(request: NextRequest) {
               },
               status: 'updated',
               payrollRecord: updatedRecord,
+              payslipGeneration: payslipGeneration,
               calculation: payrollResult
             })
           } else {
@@ -359,6 +386,17 @@ export async function POST(request: NextRequest) {
               }
             })
 
+            // Create corresponding PayslipGeneration record
+            const payslipGeneration = await payrollClient.payslipGeneration.create({
+              data: {
+                payrollRecordId: payrollRecord.id,
+                employeeId: employee.id,
+                companyId: session.user.companyId,
+                fileName: `payslip-${employee.employeeNumber || `EMP${employee.id.slice(-4)}`}-${year}-${month.toString().padStart(2, '0')}.html`,
+                status: 'pending'
+              }
+            })
+
             results.push({
               Employee: {
                 id: employee.id,
@@ -367,6 +405,7 @@ export async function POST(request: NextRequest) {
               },
               status: 'created',
               payrollRecord: payrollRecord,
+              payslipGeneration: payslipGeneration,
               calculation: payrollResult
             })
           }
