@@ -44,7 +44,7 @@ interface Company {
   email?: string
   website?: string
   kvkNumber?: string
-  taxNumber?: string
+  loonheffingennummer?: string
   vatNumber?: string
   description?: string
   industry?: string
@@ -190,7 +190,7 @@ export default function CompanyPage() {
     const fields = [
       'name', 'industry', 'description', 'foundedYear', 'employeeCount',
       'address', 'city', 'postalCode', 'country', 'phone', 'email', 'website',
-      'kvkNumber', 'taxNumber', 'vatNumber'
+      'kvkNumber', 'loonheffingennummer', 'vatNumber'
     ]
     const filledFields = fields.filter(field => company[field as keyof Company])
     return Math.round((filledFields.length / fields.length) * 100)
@@ -652,17 +652,17 @@ export default function CompanyPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Tax Number
+                        Loonheffingennummer
                       </label>
                       {editing ? (
                         <Input
-                          value={formData.taxNumber || ''}
-                          onChange={(e) => handleInputChange('taxNumber', e.target.value)}
-                          placeholder="123456789B01"
+                          value={formData.loonheffingennummer || ''}
+                          onChange={(e) => handleInputChange('loonheffingennummer', e.target.value)}
+                          placeholder="123456789L01"
                           className="focus:ring-blue-500 focus:border-blue-500"
                         />
                       ) : (
-                        <p className="text-gray-900">{company.taxNumber || 'Not provided'}</p>
+                        <p className="text-gray-900">{company.loonheffingennummer || 'Not provided'}</p>
                       )}
                     </div>
                     <div>

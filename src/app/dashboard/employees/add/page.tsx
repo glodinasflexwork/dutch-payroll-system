@@ -29,6 +29,8 @@ interface EmployeeFormData {
   lastName: string
   email: string
   bsn: string
+  dateOfBirth: string
+  gender: 'male' | 'female' | ''
   country: string
   nationality: string
   phoneNumber: string
@@ -62,7 +64,7 @@ const STEPS = [
     title: "Personal Information",
     description: "Basic employee details and contact information",
     icon: User,
-    fields: ['firstName', 'lastName', 'email', 'bsn', 'country', 'nationality', 'phoneNumber', 'address', 'postalCode', 'city', 'bankAccount']
+    fields: ['firstName', 'lastName', 'email', 'bsn', 'dateOfBirth', 'gender', 'country', 'nationality', 'phoneNumber', 'address', 'postalCode', 'city', 'bankAccount']
   },
   {
     id: 2,
@@ -106,6 +108,8 @@ export default function AddEmployeeWizardPage() {
     lastName: '',
     email: '',
     bsn: '',
+    dateOfBirth: '',
+    gender: '',
     country: 'Netherlands',
     nationality: 'Dutch',
     phoneNumber: '',
@@ -205,6 +209,29 @@ export default function AddEmployeeWizardPage() {
           message: value.trim().length === 0 ? 'BSN is required' : 
                    value.length !== 9 ? 'BSN must be exactly 9 digits' :
                    !validateBSN(value) ? 'Invalid BSN number' : 'Valid BSN number',
+          isRequired: true
+        }
+      
+      case 'dateOfBirth':
+        const birthDate = new Date(value)
+        const today = new Date()
+        const age = today.getFullYear() - birthDate.getFullYear()
+        const monthDiff = today.getMonth() - birthDate.getMonth()
+        const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate()) ? age - 1 : age
+        
+        return {
+          isValid: value.trim().length > 0 && !isNaN(birthDate.getTime()) && actualAge >= 16 && actualAge <= 100,
+          message: value.trim().length === 0 ? 'Date of birth is required' :
+                   isNaN(birthDate.getTime()) ? 'Please enter a valid date' :
+                   actualAge < 16 ? 'Employee must be at least 16 years old' :
+                   actualAge > 100 ? 'Please enter a valid birth date' : 'Valid date of birth',
+          isRequired: true
+        }
+      
+      case 'gender':
+        return {
+          isValid: value === 'male' || value === 'female',
+          message: value.trim().length === 0 ? 'Gender is required' : 'Valid gender selected',
           isRequired: true
         }
       
@@ -566,6 +593,36 @@ export default function AddEmployeeWizardPage() {
                   className={getFieldClassName('bsn')}
                 />
                 {renderFieldFeedback('bsn')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Date of Birth *
+                </label>
+                <Input
+                  type="date"
+                  value={formData.dateOfBirth}
+                  onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                  className={getFieldClassName('dateOfBirth')}
+                  max={new Date().toISOString().split('T')[0]}
+                />
+                {renderFieldFeedback('dateOfBirth')}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Gender *
+                </label>
+                <select
+                  value={formData.gender}
+                  onChange={(e) => handleInputChange('gender', e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-md text-sm ${getFieldClassName('gender')}`}
+                >
+                  <option value="">Select gender</option>
+                  <option value="male">Male (De heer)</option>
+                  <option value="female">Female (Mevrouw)</option>
+                </select>
+                {renderFieldFeedback('gender')}
               </div>
 
               <div>
