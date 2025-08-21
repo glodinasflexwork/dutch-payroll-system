@@ -320,12 +320,12 @@ export default function AddEmployeeWizardPage() {
         return { isValid: true, message: 'Not required for monthly employees', isRequired: false }
       
       case 'startDate':
-        const today = new Date()
+        const currentDate = new Date()
         const selectedDate = new Date(value)
         return {
-          isValid: value.length > 0 && selectedDate <= today,
+          isValid: value.length > 0 && selectedDate <= currentDate,
           message: value.length === 0 ? 'Start date is required' :
-                   selectedDate > today ? 'Start date cannot be in the future' : 'Valid start date',
+                   selectedDate > currentDate ? 'Start date cannot be in the future' : 'Valid start date',
           isRequired: true
         }
       
