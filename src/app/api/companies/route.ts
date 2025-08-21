@@ -5,7 +5,7 @@ import { z } from "zod"
 
 // Dutch business number validation patterns
 const DUTCH_KVK_PATTERN = /^\d{8}$/  // 8 digits
-const DUTCH_TAX_PATTERN = /^\d{9}L\d{2}$/  // 9 digits + L + 2 digits (Loonheffingsnummer)
+const DUTCH_LOONHEFFING_PATTERN = /^\d{9}L\d{2}$/  // 9 digits + L + 2 digits (Loonheffingennummer)
 const DUTCH_VAT_PATTERN = /^NL\d{9}B\d{2}$/  // NL + 9 digits + B + 2 digits (BTW nummer)
 
 // Validation schema for company updates
@@ -23,9 +23,9 @@ const updateCompanySchema = z.object({
       message: "KvK number must be 8 digits (e.g., 12345678)"
     })
     .optional(),
-  taxNumber: z.string()
-    .refine((val) => !val || DUTCH_TAX_PATTERN.test(val), {
-      message: "Tax number must be in format: 123456789L01 (9 digits + L + 2 digits)"
+  loonheffingennummer: z.string()
+    .refine((val) => !val || DUTCH_LOONHEFFING_PATTERN.test(val), {
+      message: "Loonheffingennummer must be in format: 123456789L01 (9 digits + L + 2 digits)"
     })
     .optional(),
   vatNumber: z.string()

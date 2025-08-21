@@ -20,7 +20,7 @@ model Company {
   email                   String?
   website                 String?
   kvkNumber               String?
-  taxNumber               String?
+  loonheffingennummer     String?
   vatNumber               String?
   bankAccount             String?
   contactEmail            String?
@@ -71,6 +71,7 @@ model Employee {
   nationality      String          @default("Dutch")
   bsn              String
   dateOfBirth      DateTime
+  gender           String?         @default("male") // "male" or "female" for formal addressing on payslips
   startDate        DateTime
   endDate          DateTime?
   probationEndDate DateTime?

@@ -1,6 +1,8 @@
 import { hrClient, payrollClient } from '@/lib/database-clients'
 import { calculateDutchPayroll, EmployeeData, CompanyData } from '@/lib/payroll-calculations'
 import { withRetry } from '@/lib/database-retry'
+import { generateProfessionalDutchPayslip, PayslipData } from '@/lib/payslip-template-professional'
+import { formatDutchCurrency, formatDutchDate, generateLoonheffingennummer } from '@/lib/dutch-formatting'
 import path from 'path'
 import fs from 'fs/promises'
 
@@ -196,52 +198,83 @@ export async function generatePayslip(params: PayslipGenerationParams): Promise<
     }
 
     // Create payslip data
-    const payslipData = {
-      Company: {
+    // Prepare data for professional Dutch payslip template
+    const payslipData: PayslipData = {
+      company: {
         name: company.name,
-        address: company.address || '',
-        city: company.city || '',
+        streetName: company.address?.split(' ')[0] || '',
+        houseNumber: company.address?.split(' ')[1] || '',
         postalCode: company.postalCode || '',
-        kvkNumber: company.kvkNumber || '',
-        taxNumber: company.taxNumber || ''
+        city: company.city || '',
+        payrollTaxNumber: company.loonheffingennummer || generateLoonheffingennummer(company.id),
+        kvkNumber: company.kvkNumber || ''
       },
-      Employee: {
+      employee: {
         firstName: employee.firstName,
         lastName: employee.lastName,
+        streetName: employee.streetName || '',
+        houseNumber: employee.houseNumber || '',
+        houseNumberAddition: employee.houseNumberAddition || '',
+        postalCode: employee.postalCode || '',
+        city: employee.city || '',
         employeeNumber: employee.employeeNumber || '',
+        bsn: employee.bsn,
+        dateOfBirth: employee.dateOfBirth,
+        startDate: employee.startDate,
         position: employee.position || '',
         department: employee.department || '',
-        bsn: employee.bsn,
-        startDate: employee.startDate,
         employmentType: employee.employmentType,
-        taxTable: employee.taxTable
+        taxTable: employee.taxTable || 'wit',
+        hourlyRate: employee.hourlyRate,
+        gender: 'male' // Default, should be added to schema later
       },
-      payPeriod: {
-        month: params.month,
+      period: {
         year: params.year,
+        month: params.month,
+        periodNumber: params.month,
         startDate: new Date(params.year, params.month - 1, 1),
         endDate: new Date(params.year, params.month, 0)
       },
-      earnings: {
-        grossPay: grossPay,
-        holidayAllowance: holidayAllowance,
+      salary: {
+        grossSalary: grossPay,
+        netSalary: grossPayAfterContributions,
+        taxDeduction: loonheffing,
+        socialSecurity: aowContribution + wlzContribution + zvwContribution,
+        pensionDeduction: 0,
+        otherDeductions: 0,
         overtime: 0,
         bonus: 0,
-        totalGross: grossPay + holidayAllowance
+        holidayAllowance: holidayAllowance,
+        expenses: 0,
+        vacationReserve: holidayAllowance
       },
-      deductions: {
-        loonheffing: loonheffing,
-        aowContribution: aowContribution,
-        wlzContribution: wlzContribution,
-        zvwContribution: zvwContribution,
-        totalDeductions: loonheffing + aowContribution + wlzContribution + zvwContribution
+      cumulative: {
+        workDays: 22, // Standard working days per month
+        workHours: 176, // Standard working hours per month (22 * 8)
+        grossSalary: grossPay,
+        otherGross: holidayAllowance,
+        taxableIncome: grossPay + holidayAllowance,
+        wga: 0,
+        taxDeduction: loonheffing,
+        workDiscount: 0,
+        vacationAllowance: holidayAllowance,
+        netSalary: grossPayAfterContributions
       },
-      netPay: grossPayAfterContributions,
-      generatedAt: new Date()
+      additional: {
+        bankAccount: employee.bankAccount || '',
+        paymentDate: new Date(params.year, params.month, 25), // 25th of the month
+        vacationHours: {
+          begin: 0,
+          used: 0,
+          added: 14.62, // Standard vacation hours per month
+          balance: 14.62,
+          thisPeriod: 14.62
+        }
+      }
     }
 
-    // Generate HTML content
-    const htmlContent = generatePayslipHTML(payslipData)
+    // Generate professional Dutch HTML content
+    const htmlContent = generateProfessionalDutchPayslip(payslipData)
     
     // Generate filename
     const fileName = `payslip-${employee.employeeNumber || employee.id}-${params.year}-${params.month.toString().padStart(2, '0')}.html`
@@ -308,230 +341,5 @@ export async function generatePayslip(params: PayslipGenerationParams): Promise<
       error: error instanceof Error ? error.message : 'Unknown error'
     }
   }
-}
-
-/**
- * Generate HTML content for payslip
- */
-function generatePayslipHTML(data: any): string {
-  return `<!DOCTYPE html>
-<html lang="nl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loonstrook - ${data.Employee.firstName} ${data.Employee.lastName}</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-            color: #333;
-        }
-        .payslip-container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-        }
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-        .header h1 {
-            margin: 0;
-            font-size: 28px;
-            font-weight: 300;
-        }
-        .content {
-            padding: 30px;
-        }
-        .company-info, .employee-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 6px;
-        }
-        .info-section h3 {
-            margin: 0 0 15px 0;
-            color: #495057;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        .info-section p {
-            margin: 5px 0;
-            font-size: 14px;
-            line-height: 1.4;
-        }
-        .pay-details {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin: 30px 0;
-        }
-        .earnings, .deductions {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 6px;
-        }
-        .earnings h3 {
-            color: #28a745;
-            margin: 0 0 15px 0;
-            font-size: 18px;
-        }
-        .deductions h3 {
-            color: #dc3545;
-            margin: 0 0 15px 0;
-            font-size: 18px;
-        }
-        .pay-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #e9ecef;
-        }
-        .pay-item:last-child {
-            border-bottom: none;
-            font-weight: 600;
-            font-size: 16px;
-            margin-top: 10px;
-            padding-top: 15px;
-            border-top: 2px solid #dee2e6;
-        }
-        .net-pay {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            color: white;
-            padding: 25px;
-            text-align: center;
-            margin: 30px 0;
-            border-radius: 6px;
-        }
-        .net-pay h2 {
-            margin: 0;
-            font-size: 24px;
-            font-weight: 300;
-        }
-        .net-pay .amount {
-            font-size: 36px;
-            font-weight: 600;
-            margin: 10px 0;
-        }
-        .footer {
-            text-align: center;
-            padding: 20px;
-            background: #f8f9fa;
-            color: #6c757d;
-            font-size: 12px;
-        }
-        @media (max-width: 768px) {
-            .company-info, .employee-info {
-                flex-direction: column;
-                gap: 20px;
-            }
-            .pay-details {
-                grid-template-columns: 1fr;
-                gap: 20px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="payslip-container">
-        <div class="header">
-            <h1>Loonstrook</h1>
-            <p>${data.payPeriod.month}/${data.payPeriod.year}</p>
-        </div>
-        
-        <div class="content">
-            <div class="company-info">
-                <div class="info-section">
-                    <h3>Werkgever</h3>
-                    <p><strong>${data.Company.name}</strong></p>
-                    <p>${data.Company.address}</p>
-                    <p>${data.Company.postalCode} ${data.Company.city}</p>
-                    <p>KvK: ${data.Company.kvkNumber}</p>
-                    <p>Fiscaal nr: ${data.Company.taxNumber}</p>
-                </div>
-                <div class="info-section">
-                    <h3>Werknemer</h3>
-                    <p><strong>${data.Employee.firstName} ${data.Employee.lastName}</strong></p>
-                    <p>Personeelsnummer: ${data.Employee.employeeNumber}</p>
-                    <p>Functie: ${data.Employee.position}</p>
-                    <p>Afdeling: ${data.Employee.department}</p>
-                    <p>BSN: ${data.Employee.bsn}</p>
-                    <p>Loontabel: ${data.Employee.taxTable}</p>
-                </div>
-            </div>
-
-            <div class="pay-details">
-                <div class="earnings">
-                    <h3>Inkomsten</h3>
-                    <div class="pay-item">
-                        <span>Bruto loon</span>
-                        <span>€${data.earnings.grossPay.toFixed(2)}</span>
-                    </div>
-                    <div class="pay-item">
-                        <span>Vakantietoeslag</span>
-                        <span>€${data.earnings.holidayAllowance.toFixed(2)}</span>
-                    </div>
-                    <div class="pay-item">
-                        <span>Overwerk</span>
-                        <span>€${data.earnings.overtime.toFixed(2)}</span>
-                    </div>
-                    <div class="pay-item">
-                        <span>Bonus</span>
-                        <span>€${data.earnings.bonus.toFixed(2)}</span>
-                    </div>
-                    <div class="pay-item">
-                        <span><strong>Totaal Bruto</strong></span>
-                        <span><strong>€${data.earnings.totalGross.toFixed(2)}</strong></span>
-                    </div>
-                </div>
-
-                <div class="deductions">
-                    <h3>Inhoudingen</h3>
-                    <div class="pay-item">
-                        <span>Loonheffing</span>
-                        <span>€${data.deductions.loonheffing.toFixed(2)}</span>
-                    </div>
-                    <div class="pay-item">
-                        <span>AOW-premie</span>
-                        <span>€${data.deductions.aowContribution.toFixed(2)}</span>
-                    </div>
-                    <div class="pay-item">
-                        <span>WLZ-premie</span>
-                        <span>€${data.deductions.wlzContribution.toFixed(2)}</span>
-                    </div>
-                    <div class="pay-item">
-                        <span>ZVW-premie</span>
-                        <span>€${data.deductions.zvwContribution.toFixed(2)}</span>
-                    </div>
-                    <div class="pay-item">
-                        <span><strong>Totaal Inhoudingen</strong></span>
-                        <span><strong>€${data.deductions.totalDeductions.toFixed(2)}</strong></span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="net-pay">
-                <h2>Netto Uitbetaling</h2>
-                <div class="amount">€${data.netPay.toFixed(2)}</div>
-                <p>Te betalen op ${new Date().toLocaleDateString('nl-NL')}</p>
-            </div>
-        </div>
-
-        <div class="footer">
-            <p>Deze loonstrook is gegenereerd op ${data.generatedAt.toLocaleDateString('nl-NL')} om ${data.generatedAt.toLocaleTimeString('nl-NL')}</p>
-            <p>Voor vragen over uw loonstrook kunt u contact opnemen met de HR-afdeling</p>
-        </div>
-    </div>
-</body>
-</html>`
 }
 
