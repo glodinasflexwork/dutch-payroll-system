@@ -373,10 +373,27 @@ export default function PayrollPage() {
   };
 
   const processPayroll = async () => {
-    if (selectedEmployees.length === 0 || !payPeriodStart || !payPeriodEnd) {
-      toast.error('Missing information', 'Please select at least one employee and pay period');
+    // Debug logging to identify the issue
+    console.log('🔍 PROCESS PAYROLL DEBUG:');
+    console.log('selectedEmployees:', selectedEmployees);
+    console.log('selectedEmployees.length:', selectedEmployees.length);
+    console.log('payPeriodStart:', payPeriodStart);
+    console.log('payPeriodEnd:', payPeriodEnd);
+    console.log('employees:', employees);
+    
+    if (selectedEmployees.length === 0) {
+      console.log('❌ Validation failed: No employees selected');
+      toast.error('Missing information', 'Please select at least one employee');
       return;
     }
+    
+    if (!payPeriodStart || !payPeriodEnd) {
+      console.log('❌ Validation failed: Missing pay period dates');
+      toast.error('Missing information', 'Please select a pay period');
+      return;
+    }
+    
+    console.log('✅ Validation passed, proceeding with payroll processing');
 
     setProcessing(true);
     const loadingToastId = toast.loading(
