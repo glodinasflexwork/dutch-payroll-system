@@ -100,6 +100,44 @@ export interface PayslipData {
       thisPeriod: number;
     };
   };
+
+  // ✅ PHASE 1 COMPLIANCE ENHANCEMENTS
+  compliance?: {
+    minimumWage?: {
+      amount: number;
+      ageCategory: string;
+      isCompliant: boolean;
+      complianceMessage: string;
+      monthlyAmount: number;
+    };
+    socialSecurityBreakdown?: {
+      aow: { rate: number; amount: number; description: string };
+      ww: { rate: number; amount: number; description: string };
+      wia: { rate: number; amount: number; description: string };
+      zvw: { rate: number; amount: number; description: string };
+      total: { amount: number; description: string };
+    };
+    workingHours?: {
+      contractHours: { weekly: number; monthly: number; daily: number };
+      actualHours: { regular: number; overtime: number; total: number };
+      workingDays: { contractDays: number; actualDays: number; workingDaysInMonth: number };
+      hourlyRate: { regular: number; overtime: number };
+      compliance: { isCompliant: boolean; message: string };
+    };
+    holidayAllowance?: {
+      statutory: { rate: number; amount: number; description: string };
+      actual: { rate: number; amount: number; description: string };
+      reserve: { accumulated: number; thisMonth: number; paid: number; balance: number };
+      payment: { paymentMonth: number; paymentDate: Date; isPaymentMonth: boolean };
+      compliance: { isCompliant: boolean; message: string };
+    };
+    vacationDays?: {
+      statutory: { daysPerYear: number; description: string };
+      contract: { daysPerYear: number; description: string };
+      balance: { beginning: number; earned: number; used: number; remaining: number };
+      thisMonth: { earned: number; used: number };
+    };
+  };
 }
 
 export function generateProfessionalDutchPayslip(data: PayslipData): string {
