@@ -4,6 +4,10 @@ import { withRetry } from '@/lib/database-retry'
 import { generateProfessionalDutchPayslip, PayslipData } from '@/lib/payslip-template-professional'
 import { formatDutchCurrency, formatDutchDate, generateLoonheffingennummer } from '@/lib/dutch-formatting'
 import { calculateCumulativeData } from '@/lib/cumulative-calculations'
+import { checkMinimumWageCompliance } from '@/lib/dutch-minimum-wage'
+import { calculateSocialSecurityBreakdown } from '@/lib/dutch-social-security'
+import { calculateWorkingHours } from '@/lib/working-hours-calculator'
+import { calculateHolidayAllowance, calculateVacationDays } from '@/lib/holiday-allowance-calculator'
 import path from 'path'
 import fs from 'fs/promises'
 
@@ -207,6 +211,56 @@ export async function generatePayslip(params: PayslipGenerationParams): Promise<
       params.month
     )
 
+    // ✅ PHASE 1 COMPLIANCE ENHANCEMENTS
+    console.log(`📋 Calculating compliance data for ${employee.firstName} ${employee.lastName}`)
+    
+    // 1. Minimum wage compliance check
+    const minimumWageData = checkMinimumWageCompliance(
+      grossPay,
+      employee.dateOfBirth || new Date('1990-01-01'),
+      employee.contractHours || 40,
+      new Date(params.year, params.month - 1, 1)
+    )
+    
+    // 2. Detailed social security breakdown
+    const socialSecurityBreakdown = calculateSocialSecurityBreakdown(grossPay)
+    
+    // 3. Working hours information
+    const workingHoursData = calculateWorkingHours(
+      employee.contractHours || 40,
+      employee.actualHours || employee.contractHours || 176, // Default monthly hours
+      grossPay,
+      params.year,
+      params.month,
+      employee.startDate,
+      undefined // No end date for active employees
+    )
+    
+    // 4. Holiday allowance transparency
+    const holidayAllowanceData = calculateHolidayAllowance(
+      (employee.salary || 42000), // Annual salary
+      grossPay,
+      8.33, // Standard 8.33% rate
+      params.year,
+      params.month,
+      employee.startDate
+    )
+    
+    const vacationDaysData = calculateVacationDays(
+      employee.contractHours || 40,
+      25, // Standard 25 vacation days
+      params.year,
+      params.month,
+      employee.startDate,
+      0 // Vacation days used - would need to be tracked
+    )
+
+    console.log(`✅ Compliance data calculated:`)
+    console.log(`   - Minimum wage: ${minimumWageData.complianceMessage}`)
+    console.log(`   - Social security: €${socialSecurityBreakdown.total.amount.toFixed(2)}`)
+    console.log(`   - Working hours: ${workingHoursData.compliance.message}`)
+    console.log(`   - Holiday allowance: ${holidayAllowanceData.compliance.message}`)
+
     // Create payslip data
     // Prepare data for professional Dutch payslip template
     const payslipData: PayslipData = {
@@ -269,6 +323,20 @@ export async function generatePayslip(params: PayslipGenerationParams): Promise<
           balance: 14.62,
           thisPeriod: 14.62
         }
+      },
+      // ✅ PHASE 1 COMPLIANCE ENHANCEMENTS
+      compliance: {
+        minimumWage: {
+          amount: minimumWageData.amount,
+          ageCategory: minimumWageData.ageCategory,
+          isCompliant: minimumWageData.isCompliant,
+          complianceMessage: minimumWageData.complianceMessage,
+          monthlyAmount: minimumWageData.monthlyAmount
+        },
+        socialSecurityBreakdown,
+        workingHours: workingHoursData,
+        holidayAllowance: holidayAllowanceData,
+        vacationDays: vacationDaysData
       }
     }
 
