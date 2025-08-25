@@ -15,20 +15,19 @@ interface PayslipGenerationParams {
   employeeId: string
   year: number
   month: number
-  companyId: string
+  companyId?: string
 }
 
 interface PayslipGenerationResult {
   success: boolean
   fileName?: string
   filePath?: string
-  error?: string
   payslipGeneration?: any
+  error?: string
 }
 
 /**
- * Generate payslip for an employee and store it
- * This function can be called from payroll processing or on-demand generation
+ * Generate a payslip for an employee for a specific period
  */
 export async function generatePayslip(params: PayslipGenerationParams): Promise<PayslipGenerationResult> {
   try {
@@ -409,4 +408,3 @@ export async function generatePayslip(params: PayslipGenerationParams): Promise<
     }
   }
 }
-
