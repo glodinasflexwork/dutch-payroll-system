@@ -215,7 +215,7 @@ async function findPayrollRecord(context: any) {
   return await withRetry(async () => {
     console.log('🔍 Looking up payroll record')
     
-    return await payrollClient.payrollRecord.findFirst({
+    return await getPayrollClient().payrollRecord.findFirst({
       where: {
         companyId: context.companyId,
         employeeId: context.employeeId,
@@ -310,7 +310,7 @@ async function generateAndSavePayslip(context: any, payrollData: any): Promise<s
  */
 async function createPayslipRecord(context: any, payrollRecordId: string, payslipPath: string) {
   return await withRetry(async () => {
-    return await payrollClient.payslipGeneration.upsert({
+    return await getPayrollClient().payslipGeneration.upsert({
       where: {
         payrollRecordId: payrollRecordId
       },

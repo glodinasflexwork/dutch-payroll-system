@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get company information
-    const company = await payrollClient.company.findUnique({
+    const company = await getPayrollClient().company.findUnique({
       where: { id: session.user.companyId },
       select: {
         name: true,
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     const endDate = new Date(year, month, 0, 23, 59, 59)
 
     // Fetch payroll records for the period
-    const payrollRecords = await payrollClient.payrollRecord.findMany({
+    const payrollRecords = await getPayrollClient().payrollRecord.findMany({
       where: {
         companyId: session.user.companyId,
         payPeriodStart: {

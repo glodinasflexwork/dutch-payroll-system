@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { authClient } from '@/lib/database-clients'
+import { getAuthClient } from '@/lib/database-clients'
 import { sendEmployeeInvitationEmail } from '@/lib/email-service'
 import crypto from 'crypto'
 
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user has permission to invite to this company
-    const userCompany = await authClient.userCompany.findUnique({
+    const userCompany = await getAuthClient().userCompany.findUnique({
       where: {
         userId_companyId: {
           userId: session.user.id,
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is already part of the company
-    const existingUser = await authClient.user.findUnique({
+    const existingUser = await getAuthClient().user.findUnique({
       where: { email },
       include: {
         companies: {
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for existing invitation
-    const existingInvitation = await authClient.companyInvitation.findFirst({
+    const existingInvitation = await getAuthClient().companyInvitation.findFirst({
       where: {
         companyId,
         email,
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
 
     // Create invitation
-    const invitation = await authClient.companyInvitation.create({
+    const invitation = await getAuthClient().companyInvitation.create({
       data: {
         companyId,
         email,

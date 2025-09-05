@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { authClient } from '@/lib/database-clients'
+import { getAuthClient } from '@/lib/database-clients'
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify user has permission for this company
-    const userCompany = await authClient.userCompany.findUnique({
+    const userCompany = await getAuthClient().userCompany.findUnique({
       where: {
         userId_companyId: {
           userId: session.user.id,
@@ -33,20 +33,20 @@ export async function GET(request: NextRequest) {
     }
 
     // Get or create portal access quota for the company
-    let quota = await authClient.portalAccessQuota.findUnique({
+    let quota = await getAuthClient().portalAccessQuota.findUnique({
       where: { companyId }
     })
 
     if (!quota) {
       // Create default quota based on subscription
-      const subscription = await authClient.subscription.findUnique({
+      const subscription = await getAuthClient().subscription.findUnique({
         where: { companyId },
         include: { Plan: true }
       })
 
       const maxPortalUsers = getMaxPortalUsersFromPlan(subscription?.Plan)
 
-      quota = await authClient.portalAccessQuota.create({
+      quota = await getAuthClient().portalAccessQuota.create({
         data: {
           companyId,
           maxPortalUsers,
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get current active portal access billing records
-    const activePortalUsers = await authClient.portalAccessBilling.count({
+    const activePortalUsers = await getAuthClient().portalAccessBilling.count({
       where: {
         companyId,
         status: 'active'
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Get pending invitations
-    const pendingInvitations = await authClient.portalAccessBilling.count({
+    const pendingInvitations = await getAuthClient().portalAccessBilling.count({
       where: {
         companyId,
         status: 'pending'
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Update quota with current counts
-    await authClient.portalAccessQuota.update({
+    await getAuthClient().portalAccessQuota.update({
       where: { companyId },
       data: {
         currentActiveUsers: activePortalUsers,
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
     const canAddEmployee = availableSlots > 0
 
     // Get pricing from plan or default
-    const subscription = await authClient.subscription.findUnique({
+    const subscription = await getAuthClient().subscription.findUnique({
       where: { companyId },
       include: { Plan: true }
     })

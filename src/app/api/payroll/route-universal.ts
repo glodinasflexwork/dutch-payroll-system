@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { payrollClient, hrClient } from "@/lib/database-clients"
+import { getPayrollClient, getHRClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { calculateDutchPayroll, generatePayrollBreakdown, formatCurrency } from "@/lib/payroll-calculations"
 import { ensurePayrollInitialized } from "@/lib/lazy-initialization"
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     console.log(`📊 [PayrollAPI] Calculating payroll for employee: ${employeeId}`)
 
     // Fetch employee data from HR database
-    const employee = await hrClient.employee.findFirst({
+    const employee = await getHRClient().employee.findFirst({
       where: {
         id: employeeId,
         companyId: companyId,
@@ -217,7 +217,7 @@ export async function PUT(request: NextRequest) {
     console.log(`💾 [PayrollAPI] Processing payroll for employee: ${employeeId}`)
 
     // Fetch employee data from HR database
-    const employee = await hrClient.employee.findFirst({
+    const employee = await getHRClient().employee.findFirst({
       where: {
         id: employeeId,
         companyId: companyId,
@@ -277,7 +277,7 @@ export async function PUT(request: NextRequest) {
     const month = payPeriodStartDate.getMonth() + 1
 
     // Check if record already exists for this period
-    const existingRecord = await payrollClient.payrollRecord.findFirst({
+    const existingRecord = await getPayrollClient().payrollRecord.findFirst({
       where: {
         employeeId: employeeId,
         year: year,
@@ -289,7 +289,7 @@ export async function PUT(request: NextRequest) {
       console.log(`🔄 [PayrollAPI] Updating existing payroll record for period: ${year}-${month}`)
       
       // Update existing record with schema-compliant fields
-      const updatedRecord = await payrollClient.payrollRecord.update({
+      const updatedRecord = await getPayrollClient().payrollRecord.update({
         where: { id: existingRecord.id },
         data: {
           period: `${year}-${month.toString().padStart(2, '0')}`,
@@ -325,7 +325,7 @@ export async function PUT(request: NextRequest) {
       console.log(`📝 [PayrollAPI] Creating new payroll record for period: ${year}-${month}`)
       
       // Create new payroll record with schema-compliant fields
-      const payrollRecord = await payrollClient.payrollRecord.create({
+      const payrollRecord = await getPayrollClient().payrollRecord.create({
         data: {
           employeeId: employeeId,
           companyId: companyId,
@@ -437,7 +437,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch payroll records
-    const payrollRecords = await payrollClient.payrollRecord.findMany({
+    const payrollRecords = await getPayrollClient().payrollRecord.findMany({
       where: whereClause,
       orderBy: {
         createdAt: 'desc'
@@ -447,12 +447,12 @@ export async function GET(request: NextRequest) {
     })
 
     // Get total count
-    const totalCount = await payrollClient.payrollRecord.count({
+    const totalCount = await getPayrollClient().payrollRecord.count({
       where: whereClause
     })
 
     // Calculate summary statistics
-    const summary = await payrollClient.payrollRecord.aggregate({
+    const summary = await getPayrollClient().payrollRecord.aggregate({
       where: whereClause,
       _sum: {
         grossSalary: true,

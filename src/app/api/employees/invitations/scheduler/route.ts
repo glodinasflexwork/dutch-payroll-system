@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { hrClient, authClient } from '@/lib/database-clients'
+import { getHRClient, getAuthClient } from '@/lib/database-clients'
 import { sendEmployeeInvitationEmail } from '@/lib/email-service'
 import crypto from 'crypto'
 
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify user has permission for this company
-    const userCompany = await authClient.userCompany.findUnique({
+    const userCompany = await getAuthClient().userCompany.findUnique({
       where: {
         userId_companyId: {
           userId: session.user.id,
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user has permission for this company
-    const userCompany = await authClient.userCompany.findUnique({
+    const userCompany = await getAuthClient().userCompany.findUnique({
       where: {
         userId_companyId: {
           userId: session.user.id,
@@ -238,7 +238,7 @@ async function runInvitationProcess(companyId: string): Promise<any> {
 
   try {
     // Get employees needing invitations
-    const employees = await hrClient.employee.findMany({
+    const employees = await getHRClient().employee.findMany({
       where: {
         companyId,
         isActive: true,
@@ -273,7 +273,7 @@ async function runInvitationProcess(companyId: string): Promise<any> {
         if (!employee.email) continue
 
         // Check for existing invitation
-        const existingInvitation = await authClient.verificationToken.findFirst({
+        const existingInvitation = await getAuthClient().verificationToken.findFirst({
           where: {
             identifier: employee.email,
             expires: {
@@ -292,7 +292,7 @@ async function runInvitationProcess(companyId: string): Promise<any> {
         const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
 
         // Store invitation token
-        await authClient.verificationToken.create({
+        await getAuthClient().verificationToken.create({
           data: {
             identifier: employee.email,
             token: invitationToken,
@@ -312,7 +312,7 @@ async function runInvitationProcess(companyId: string): Promise<any> {
         )
 
         // Update employee status
-        await hrClient.employee.update({
+        await getHRClient().employee.update({
           where: { id: employee.id },
           data: {
             portalAccessStatus: 'INVITED',

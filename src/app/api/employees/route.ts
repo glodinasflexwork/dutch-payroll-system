@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { validateAuth, createCompanyFilter } from "@/lib/auth-utils"
-import { DatabaseClients, hrClient, authClient, getHRClient } from "@/lib/database-clients"
+import { getHRClient, getAuthClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { ensureHRInitialized } from "@/lib/lazy-initialization"
+import { withCache, cacheKeys, invalidateCache } from "@/lib/cache-utils"
 
 /**
  * Generate a unique employee number for a company using a robust approach
@@ -12,7 +13,7 @@ async function generateUniqueEmployeeNumber(companyId: string, maxRetries: numbe
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       // Get all existing employee numbers for this company to find gaps
-      const existingEmployees = await hrClient.employee.findMany({
+      const existingEmployees = await getHRClient().employee.findMany({
         where: { companyId },
         select: { employeeNumber: true },
         orderBy: { employeeNumber: 'asc' }
@@ -40,7 +41,7 @@ async function generateUniqueEmployeeNumber(companyId: string, maxRetries: numbe
       console.log(`Generated employee number: ${employeeNumber} for company: ${companyId}`)
       
       // Double-check that this number doesn't exist (handles race conditions)
-      const existing = await hrClient.employee.findFirst({
+      const existing = await getHRClient().employee.findFirst({
         where: { 
           employeeNumber,
           companyId 
@@ -93,23 +94,51 @@ export async function GET(request: NextRequest) {
     // Ensure HR database is initialized AFTER subscription validation
     await ensureHRInitialized(context.companyId)
 
-    // Use robust HR client connection
-    const hrClientInstance = await getHRClient()
-    const employees = await hrClientInstance.employee.findMany({
-      where: {
-        companyId: context.companyId,
-        isActive: true
-      },
-      orderBy: {
-        employeeNumber: 'asc'
-      }
-    })
+    // Use cache wrapper for employee data
+    const cacheKey = cacheKeys.employeeList(context.companyId)
+    const result = await withCache(cacheKey, async () => {
+      // Use robust HR client connection with optimized query
+      const hrClientInstance = await getHRClient()
+      const employees = await hrClientInstance.employee.findMany({
+        where: {
+          companyId: context.companyId,
+          isActive: true
+        },
+        select: {
+          id: true,
+          employeeNumber: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          position: true,
+          department: true,
+          employmentType: true,
+          salary: true,
+          hourlyRate: true,
+          startDate: true,
+          isActive: true,
+          bsn: true,
+          taxTable: true,
+          // Only select fields needed for employee list
+          // Exclude heavy fields like addresses, emergency contacts, etc.
+        },
+        orderBy: {
+          employeeNumber: 'asc'
+        }
+      })
 
-    console.log('Found employees:', employees.length)
+      return {
+        employees,
+        count: employees.length
+      }
+    }, 3) // Cache for 3 minutes
+
+    console.log('Found employees:', result.count)
 
     return NextResponse.json({
       success: true,
-      employees: employees,
+      employees: result.employees,
       Company: {
         id: context.companyId,
         name: context.companyName
@@ -156,7 +185,7 @@ export async function POST(request: NextRequest) {
     }
 
     // STEP 3: Check employee limits before proceeding
-    const currentEmployeeCount = await hrClient.employee.count({
+    const currentEmployeeCount = await getHRClient().employee.count({
       where: { companyId: context.companyId, isActive: true }
     })
 
@@ -194,7 +223,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if BSN already exists in this company
-    const existingBSN = await hrClient.employee.findFirst({
+    const existingBSN = await getHRClient().employee.findFirst({
       where: { 
         bsn: data.bsn,
         companyId: context.companyId
@@ -209,7 +238,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if email already exists in this company
-    const existingEmail = await hrClient.employee.findFirst({
+    const existingEmail = await getHRClient().employee.findFirst({
       where: { 
         email: data.email,
         companyId: context.companyId
@@ -230,7 +259,7 @@ export async function POST(request: NextRequest) {
       employeeNumber = await generateUniqueEmployeeNumber(context.companyId)
     } else {
       // If employee number is provided, validate it's unique within the company
-      const existingEmployeeNumber = await hrClient.employee.findFirst({
+      const existingEmployeeNumber = await getHRClient().employee.findFirst({
         where: { 
           employeeNumber: employeeNumber,
           companyId: context.companyId
@@ -284,7 +313,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Create new employee using a transaction for better consistency
-    const employee = await hrClient.$transaction(async (tx) => {
+    const employee = await getHRClient().$transaction(async (tx) => {
       // Final check for employee number uniqueness within the transaction
       const existingEmployee = await tx.employee.findFirst({
         where: { 
@@ -363,7 +392,7 @@ export async function POST(request: NextRequest) {
     if (data.sendInvitation) {
       try {
         // Update employee status to INVITED before sending invitation
-        await hrClient.employee.update({
+        await getHRClient().employee.update({
           where: { id: employee.id },
           data: {
             portalAccessStatus: "INVITED",
@@ -384,7 +413,7 @@ export async function POST(request: NextRequest) {
         if (!inviteResponse.ok) {
           console.warn('Failed to send employee invitation, but employee was created successfully');
           // Revert the status if invitation failed
-          await hrClient.employee.update({
+          await getHRClient().employee.update({
             where: { id: employee.id },
             data: {
               portalAccessStatus: "NO_ACCESS",
@@ -397,7 +426,7 @@ export async function POST(request: NextRequest) {
       } catch (inviteError) {
         console.error('Error sending employee invitation:', inviteError);
         // Revert the status if invitation failed
-        await hrClient.employee.update({
+        await getHRClient().employee.update({
           where: { id: employee.id },
           data: {
             portalAccessStatus: "NO_ACCESS",
@@ -408,6 +437,9 @@ export async function POST(request: NextRequest) {
     }
     
     console.log(`Employee created successfully: ${employee.firstName} ${employee.lastName} with ID: ${employee.id}`)
+    
+    // Invalidate relevant caches
+    invalidateCache.employee(context.companyId, employee.id)
     
     return NextResponse.json({
       success: true,
@@ -445,7 +477,7 @@ export async function PUT(request: NextRequest) {
     const data = await request.json()
     
     // Check if employee exists and belongs to the company
-    const existingEmployee = await hrClient.employee.findFirst({
+    const existingEmployee = await getHRClient().employee.findFirst({
       where: {
         id: employeeId,
         companyId: context.companyId
@@ -465,7 +497,7 @@ export async function PUT(request: NextRequest) {
         }, { status: 400 })
       }
       
-      const existingBSN = await hrClient.employee.findFirst({
+      const existingBSN = await getHRClient().employee.findFirst({
         where: { 
           bsn: data.bsn,
           companyId: context.companyId,
@@ -493,7 +525,7 @@ export async function PUT(request: NextRequest) {
     if (data.workingHours !== undefined) updateData.workingHours = parseFloat(data.workingHours) || 40
     
     // Update employee
-    const updatedEmployee = await hrClient.employee.update({
+    const updatedEmployee = await getHRClient().employee.update({
       where: { id: employeeId },
       data: updateData
     })
@@ -530,7 +562,7 @@ export async function DELETE(request: NextRequest) {
     }
     
     // Check if employee exists and belongs to the company
-    const existingEmployee = await hrClient.employee.findFirst({
+    const existingEmployee = await getHRClient().employee.findFirst({
       where: {
         id: employeeId,
         companyId: context.companyId
@@ -542,7 +574,7 @@ export async function DELETE(request: NextRequest) {
     }
     
     // Soft delete by setting isActive to false and endDate to now
-    const updatedEmployee = await hrClient.employee.update({
+    const updatedEmployee = await getHRClient().employee.update({
       where: { id: employeeId },
       data: {
         isActive: false,

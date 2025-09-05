@@ -1,6 +1,6 @@
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { payrollClient, hrClient, checkDatabaseConnections } from "@/lib/database-clients"
+import { getPayrollClient, getHRClient, checkDatabaseConnections } from "@/lib/database-clients"
 import { withRetry, handleDatabaseError } from "@/lib/database-retry"
 import { 
   resolveCompanyFromSession, 
@@ -129,7 +129,7 @@ export async function GET(request: NextRequest) {
 
     // Find the matching payroll record first to get the correct employee mapping
     console.log('🔍 Step 1: Looking up payroll record...')
-    const payrollRecord = await payrollClient.payrollRecord.findFirst({
+    const payrollRecord = await getPayrollClient().payrollRecord.findFirst({
       where: {
         employeeId: validatedData.employeeId,
         year: validatedData.year,
@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
       })
       
       // Try to find any payroll records for this company to debug
-      const anyRecords = await payrollClient.payrollRecord.findMany({
+      const anyRecords = await getPayrollClient().payrollRecord.findMany({
         where: { companyId: companyId },
         take: 3
       })
@@ -176,7 +176,7 @@ export async function GET(request: NextRequest) {
       
       // First try by ID (direct match with payroll record employeeId)
       console.log('🔍 Attempt 1: Direct ID match...')
-      let emp = await hrClient.employee.findFirst({
+      let emp = await getHRClient().employee.findFirst({
         where: {
           id: validatedData.employeeId,
           companyId: companyId,
@@ -196,7 +196,7 @@ export async function GET(request: NextRequest) {
       // If not found by ID and we have payroll record, try by employeeNumber from payroll
       if (!emp && payrollRecord) {
         console.log('🔍 Attempt 2: Employee number from payroll record:', payrollRecord.employeeNumber)
-        emp = await hrClient.employee.findFirst({
+        emp = await getHRClient().employee.findFirst({
           where: {
             employeeNumber: payrollRecord.employeeNumber,
             companyId: companyId,
@@ -216,7 +216,7 @@ export async function GET(request: NextRequest) {
       
       // Final fallback: try treating the employeeId as an employeeNumber
       console.log('🔍 Attempt 3: Treating employeeId as employeeNumber...')
-      emp = await hrClient.employee.findFirst({
+      emp = await getHRClient().employee.findFirst({
         where: {
           employeeNumber: validatedData.employeeId,
           companyId: companyId,
@@ -235,7 +235,7 @@ export async function GET(request: NextRequest) {
       
       // If still not found, show what employees exist
       console.log('❌ Employee not found by any method. Checking available employees...')
-      const availableEmployees = await hrClient.employee.findMany({
+      const availableEmployees = await getHRClient().employee.findMany({
         where: {
           companyId: companyId,
           isActive: true
@@ -256,7 +256,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get company information from HR database
-    const companyDetails = await hrClient.company.findUnique({
+    const companyDetails = await getHRClient().company.findUnique({
       where: { id: companyId }
     })
 
@@ -430,7 +430,7 @@ export async function POST(request: NextRequest) {
       console.log('🔍 Searching for employeeId:', validatedData.employeeId)
       
       // First try by ID (direct match)
-      let emp = await hrClient.employee.findFirst({
+      let emp = await getHRClient().employee.findFirst({
         where: {
           id: validatedData.employeeId,
           companyId: companyId,
@@ -441,7 +441,7 @@ export async function POST(request: NextRequest) {
       // If not found by ID, try by employeeNumber (fallback for payroll records)
       if (!emp) {
         console.log('🔍 Employee not found by ID, trying by employeeNumber')
-        emp = await hrClient.employee.findFirst({
+        emp = await getHRClient().employee.findFirst({
           where: {
             employeeNumber: validatedData.employeeId,
             companyId: companyId,
@@ -463,7 +463,7 @@ export async function POST(request: NextRequest) {
     // Get company information from HR database with retry logic
     const companyDetails = await withRetry(async () => {
       console.log('🏢 Looking up company in HR database')
-      return await hrClient.company.findUnique({
+      return await getHRClient().company.findUnique({
         where: { id: companyId }
       })
     }, { maxRetries: 2, baseDelay: 500 })
@@ -474,7 +474,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find the matching payroll record first for performance optimization
-    const payrollRecord = await payrollClient.payrollRecord.findFirst({
+    const payrollRecord = await getPayrollClient().payrollRecord.findFirst({
       where: {
         employeeId: validatedData.employeeId,
         companyId: companyId,
@@ -700,7 +700,7 @@ export async function POST(request: NextRequest) {
         return null
       }
       
-      return await payrollClient.payslipGeneration.create({
+      return await getPayrollClient().payslipGeneration.create({
         data: {
           payrollRecordId: payrollRecord.id, // Required field
           employeeId: validatedData.employeeId,

@@ -1,384 +1,282 @@
+// Database Clients Utility
+// Provides centralized access to all three databases with proper client initialization
+
 import { PrismaClient as AuthClient } from '@prisma/client'
 import { PrismaClient as HRClient } from '@prisma/hr-client'
 import { PrismaClient as PayrollClient } from '@prisma/payroll-client'
-import { withRetry, createRetryableClient, handleDatabaseError, checkDatabaseHealth } from './database-retry'
 
-// Validate environment variables
-function validateDatabaseUrl(url: string | undefined, name: string): string {
-  if (!url) {
-    throw new Error(`${name} environment variable is not defined`)
-  }
-  
-  if (!url.startsWith('postgresql://') && !url.startsWith('postgres://')) {
-    throw new Error(`${name} must start with postgresql:// or postgres://`)
-  }
-  
-  return url
-}
+// Singleton pattern for database clients
+let authClient: AuthClient | null = null
+let hrClient: HRClient | null = null
+let payrollClient: PayrollClient | null = null
 
-// Get validated database URLs
-const getAuthDatabaseUrl = () => {
-  try {
-    return validateDatabaseUrl(process.env.AUTH_DATABASE_URL, 'AUTH_DATABASE_URL')
-  } catch (error) {
-    console.error('Auth database configuration error:', error)
-    // Fallback to a default URL for build-time (will fail at runtime if not properly configured)
-    return process.env.AUTH_DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder'
-  }
-}
-
-const getHRDatabaseUrl = () => {
-  try {
-    return validateDatabaseUrl(process.env.HR_DATABASE_URL, 'HR_DATABASE_URL')
-  } catch (error) {
-    console.error('HR database configuration error:', error)
-    return process.env.HR_DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder'
-  }
-}
-
-const getPayrollDatabaseUrl = () => {
-  try {
-    return validateDatabaseUrl(process.env.PAYROLL_DATABASE_URL, 'PAYROLL_DATABASE_URL')
-  } catch (error) {
-    console.error('Payroll database configuration error:', error)
-    return process.env.PAYROLL_DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder'
-  }
-}
-
-// Configure auth client with AUTH_DATABASE_URL and connection pooling
-const createAuthClient = () => {
-  try {
-    const baseUrl = getAuthDatabaseUrl()
-    const urlWithPooling = `${baseUrl}?connection_limit=5&pool_timeout=20&connect_timeout=10`
-    
-    const client = new AuthClient({
+/**
+ * Get AUTH Database Client
+ * Handles user authentication, companies, subscriptions
+ */
+export function getAuthClient(): AuthClient {
+  if (!authClient) {
+    authClient = new AuthClient({
       datasources: {
         db: {
-          url: urlWithPooling
+          url: process.env.AUTH_DATABASE_URL
         }
       }
     })
-    
-    // Wrap with retry logic for stability
-    const retryableClient = createRetryableClient(client)
-    
-    // Explicitly connect the client to ensure connection is established
-    client.$connect().catch(error => {
-      console.error('Auth client connection failed:', error)
-    })
-    
-    return retryableClient
-  } catch (error) {
-    console.error('Failed to create auth client:', error)
-    handleDatabaseError(error, 'createAuthClient')
   }
+  return authClient
 }
 
-// Create HR client with connection pooling and explicit connection
-const createHRClient = async () => {
-  try {
-    const baseUrl = getHRDatabaseUrl()
-    const urlWithPooling = `${baseUrl}?connection_limit=5&pool_timeout=20&connect_timeout=10`
-    
-    const client = new HRClient({
+/**
+ * Get HR Database Client
+ * Handles employee records, departments, leave management
+ */
+export function getHRClient(): HRClient {
+  if (!hrClient) {
+    hrClient = new HRClient({
       datasources: {
         db: {
-          url: urlWithPooling
+          url: process.env.HR_DATABASE_URL
         }
       }
     })
-    
-    // Explicitly connect the client to avoid "Engine is not yet connected" errors
-    await client.$connect()
-    console.log('HR client connected successfully')
-    
-    return client
-  } catch (error) {
-    console.error('Failed to create HR client:', error)
-    return new HRClient()
   }
+  return hrClient
 }
 
-// Create Payroll client with connection pooling
-const createPayrollClient = () => {
-  try {
-    const baseUrl = getPayrollDatabaseUrl()
-    const urlWithPooling = `${baseUrl}?connection_limit=5&pool_timeout=20&connect_timeout=10`
-    
-    const client = new PayrollClient({
+/**
+ * Get PAYROLL Database Client
+ * Handles payroll calculations, tax records, payslips
+ */
+export function getPayrollClient(): PayrollClient {
+  if (!payrollClient) {
+    payrollClient = new PayrollClient({
       datasources: {
         db: {
-          url: urlWithPooling
+          url: process.env.PAYROLL_DATABASE_URL
         }
       }
     })
-    
-    // Wrap with retry logic for stability
-    const retryableClient = createRetryableClient(client)
-    
-    // Explicitly connect the client to ensure connection is established
-    client.$connect().catch(error => {
-      console.error('Payroll client connection failed:', error)
-    })
-    
-    return retryableClient
-  } catch (error) {
-    console.error('Failed to create Payroll client:', error)
-    handleDatabaseError(error, 'createPayrollClient')
   }
+  return payrollClient
 }
 
-// Global variable to store database clients
-declare global {
-  var __authClient: AuthClient | undefined
-  var __hrClient: HRClient | undefined
-  var __payrollClient: PayrollClient | undefined
-}
-
-// Auth Database Client (using default @prisma/client with AUTH_DATABASE_URL)
-export const auth = globalThis.__authClient ?? createAuthClient()
-if (process.env.NODE_ENV !== 'production') {
-  globalThis.__authClient = auth
-}
-
-// HR Database Client with robust connection handling
-let hrClientInstance: HRClient | null = null
-let hrConnectionPromise: Promise<HRClient> | null = null
-
-const createHRClientWithRetry = async (): Promise<HRClient> => {
-  const maxRetries = 3
-  let attempt = 0
+/**
+ * Disconnect all database clients
+ * Should be called when shutting down the application
+ */
+export async function disconnectAllClients(): Promise<void> {
+  const promises: Promise<void>[] = []
   
-  while (attempt < maxRetries) {
-    try {
-      const baseUrl = getHRDatabaseUrl()
-      const urlWithPooling = `${baseUrl}?connection_limit=5&pool_timeout=20&connect_timeout=10`
-      
-      const client = new HRClient({
-        datasources: {
-          db: {
-            url: urlWithPooling
-          }
-        }
-      })
-      
-      // Test the connection with a simple query
-      await client.$queryRaw`SELECT 1`
-      console.log(`HR client connected successfully on attempt ${attempt + 1}`)
-      
-      return client
-    } catch (error) {
-      attempt++
-      console.error(`HR client connection attempt ${attempt} failed:`, error)
-      
-      if (attempt >= maxRetries) {
-        console.error('HR client connection failed after all retries')
-        throw error
-      }
-      
-      // Wait before retry (exponential backoff)
-      await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, attempt - 1)))
-    }
+  if (authClient) {
+    promises.push(getAuthClient().$disconnect())
+    authClient = null
   }
   
-  throw new Error('Failed to create HR client after all retries')
-}
-
-export const getHRClient = async (): Promise<HRClient> => {
-  if (hrClientInstance) {
-    try {
-      // Test if existing connection is still alive
-      await hrClientInstance.$queryRaw`SELECT 1`
-      return hrClientInstance
-    } catch (error) {
-      console.warn('Existing HR client connection failed, creating new one')
-      hrClientInstance = null
-      hrConnectionPromise = null
-    }
+  if (hrClient) {
+    promises.push(getHRClient().$disconnect())
+    hrClient = null
   }
   
-  if (!hrConnectionPromise) {
-    hrConnectionPromise = createHRClientWithRetry()
+  if (payrollClient) {
+    promises.push(getPayrollClient().$disconnect())
+    payrollClient = null
   }
   
-  hrClientInstance = await hrConnectionPromise
-  return hrClientInstance
+  await Promise.all(promises)
 }
 
-// Synchronous HR client for backwards compatibility (will connect on first use)
-export const hrClient = (() => {
-  const baseUrl = getHRDatabaseUrl()
-  const urlWithPooling = `${baseUrl}?connection_limit=5&pool_timeout=20&connect_timeout=10`
-  
-  const client = new HRClient({
-    datasources: {
-      db: {
-        url: urlWithPooling
-      }
-    }
-  })
-  
-  // Connect in background but don't block
-  client.$connect()
-    .then(() => console.log('HR client background connection successful'))
-    .catch(error => console.error('HR client background connection failed:', error))
-  
-  return client
-})()
-
-// Payroll Database Client
-export const payrollClient = globalThis.__payrollClient ?? createPayrollClient()
-if (process.env.NODE_ENV !== 'production') {
-  globalThis.__payrollClient = payrollClient
-}
-
-// Helper functions for database operations
-export const DatabaseClients = {
-  auth,
-  hr: hrClient,
-  payroll: payrollClient,
-  
-  // Helper to get user with company information
-  async getUserWithCompany(userId: string) {
-    try {
-      return await auth.user.findUnique({
-        where: { id: userId },
-        include: {
-          Company: true,
-          UserCompany: {
-            include: {
-              Company: true
-            }
-          }
-        }
-      })
-    } catch (error) {
-      console.error('Error fetching user with company:', error)
-      throw error
-    }
-  },
-
-  // Helper to get company subscription
-  async getCompanySubscription(companyId: string) {
-    try {
-      return await auth.subscription.findUnique({
-        where: { companyId },
-        include: {
-          Plan: true,
-          Company: true
-        }
-      })
-    } catch (error) {
-      console.error('Error fetching company subscription:', error)
-      throw error
-    }
-  },
-
-  // Helper to get employee with details
-  async getEmployeeWithDetails(employeeId: string, companyId: string) {
-    try {
-      const employee = await hrClient.employee.findFirst({
-        where: { 
-          id: employeeId,
-          companyId: companyId
-        }
-      })
-      
-      if (!employee) return null
-
-      return employee
-    } catch (error) {
-      console.error('Error fetching employee details:', error)
-      throw error
-    }
-  },
-
-  // Helper to create employee
-  async createEmployeeWithReferences(employeeData: any, companyId: string, createdBy: string) {
-    try {
-      // Create employee in HR database
-      const employee = await hrClient.employee.create({
-        data: {
-          ...employeeData,
-          companyId,
-          createdBy
-        }
-      })
-
-      return employee
-    } catch (error) {
-      console.error('Error creating employee:', error)
-      throw error
-    }
-  },
-
-  // Helper to validate company access
-  async validateCompanyAccess(userId: string, companyId: string) {
-    try {
-      const userCompany = await auth.userCompany.findFirst({
-        where: {
-          userId,
-          companyId,
-          isActive: true
-        }
-      })
-
-      return userCompany !== null
-    } catch (error) {
-      console.error('Error validating company access:', error)
-      throw error
-    }
-  },
-
-  // Helper to get company employees count for subscription limits
-  async getCompanyEmployeeCount(companyId: string) {
-    try {
-      return await hrClient.employee.count({
-        where: {
-          companyId,
-          isActive: true
-        }
-      })
-    } catch (error) {
-      console.error('Error getting company employee count:', error)
-      throw error
-    }
-  }
-}
-
-// Export individual clients for direct use
-export { auth as authClient }
-
-// Health check function to verify database connections
-export async function checkDatabaseConnections() {
+/**
+ * Test all database connections
+ * Returns connection status for each database
+ */
+export async function testAllConnections(): Promise<{
+  auth: { connected: boolean; error?: string }
+  hr: { connected: boolean; error?: string }
+  payroll: { connected: boolean; error?: string }
+}> {
   const results = {
-    auth: false,
-    hr: false,
-    payroll: false,
-    errors: [] as string[]
+    auth: { connected: false, error: undefined as string | undefined },
+    hr: { connected: false, error: undefined as string | undefined },
+    payroll: { connected: false, error: undefined as string | undefined }
   }
 
+  // Test AUTH connection
   try {
+    const auth = getAuthClient()
     await auth.$queryRaw`SELECT 1`
-    results.auth = true
+    results.auth.connected = true
   } catch (error) {
-    results.errors.push(`Auth DB: ${error}`)
+    results.auth.error = error instanceof Error ? error.message : 'Unknown error'
   }
 
+  // Test HR connection
   try {
-    await hrClient.$queryRaw`SELECT 1`
-    results.hr = true
+    const hr = getHRClient()
+    await hr.$queryRaw`SELECT 1`
+    results.hr.connected = true
   } catch (error) {
-    results.errors.push(`HR DB: ${error}`)
+    results.hr.error = error instanceof Error ? error.message : 'Unknown error'
   }
 
+  // Test PAYROLL connection
   try {
-    await payrollClient.$queryRaw`SELECT 1`
-    results.payroll = true
+    const payroll = getPayrollClient()
+    await payroll.$queryRaw`SELECT 1`
+    results.payroll.connected = true
   } catch (error) {
-    results.errors.push(`Payroll DB: ${error}`)
+    results.payroll.error = error instanceof Error ? error.message : 'Unknown error'
   }
 
   return results
 }
 
+/**
+ * Get database statistics
+ * Returns record counts for key tables in each database
+ */
+export async function getDatabaseStatistics(): Promise<{
+  auth: {
+    users: number
+    companies: number
+    subscriptions: number
+  }
+  hr: {
+    employees: number
+    companies: number
+    departments: number
+    leaveRequests: number
+  }
+  payroll: {
+    payrollRecords: number
+    taxCalculations: number
+    payslipGenerations: number
+  }
+}> {
+  const auth = getAuthClient()
+  const hr = getHRClient()
+  const payroll = getPayrollClient()
+
+  const [authStats, hrStats, payrollStats] = await Promise.all([
+    // AUTH statistics
+    Promise.all([
+      auth.user.count(),
+      auth.company.count(),
+      auth.subscription.count()
+    ]).then(([users, companies, subscriptions]) => ({
+      users,
+      companies,
+      subscriptions
+    })),
+
+    // HR statistics
+    Promise.all([
+      hr.employee.count(),
+      hr.company.count(),
+      hr.department.count(),
+      hr.leaveRequest.count()
+    ]).then(([employees, companies, departments, leaveRequests]) => ({
+      employees,
+      companies,
+      departments,
+      leaveRequests
+    })),
+
+    // PAYROLL statistics
+    Promise.all([
+      payroll.payrollRecord.count(),
+      payroll.taxCalculation.count(),
+      payroll.payslipGeneration.count()
+    ]).then(([payrollRecords, taxCalculations, payslipGenerations]) => ({
+      payrollRecords,
+      taxCalculations,
+      payslipGenerations
+    }))
+  ])
+
+  return {
+    auth: authStats,
+    hr: hrStats,
+    payroll: payrollStats
+  }
+}
+
+/**
+ * Database health check
+ * Comprehensive health check for all databases
+ */
+export async function performHealthCheck(): Promise<{
+  status: 'healthy' | 'degraded' | 'unhealthy'
+  databases: {
+    auth: { status: 'up' | 'down'; responseTime: number; error?: string }
+    hr: { status: 'up' | 'down'; responseTime: number; error?: string }
+    payroll: { status: 'up' | 'down'; responseTime: number; error?: string }
+  }
+  timestamp: string
+}> {
+  const startTime = Date.now()
+  
+  const checkDatabase = async (
+    name: string,
+    client: AuthClient | HRClient | PayrollClient
+  ): Promise<{ status: 'up' | 'down'; responseTime: number; error?: string }> => {
+    const dbStartTime = Date.now()
+    try {
+      await client.$queryRaw`SELECT 1`
+      return {
+        status: 'up',
+        responseTime: Date.now() - dbStartTime
+      }
+    } catch (error) {
+      return {
+        status: 'down',
+        responseTime: Date.now() - dbStartTime,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
+  }
+
+  const [authResult, hrResult, payrollResult] = await Promise.all([
+    checkDatabase('auth', getAuthClient()),
+    checkDatabase('hr', getHRClient()),
+    checkDatabase('payroll', getPayrollClient())
+  ])
+
+  const databases = {
+    auth: authResult,
+    hr: hrResult,
+    payroll: payrollResult
+  }
+
+  // Determine overall status
+  const upCount = Object.values(databases).filter(db => db.status === 'up').length
+  let status: 'healthy' | 'degraded' | 'unhealthy'
+  
+  if (upCount === 3) {
+    status = 'healthy'
+  } else if (upCount >= 2) {
+    status = 'degraded'
+  } else {
+    status = 'unhealthy'
+  }
+
+  return {
+    status,
+    databases,
+    timestamp: new Date().toISOString()
+  }
+}
+
+// Export individual clients for backward compatibility
+export { AuthClient, HRClient, PayrollClient }
+
+// Default export for convenience
+export default {
+  getAuthClient,
+  getHRClient,
+  getPayrollClient,
+  disconnectAllClients,
+  testAllConnections,
+  getDatabaseStatistics,
+  performHealthCheck
+}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { authClient } from "@/lib/database-clients"
+import { getAuthClient } from "@/lib/database-clients"
 import { initializeHRDatabase } from "@/lib/lazy-initialization"
 
 /**
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user already has a company
-    const existingUserCompany = await authClient.userCompany.findFirst({
+    const existingUserCompany = await getAuthClient().userCompany.findFirst({
       where: { userId: session.user.id }
     })
 
@@ -181,7 +181,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create company and user-company relationship in a transaction
-    const result = await authClient.$transaction(async (tx) => {
+    const result = await getAuthClient().$transaction(async (tx) => {
       // Create the company
       const company = await tx.company.create({
         data: {

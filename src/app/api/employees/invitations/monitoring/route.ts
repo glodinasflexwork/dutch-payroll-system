@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { hrClient, authClient } from '@/lib/database-clients'
+import { getHRClient, getAuthClient } from '@/lib/database-clients'
 
 interface MonitoringMetrics {
   overview: {
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify user has permission for this company
-    const userCompany = await authClient.userCompany.findUnique({
+    const userCompany = await getAuthClient().userCompany.findUnique({
       where: {
         userId_companyId: {
           userId: session.user.id,
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     const lastNDays = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
 
     // Overview metrics
-    const totalEmployees = await hrClient.employee.count({
+    const totalEmployees = await getHRClient().employee.count({
       where: {
         companyId,
         isActive: true,
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const needingInvitations = await hrClient.employee.count({
+    const needingInvitations = await getHRClient().employee.count({
       where: {
         companyId,
         isActive: true,
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const invited = await hrClient.employee.count({
+    const invited = await getHRClient().employee.count({
       where: {
         companyId,
         isActive: true,
@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const active = await hrClient.employee.count({
+    const active = await getHRClient().employee.count({
       where: {
         companyId,
         isActive: true,
@@ -120,14 +120,14 @@ export async function GET(request: NextRequest) {
     const acceptanceRate = totalEmployees > 0 ? (active / (totalEmployees - needingInvitations)) * 100 : 0
 
     // Recent activity metrics
-    const invitedLast24Hours = await hrClient.employee.count({
+    const invitedLast24Hours = await getHRClient().employee.count({
       where: {
         companyId,
         invitedAt: { gte: last24Hours }
       }
     })
 
-    const invitedLast7Days = await hrClient.employee.count({
+    const invitedLast7Days = await getHRClient().employee.count({
       where: {
         companyId,
         invitedAt: { gte: last7Days }
@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Health checks
-    const stuckInvitations = await hrClient.employee.count({
+    const stuckInvitations = await getHRClient().employee.count({
       where: {
         companyId,
         portalAccessStatus: 'INVITED',
@@ -146,11 +146,11 @@ export async function GET(request: NextRequest) {
     })
 
     // Check for expired tokens
-    const expiredTokensCount = await authClient.verificationToken.count({
+    const expiredTokensCount = await getAuthClient().verificationToken.count({
       where: {
         expires: { lt: now },
         identifier: {
-          in: await hrClient.employee.findMany({
+          in: await getHRClient().employee.findMany({
             where: {
               companyId,
               portalAccessStatus: 'INVITED',
@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Calculate failure rate (employees invited but not active after reasonable time)
-    const failedInvitations = await hrClient.employee.count({
+    const failedInvitations = await getHRClient().employee.count({
       where: {
         companyId,
         portalAccessStatus: 'INVITED',
@@ -210,7 +210,7 @@ export async function GET(request: NextRequest) {
       const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
       const nextDate = new Date(date.getTime() + 24 * 60 * 60 * 1000)
       
-      const sent = await hrClient.employee.count({
+      const sent = await getHRClient().employee.count({
         where: {
           companyId,
           invitedAt: {
@@ -222,7 +222,7 @@ export async function GET(request: NextRequest) {
 
       // For accepted, we need to check when they became active
       // This is a simplified approach - you might want to add an 'acceptedAt' field
-      const accepted = await hrClient.employee.count({
+      const accepted = await getHRClient().employee.count({
         where: {
           companyId,
           portalAccessStatus: 'ACTIVE',
@@ -241,7 +241,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Department breakdown
-    const departmentBreakdown = await hrClient.employee.groupBy({
+    const departmentBreakdown = await getHRClient().employee.groupBy({
       by: ['department'],
       where: {
         companyId,
@@ -255,7 +255,7 @@ export async function GET(request: NextRequest) {
 
     const departmentStats = await Promise.all(
       departmentBreakdown.map(async (dept) => {
-        const invited = await hrClient.employee.count({
+        const invited = await getHRClient().employee.count({
           where: {
             companyId,
             department: dept.department,
@@ -263,7 +263,7 @@ export async function GET(request: NextRequest) {
           }
         })
 
-        const active = await hrClient.employee.count({
+        const active = await getHRClient().employee.count({
           where: {
             companyId,
             department: dept.department,
@@ -345,7 +345,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user has permission for this company
-    const userCompany = await authClient.userCompany.findUnique({
+    const userCompany = await getAuthClient().userCompany.findUnique({
       where: {
         userId_companyId: {
           userId: session.user.id,
@@ -361,7 +361,7 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'cleanup_expired':
         // Clean up expired tokens
-        const deletedTokens = await authClient.verificationToken.deleteMany({
+        const deletedTokens = await getAuthClient().verificationToken.deleteMany({
           where: {
             expires: { lt: new Date() }
           }
@@ -374,7 +374,7 @@ export async function POST(request: NextRequest) {
 
       case 'mark_stuck_as_failed':
         // Mark stuck invitations as needing retry
-        const stuckEmployees = await hrClient.employee.updateMany({
+        const stuckEmployees = await getHRClient().employee.updateMany({
           where: {
             companyId,
             portalAccessStatus: 'INVITED',

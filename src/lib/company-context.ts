@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { authClient } from '@/lib/database-clients'
+import { getAuthClient } from '@/lib/database-clients'
 
 export interface CompanyContext {
   userId: string
@@ -62,7 +62,7 @@ export async function getCompanyContext(
 
     if (!companyId) {
       // Fallback: get user's first company (only if session doesn't have it)
-      const firstUserCompany = await authClient.userCompany.findFirst({
+      const firstUserCompany = await getAuthClient().userCompany.findFirst({
         where: {
           userId: session.user.id,
           isActive: true
@@ -87,7 +87,7 @@ export async function getCompanyContext(
       companyId = firstUserCompany.company.id
       
       // Update user's companyId for future requests
-      await authClient.user.update({
+      await getAuthClient().user.update({
         where: { id: session.user.id },
         data: { companyId: companyId }
       })
@@ -103,7 +103,7 @@ export async function getCompanyContext(
 
     // If we have a companyId but need to verify access (only when switching companies)
     if (requiredCompanyId || request.headers.get('x-company-id')) {
-      const userCompany = await authClient.userCompany.findUnique({
+      const userCompany = await getAuthClient().userCompany.findUnique({
         where: {
           userId_companyId: {
             userId: session.user.id,

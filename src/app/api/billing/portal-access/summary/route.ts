@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { authClient } from '@/lib/database-clients'
+import { getAuthClient } from '@/lib/database-clients'
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify user has permission for this company
-    const userCompany = await authClient.userCompany.findUnique({
+    const userCompany = await getAuthClient().userCompany.findUnique({
       where: {
         userId_companyId: {
           userId: session.user.id,
@@ -33,12 +33,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Get portal access quota
-    const quota = await authClient.portalAccessQuota.findUnique({
+    const quota = await getAuthClient().portalAccessQuota.findUnique({
       where: { companyId }
     })
 
     // Get active portal access billing records
-    const activeUsers = await authClient.portalAccessBilling.findMany({
+    const activeUsers = await getAuthClient().portalAccessBilling.findMany({
       where: {
         companyId,
         status: 'active'
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Get pending invitations
-    const pendingInvitations = await authClient.portalAccessBilling.findMany({
+    const pendingInvitations = await getAuthClient().portalAccessBilling.findMany({
       where: {
         companyId,
         status: 'pending'
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     const pendingRevenue = pendingInvitations.reduce((sum, invitation) => sum + invitation.monthlyRate, 0)
 
     // Get recent billing transactions
-    const recentTransactions = await authClient.portalBillingTransaction.findMany({
+    const recentTransactions = await getAuthClient().portalBillingTransaction.findMany({
       where: {
         PortalAccessBilling: {
           companyId
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
     const outstandingAmount = totalBilled - totalPaid
 
     // Get subscription info for limits
-    const subscription = await authClient.subscription.findUnique({
+    const subscription = await getAuthClient().subscription.findUnique({
       where: { companyId },
       include: { Plan: true }
     })

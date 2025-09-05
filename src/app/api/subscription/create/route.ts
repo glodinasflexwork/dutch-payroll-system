@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { authClient } from "@/lib/database-clients"
+import { getAuthClient } from "@/lib/database-clients"
 import { stripe, createStripeCustomer, createStripeSubscription } from "@/lib/stripe"
 import { z } from "zod"
 
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const validatedData = createSubscriptionSchema.parse(body)
 
     // Check if company already has an active subscription
-    const existingSubscription = await authClient.subscription.findUnique({
+    const existingSubscription = await getAuthClient().subscription.findUnique({
       where: { companyId: session.user.companyId }
     })
 
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the plan details
-    const plan = await authClient.plan.findUnique({
+    const plan = await getAuthClient().plan.findUnique({
       where: { id: validatedData.planId }
     })
 
@@ -46,11 +46,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Get company and user details
-    const company = await authClient.company.findUnique({
+    const company = await getAuthClient().company.findUnique({
       where: { id: session.user.companyId }
     })
 
-    const user = await authClient.user.findUnique({
+    const user = await getAuthClient().user.findUnique({
       where: { id: session.user.id }
     })
 
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create or update subscription in database
-    const subscription = await authClient.subscription.upsert({
+    const subscription = await getAuthClient().subscription.upsert({
       where: { companyId: session.user.companyId },
       create: {
         companyId: session.user.companyId,

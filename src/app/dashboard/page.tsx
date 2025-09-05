@@ -9,6 +9,7 @@ import TrialCountdown from "@/components/trial/TrialCountdown"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { DashboardStatsSkeleton, CardSkeleton, Skeleton } from "@/components/ui/loading-skeleton"
 import { 
   Users, 
   Calculator, 
@@ -75,30 +76,24 @@ export default function Dashboard() {
 
   const fetchDashboardStats = async (primaryCompany?: any) => {
     try {
-      const companyResponse = await fetch("/api/companies")
-      const companyData = await companyResponse.json()
-
-      const employeesResponse = await fetch("/api/employees")
-      const employeesResult = await employeesResponse.json()
-      const employeesData = employeesResult.success ? employeesResult.employees : []
-
-      const payrollResponse = await fetch("/api/payroll")
-      const payrollResult = await payrollResponse.json()
-      const payrollData = payrollResult.success ? payrollResult.records || payrollResult.payrollRecords || [] : []
-
-      const monthlyEmployees = employeesData.filter((emp: any) => emp.employmentType === "monthly").length
-      const hourlyEmployees = employeesData.filter((emp: any) => emp.employmentType === "hourly").length
-
-      const dashboardStats = {
-        totalEmployees: employeesData.length,
-        monthlyEmployees,
-        hourlyEmployees,
-        totalPayrollRecords: payrollData.length,
-        companyName: primaryCompany?.name || companyData.name || "Your Company"
-      }
+      // Use optimized dashboard stats API endpoint
+      const response = await fetch("/api/dashboard/stats")
+      const result = await response.json()
       
-      console.log("Setting dashboard stats:", dashboardStats)
-      setStats(dashboardStats)
+      if (result.success) {
+        const dashboardStats = {
+          totalEmployees: result.totalEmployees,
+          monthlyEmployees: result.monthlyEmployees,
+          hourlyEmployees: result.hourlyEmployees,
+          totalPayrollRecords: result.totalPayrollRecords,
+          companyName: result.companyName
+        }
+        
+        console.log("Dashboard stats loaded:", dashboardStats, result.cached ? "(cached)" : "(fresh)")
+        setStats(dashboardStats)
+      } else {
+        throw new Error(result.error || "Failed to fetch dashboard stats")
+      }
     } catch (error) {
       console.error("Error fetching dashboard stats:", error)
       setStats({
@@ -116,10 +111,32 @@ export default function Dashboard() {
   if (status === "loading" || loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading dashboard...</p>
+        <div className="space-y-6">
+          {/* Trial Banner Skeleton */}
+          <div className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <Skeleton className="h-6 w-48" />
+                  <Skeleton className="h-4 w-64" />
+                </div>
+                <Skeleton className="h-6 w-32" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[...Array(3)].map((_, i) => (
+                  <CardSkeleton key={i} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Stats Grid Skeleton */}
+          <DashboardStatsSkeleton />
+
+          {/* Additional Cards Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <CardSkeleton />
+            <CardSkeleton />
           </div>
         </div>
       </DashboardLayout>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { hrClient } from "@/lib/database-clients"
+import { getHRClient } from "@/lib/database-clients"
 
 // GET /api/employee-portal/leave-requests - Get employee leave requests
 export async function GET(request: NextRequest) {
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify employee exists and has portal access
-    const employee = await hrClient.employee.findUnique({
+    const employee = await getHRClient().employee.findUnique({
       where: { id: employeeId },
       include: { portalAccess: true }
     })
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get leave requests
-    const leaveRequests = await hrClient.leaveRequest.findMany({
+    const leaveRequests = await getHRClient().leaveRequest.findMany({
       where: { employeeId: employeeId },
       include: {
         LeaveType: true
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Get available leave types
-    const leaveTypes = await hrClient.leaveType.findMany({
+    const leaveTypes = await getHRClient().leaveType.findMany({
       where: { 
         companyId: employee.companyId,
         isActive: true 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify employee exists and has portal access
-    const employee = await hrClient.employee.findUnique({
+    const employee = await getHRClient().employee.findUnique({
       where: { id: employeeId },
       include: { portalAccess: true }
     })
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify leave type exists and is active
-    const leaveType = await hrClient.leaveType.findFirst({
+    const leaveType = await getHRClient().leaveType.findFirst({
       where: { 
         id: leaveTypeId,
         companyId: employee.companyId,
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     const days = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1
 
     // Check for overlapping leave requests
-    const overlapping = await hrClient.leaveRequest.findFirst({
+    const overlapping = await getHRClient().leaveRequest.findFirst({
       where: {
         employeeId: employeeId,
         status: { in: ['pending', 'approved'] },
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create leave request
-    const leaveRequest = await hrClient.leaveRequest.create({
+    const leaveRequest = await getHRClient().leaveRequest.create({
       data: {
         employeeId: employeeId,
         leaveTypeId: leaveTypeId,

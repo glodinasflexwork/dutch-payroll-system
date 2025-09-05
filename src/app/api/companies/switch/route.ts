@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { authClient } from '@/lib/database-clients'
+import { getAuthClient } from '@/lib/database-clients'
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user has access to this company
-    const userCompany = await authClient.userCompany.findUnique({
+    const userCompany = await getAuthClient().userCompany.findUnique({
       where: {
         userId_companyId: {
           userId: session.user.id,
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update user's current company in the database
-    await authClient.user.update({
+    await getAuthClient().user.update({
       where: { id: session.user.id },
       data: { companyId: companyId }
     })

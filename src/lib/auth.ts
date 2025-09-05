@@ -3,7 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@next-auth/prisma-adapter"
 import { authPrisma } from "@/lib/auth-prisma"
 import { prisma } from "@/lib/prisma"
-import { authClient } from "@/lib/database-clients"
+import { getAuthClient } from "@/lib/database-clients"
 import bcrypt from "bcryptjs"
 
 export const authOptions: NextAuthOptions = {
@@ -64,14 +64,14 @@ export const authOptions: NextAuthOptions = {
         
         // Fetch user's current company and cache it in the token
         try {
-          const userWithCompany = await authClient.user.findUnique({
+          const userWithCompany = await getAuthClient().user.findUnique({
             where: { id: user.id },
             select: { companyId: true }
           })
 
           if (userWithCompany?.companyId) {
             // Get company details and user role
-            const userCompany = await authClient.userCompany.findUnique({
+            const userCompany = await getAuthClient().userCompany.findUnique({
               where: {
                 userId_companyId: {
                   userId: user.id,
@@ -96,7 +96,7 @@ export const authOptions: NextAuthOptions = {
             }
           } else {
             // Check if user has any companies
-            const firstUserCompany = await authClient.userCompany.findFirst({
+            const firstUserCompany = await getAuthClient().userCompany.findFirst({
               where: {
                 userId: user.id,
                 isActive: true
@@ -116,7 +116,7 @@ export const authOptions: NextAuthOptions = {
 
             if (firstUserCompany) {
               // Update user's companyId and cache in token
-              await authClient.user.update({
+              await getAuthClient().user.update({
                 where: { id: user.id },
                 data: { companyId: firstUserCompany.Company.id }
               })
@@ -142,7 +142,7 @@ export const authOptions: NextAuthOptions = {
         if (session.companyId) {
           // Fetch fresh company data when switching
           try {
-            const userCompany = await authClient.userCompany.findUnique({
+            const userCompany = await getAuthClient().userCompany.findUnique({
               where: {
                 userId_companyId: {
                   userId: token.sub!,

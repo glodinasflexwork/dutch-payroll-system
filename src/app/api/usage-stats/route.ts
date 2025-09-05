@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { hrClient, payrollClient } from "@/lib/database-clients";
+import { getHRClient, getPayrollClient } from "@/lib/database-clients";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const companyId = session.user.companyId;
 
     // Fetch employee count
-    const employeeCount = await hrClient.employee.count({
+    const employeeCount = await getHRClient().employee.count({
       where: {
         companyId: companyId,
         isActive: true
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
-    const payrollCount = await payrollClient.payrollRun.count({
+    const payrollCount = await getPayrollClient().payrollRun.count({
       where: {
         companyId: companyId,
         createdAt: {
@@ -69,8 +69,8 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await hrClient.$disconnect();
-    await payrollClient.$disconnect();
+    await getHRClient().$disconnect();
+    await getPayrollClient().$disconnect();
   }
 }
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { hrClient } from "@/lib/database-clients"
+import { getHRClient } from "@/lib/database-clients"
 
 // PATCH /api/employees/[id]/toggle-status - Toggle employee active status
 export async function PATCH(
@@ -25,7 +25,7 @@ export async function PATCH(
     console.log('Effective Date:', effectiveDate);
     
     // Check if employee exists and belongs to the company
-    const existingEmployee = await hrClient.employee.findFirst({
+    const existingEmployee = await getHRClient().employee.findFirst({
       where: {
         id: id,
         companyId: session.user.companyId
@@ -58,13 +58,13 @@ export async function PATCH(
     }
     
     // Update employee status
-    const updatedEmployee = await hrClient.employee.update({
+    const updatedEmployee = await getHRClient().employee.update({
       where: { id: id },
       data: updateData
     })
     
     // Create audit trail entry
-    await hrClient.employeeHistory.create({
+    await getHRClient().employeeHistory.create({
       data: {
         employeeId: id,
         changeType: newStatus ? "REACTIVATION" : "DEACTIVATION",

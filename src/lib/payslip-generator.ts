@@ -37,7 +37,7 @@ export async function generatePayslip(params: PayslipGenerationParams): Promise<
     const employee = await withRetry(async () => {
       console.log('👤 Looking up employee in HR database')
       
-      let emp = await hrClient.employee.findFirst({
+      let emp = await getHRClient().employee.findFirst({
         where: {
           id: params.employeeId,
           companyId: params.companyId,
@@ -48,7 +48,7 @@ export async function generatePayslip(params: PayslipGenerationParams): Promise<
       // If not found by ID, try by employeeNumber (fallback for payroll records)
       if (!emp) {
         console.log('🔍 Employee not found by ID, trying by employeeNumber')
-        emp = await hrClient.employee.findFirst({
+        emp = await getHRClient().employee.findFirst({
           where: {
             employeeNumber: params.employeeId,
             companyId: params.companyId,
@@ -70,7 +70,7 @@ export async function generatePayslip(params: PayslipGenerationParams): Promise<
     // Get company information from HR database with retry logic
     const company = await withRetry(async () => {
       console.log('🏢 Looking up company in HR database')
-      return await hrClient.company.findUnique({
+      return await getHRClient().company.findUnique({
         where: { id: params.companyId }
       })
     }, { maxRetries: 2, baseDelay: 500 })
@@ -83,7 +83,7 @@ export async function generatePayslip(params: PayslipGenerationParams): Promise<
     // Find the matching payroll record with enhanced lookup strategy
     console.log(`🔍 Looking up payroll record for employee: ${params.employeeId}, period: ${params.year}-${params.month}`)
     
-    let payrollRecord = await payrollClient.payrollRecord.findFirst({
+    let payrollRecord = await getPayrollClient().payrollRecord.findFirst({
       where: {
         employeeId: params.employeeId,
         companyId: params.companyId,
@@ -95,7 +95,7 @@ export async function generatePayslip(params: PayslipGenerationParams): Promise<
     // If not found by employeeId, try by employeeNumber (fallback strategy)
     if (!payrollRecord && employee.employeeNumber) {
       console.log(`🔄 Payroll record not found by employeeId, trying employeeNumber: ${employee.employeeNumber}`)
-      payrollRecord = await payrollClient.payrollRecord.findFirst({
+      payrollRecord = await getPayrollClient().payrollRecord.findFirst({
         where: {
           employeeId: employee.employeeNumber,
           companyId: params.companyId,
@@ -108,7 +108,7 @@ export async function generatePayslip(params: PayslipGenerationParams): Promise<
     // Additional fallback: try by employeeNumber field directly
     if (!payrollRecord && employee.employeeNumber) {
       console.log(`🔄 Trying payroll lookup by employeeNumber field`)
-      payrollRecord = await payrollClient.payrollRecord.findFirst({
+      payrollRecord = await getPayrollClient().payrollRecord.findFirst({
         where: {
           employeeNumber: employee.employeeNumber,
           companyId: params.companyId,
@@ -125,7 +125,7 @@ export async function generatePayslip(params: PayslipGenerationParams): Promise<
       
       // Debug: Let's see what payroll records exist for this company and employee
       console.log(`🔍 Debug: Checking all payroll records for company ${params.companyId}`)
-      const allRecords = await payrollClient.payrollRecord.findMany({
+      const allRecords = await getPayrollClient().payrollRecord.findMany({
         where: { companyId: params.companyId },
         select: { 
           id: true, 
@@ -364,7 +364,7 @@ export async function generatePayslip(params: PayslipGenerationParams): Promise<
       }
       
       // Use upsert to handle both creation and updates
-      return await payrollClient.payslipGeneration.upsert({
+      return await getPayrollClient().payslipGeneration.upsert({
         where: {
           // Create a composite unique identifier
           payrollRecordId: payrollRecord.id

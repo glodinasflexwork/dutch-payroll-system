@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { stripe, STRIPE_CONFIG } from "@/lib/stripe"
-import { authClient } from "@/lib/database-clients"
+import { getAuthClient } from "@/lib/database-clients"
 import Stripe from "stripe"
 
 // POST /api/webhooks/stripe - Handle Stripe webhook events
@@ -79,7 +79,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
 
     // Get plan information
     const priceId = subscription.items.data[0]?.price.id
-    const plan = await authClient.plan.findFirst({
+    const plan = await getAuthClient().plan.findFirst({
       where: { stripePriceId: priceId }
     })
 
@@ -89,7 +89,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
     }
 
     // Update subscription in database
-    await authClient.subscription.upsert({
+    await getAuthClient().subscription.upsert({
       where: { companyId },
       create: {
         companyId,
@@ -128,7 +128,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     }
 
     // Update subscription status to canceled
-    await authClient.subscription.update({
+    await getAuthClient().subscription.update({
       where: { companyId },
       data: {
         status: 'canceled',
@@ -157,7 +157,7 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
     }
 
     // Update subscription status to active
-    await authClient.subscription.update({
+    await getAuthClient().subscription.update({
       where: { companyId },
       data: {
         status: 'active',
@@ -188,7 +188,7 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
     }
 
     // Update subscription status to past_due
-    await authClient.subscription.update({
+    await getAuthClient().subscription.update({
       where: { companyId },
       data: {
         status: 'past_due'

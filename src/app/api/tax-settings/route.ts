@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error }, { status })
     }
 
-    const taxSettings = await payrollClient.taxSettings.findMany({
+    const taxSettings = await getPayrollClient().taxSettings.findMany({
       where: {
         companyId: context.companyId
       },
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     // If setting as active, deactivate other tax settings for this company
     if (isActive) {
-      await payrollClient.taxSettings.updateMany({
+      await getPayrollClient().taxSettings.updateMany({
         where: {
           companyId: context.companyId
         },
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const taxSettings = await payrollClient.taxSettings.create({
+    const taxSettings = await getPayrollClient().taxSettings.create({
       data: {
         companyId: context.companyId,
         taxYear,

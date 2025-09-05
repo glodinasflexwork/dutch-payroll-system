@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { validateAuth } from "@/lib/auth-utils"
-import { hrClient } from "@/lib/database-clients"
+import { getHRClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { ensureHRInitialized } from "@/lib/lazy-initialization"
 
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     // STEP 3: Check employee limits before proceeding
-    const currentEmployeeCount = await hrClient.employee.count({
+    const currentEmployeeCount = await getHRClient().employee.count({
       where: { companyId: context.companyId, isActive: true }
     })
 
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if BSN already exists in this company
-    const existingBSN = await hrClient.employee.findFirst({
+    const existingBSN = await getHRClient().employee.findFirst({
       where: { 
         bsn: data.bsn,
         companyId: context.companyId
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if email already exists in this company
-    const existingEmail = await hrClient.employee.findFirst({
+    const existingEmail = await getHRClient().employee.findFirst({
       where: { 
         email: data.email,
         companyId: context.companyId
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     // Generate unique employee number if not provided
     let employeeNumber = data.employeeNumber
     if (!employeeNumber) {
-      const lastEmployee = await hrClient.employee.findFirst({
+      const lastEmployee = await getHRClient().employee.findFirst({
         where: { companyId: context.companyId },
         orderBy: { employeeNumber: 'desc' }
       })
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get company defaults for working schedule
-    const company = await hrClient.company.findUnique({
+    const company = await getHRClient().company.findUnique({
       where: { id: context.companyId }
     })
 
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
     const workSchedule = data.workSchedule || 'Monday-Friday'
     
     // Create employee and contract in a transaction
-    const result = await hrClient.$transaction(async (tx) => {
+    const result = await getHRClient().$transaction(async (tx) => {
       // Create employee
       const employee = await tx.employee.create({
         data: {

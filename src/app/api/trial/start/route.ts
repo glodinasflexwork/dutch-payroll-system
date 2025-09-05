@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { authClient } from "@/lib/database-clients";
+import { getAuthClient } from "@/lib/database-clients";
 
 
 
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     console.log('Company ID:', session.user.companyId);
 
     // Get company
-    const company = await authClient.company.findUnique({
+    const company = await getAuthClient().company.findUnique({
       where: { id: session.user.companyId },
       include: {
         subscriptions: true
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await authClient.$disconnect();
+    await getAuthClient().$disconnect();
   }
 }
 

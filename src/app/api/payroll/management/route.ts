@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { payrollClient, hrClient } from "@/lib/database-clients"
+import { getPayrollClient, getHRClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { calculateDutchPayroll, generatePayrollBreakdown } from "@/lib/payroll-calculations"
 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     console.log("Query params:", { payPeriodStart, payPeriodEnd })
 
     // Fetch active employees for the company
-    const employees = await hrClient.employee.findMany({
+    const employees = await getHRClient().employee.findMany({
       where: {
         companyId: session.user.companyId,
         isActive: true
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     // If pay period is specified, check for existing payroll records
     let existingRecords: any[] = []
     if (payPeriodStart && payPeriodEnd) {
-      existingRecords = await payrollClient.payrollRecord.findMany({
+      existingRecords = await getPayrollClient().payrollRecord.findMany({
         where: {
           companyId: session.user.companyId,
           payPeriodStart: new Date(payPeriodStart),
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get company data for calculations
-    const company = await hrClient.company.findFirst({
+    const company = await getHRClient().company.findFirst({
       where: { id: session.user.companyId }
     })
 
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
     console.log("🔍 Looking up employees with identifiers:", employeeIds)
     console.log("🔍 Session company ID:", session.user.companyId)
     
-    let employees = await hrClient.employee.findMany({
+    let employees = await getHRClient().employee.findMany({
       where: {
         id: { in: employeeIds },
         // companyId: session.user.companyId, // Temporarily removed for debugging
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
     // If no employees found by ID, try by employeeNumber
     if (employees.length === 0) {
       console.log("🔄 No employees found by ID, trying employeeNumber lookup")
-      employees = await hrClient.employee.findMany({
+      employees = await getHRClient().employee.findMany({
         where: {
           employeeNumber: { in: employeeIds },
           // companyId: session.user.companyId, // Temporarily removed for debugging
@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
 
     if (employees.length === 0) {
       // Additional debugging - check if employees exist without company filter
-      const allEmployees = await hrClient.employee.findMany({
+      const allEmployees = await getHRClient().employee.findMany({
         where: {
           id: { in: employeeIds }
         },
@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch company data
-    const company = await hrClient.company.findFirst({
+    const company = await getHRClient().company.findFirst({
       where: { id: session.user.companyId }
     })
 
@@ -298,7 +298,7 @@ export async function POST(request: NextRequest) {
           const month = payPeriodStartDate.getMonth() + 1
 
           // Check if record already exists using year and month (schema fields)
-          const existingRecord = await payrollClient.payrollRecord.findFirst({
+          const existingRecord = await getPayrollClient().payrollRecord.findFirst({
             where: {
               employeeId: employee.id,
               year: year,
@@ -308,7 +308,7 @@ export async function POST(request: NextRequest) {
 
           if (existingRecord) {
             // Update existing record with schema-compliant fields
-            const updatedRecord = await payrollClient.payrollRecord.update({
+            const updatedRecord = await getPayrollClient().payrollRecord.update({
               where: { id: existingRecord.id },
               data: {
                 employeeNumber: employee.employeeNumber || `EMP${employee.id.slice(-4)}`,
@@ -327,13 +327,13 @@ export async function POST(request: NextRequest) {
             })
 
             // Create or update corresponding PayslipGeneration record
-            const existingPayslipGeneration = await payrollClient.payslipGeneration.findFirst({
+            const existingPayslipGeneration = await getPayrollClient().payslipGeneration.findFirst({
               where: { payrollRecordId: existingRecord.id }
             })
 
             let payslipGeneration
             if (existingPayslipGeneration) {
-              payslipGeneration = await payrollClient.payslipGeneration.update({
+              payslipGeneration = await getPayrollClient().payslipGeneration.update({
                 where: { id: existingPayslipGeneration.id },
                 data: {
                   fileName: `payslip-${employee.employeeNumber || `EMP${employee.id.slice(-4)}`}-${year}-${month.toString().padStart(2, '0')}.html`,
@@ -341,7 +341,7 @@ export async function POST(request: NextRequest) {
                 }
               })
             } else {
-              payslipGeneration = await payrollClient.payslipGeneration.create({
+              payslipGeneration = await getPayrollClient().payslipGeneration.create({
                 data: {
                   payrollRecordId: existingRecord.id,
                   employeeId: employee.id,
@@ -365,7 +365,7 @@ export async function POST(request: NextRequest) {
             })
           } else {
             // Create new payroll record with schema-compliant fields
-            const payrollRecord = await payrollClient.payrollRecord.create({
+            const payrollRecord = await getPayrollClient().payrollRecord.create({
               data: {
                 employeeId: employee.id,
                 employeeNumber: employee.employeeNumber || `EMP${employee.id.slice(-4)}`,
@@ -387,7 +387,7 @@ export async function POST(request: NextRequest) {
             })
 
             // Create corresponding PayslipGeneration record
-            const payslipGeneration = await payrollClient.payslipGeneration.create({
+            const payslipGeneration = await getPayrollClient().payslipGeneration.create({
               data: {
                 payrollRecordId: payrollRecord.id,
                 employeeId: employee.id,

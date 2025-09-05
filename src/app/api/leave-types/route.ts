@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { hrClient } from "@/lib/database-clients"
+import { getHRClient } from "@/lib/database-clients"
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const leaveTypes = await hrClient.leaveType.findMany({
+    const leaveTypes = await getHRClient().leaveType.findMany({
       where: {
         companyId,
         isActive: true
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if code already exists for this company
-    const existingType = await hrClient.leaveType.findUnique({
+    const existingType = await getHRClient().leaveType.findUnique({
       where: {
         companyId_code: {
           companyId,
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const leaveType = await hrClient.leaveType.create({
+    const leaveType = await getHRClient().leaveType.create({
       data: {
         companyId,
         name,

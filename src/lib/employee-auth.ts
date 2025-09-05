@@ -5,7 +5,7 @@
  * with the authentication database, enabling employee portal access.
  */
 
-import { authClient, hrClient } from "@/lib/database-clients";
+import { getAuthClient, getHRClient } from "@/lib/database-clients";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 
@@ -23,7 +23,7 @@ export async function createEmployeeAuthAccount(
 ) {
   try {
     // Check if employee exists in HR database
-    const employee = await hrClient.employee.findUnique({
+    const employee = await getHRClient().employee.findUnique({
       where: { id: employeeId },
     });
 
@@ -32,7 +32,7 @@ export async function createEmployeeAuthAccount(
     }
 
     // Check if user already exists in auth database
-    const existingUser = await authClient.user.findUnique({
+    const existingUser = await getAuthClient().user.findUnique({
       where: { email },
     });
 
@@ -46,7 +46,7 @@ export async function createEmployeeAuthAccount(
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create new user in auth database
-    const user = await authClient.user.create({
+    const user = await getAuthClient().user.create({
       data: {
         id: uuidv4(),
         email,
@@ -59,7 +59,7 @@ export async function createEmployeeAuthAccount(
     });
 
     // Create UserCompany relationship
-    await authClient.userCompany.create({
+    await getAuthClient().userCompany.create({
       data: {
         userId: user.id,
         companyId,
@@ -69,7 +69,7 @@ export async function createEmployeeAuthAccount(
     });
 
     // Update employee record with auth user ID
-    await hrClient.employee.update({
+    await getHRClient().employee.update({
       where: { id: employeeId },
       data: {
         portalAccessStatus: "ACTIVE",
@@ -95,7 +95,7 @@ export async function linkEmployeeToAuthUser(
 ) {
   try {
     // Check if employee exists
-    const employee = await hrClient.employee.findUnique({
+    const employee = await getHRClient().employee.findUnique({
       where: { id: employeeId },
     });
 
@@ -104,7 +104,7 @@ export async function linkEmployeeToAuthUser(
     }
 
     // Check if user exists
-    const user = await authClient.user.findUnique({
+    const user = await getAuthClient().user.findUnique({
       where: { id: userId },
     });
 
@@ -113,7 +113,7 @@ export async function linkEmployeeToAuthUser(
     }
 
     // Check if UserCompany relationship exists
-    const existingUserCompany = await authClient.userCompany.findUnique({
+    const existingUserCompany = await getAuthClient().userCompany.findUnique({
       where: {
         userId_companyId: {
           userId,
@@ -124,7 +124,7 @@ export async function linkEmployeeToAuthUser(
 
     // Create UserCompany relationship if it doesn't exist
     if (!existingUserCompany) {
-      await authClient.userCompany.create({
+      await getAuthClient().userCompany.create({
         data: {
           userId,
           companyId,
@@ -135,7 +135,7 @@ export async function linkEmployeeToAuthUser(
     }
 
     // Update employee record
-    await hrClient.employee.update({
+    await getHRClient().employee.update({
       where: { id: employeeId },
       data: {
         portalAccessStatus: "ACTIVE",
@@ -160,7 +160,7 @@ export async function validateEmployeeInvitationToken(
 ) {
   try {
     // Find token in verification tokens
-    const verificationToken = await authClient.verificationToken.findFirst({
+    const verificationToken = await getAuthClient().verificationToken.findFirst({
       where: {
         token,
         identifier: email,
@@ -175,7 +175,7 @@ export async function validateEmployeeInvitationToken(
     }
 
     // Find employee with this email
-    const employee = await hrClient.employee.findFirst({
+    const employee = await getHRClient().employee.findFirst({
       where: {
         email,
         portalAccessStatus: "INVITED",
@@ -223,7 +223,7 @@ export async function completeEmployeeInvitation(
     );
 
     // Delete the verification token
-    await authClient.verificationToken.deleteMany({
+    await getAuthClient().verificationToken.deleteMany({
       where: {
         token,
         identifier: email,
@@ -243,7 +243,7 @@ export async function completeEmployeeInvitation(
 export async function getEmployeeForAuthUser(userId: string) {
   try {
     // Get user with company
-    const user = await authClient.user.findUnique({
+    const user = await getAuthClient().user.findUnique({
       where: { id: userId },
       include: {
         UserCompany: {
@@ -262,7 +262,7 @@ export async function getEmployeeForAuthUser(userId: string) {
     // Find employee with matching email in the active company
     const companyId = user.companyId || user.UserCompany[0].companyId;
     
-    const employee = await hrClient.employee.findFirst({
+    const employee = await getHRClient().employee.findFirst({
       where: {
         email: user.email,
         companyId,

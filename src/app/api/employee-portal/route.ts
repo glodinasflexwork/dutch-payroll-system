@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { hrClient, payrollClient } from "@/lib/database-clients"
+import { getHRClient, getPayrollClient } from "@/lib/database-clients"
 
 // GET /api/employee-portal - Get employee portal data
 export async function GET(request: NextRequest) {
@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get employee data
-    const employee = await hrClient.employee.findUnique({
+    const employee = await getHRClient().employee.findUnique({
       where: { id: employeeId },
       include: {
         contracts: {
@@ -168,7 +168,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get recent payslips
-    const payslips = await payrollClient.payslipGeneration.findMany({
+    const payslips = await getPayrollClient().payslipGeneration.findMany({
       where: { employeeId: employeeId },
       include: {
         PayrollRecord: true
@@ -178,7 +178,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Get leave types
-    const leaveTypes = await hrClient.leaveType.findMany({
+    const leaveTypes = await getHRClient().leaveType.findMany({
       where: { 
         companyId: employee.companyId,
         isActive: true 

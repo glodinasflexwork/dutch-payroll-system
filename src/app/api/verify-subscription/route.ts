@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { authClient } from "@/lib/database-clients";
+import { getAuthClient } from "@/lib/database-clients";
 import Stripe from 'stripe';
 
 
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get the plan details
-    const plan = await authClient.plan.findUnique({
+    const plan = await getAuthClient().plan.findUnique({
       where: { id: planId }
     });
 
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if subscription already exists in our database
-    let subscription = await authClient.subscription.findFirst({
+    let subscription = await getAuthClient().subscription.findFirst({
       where: {
         stripeSubscriptionId: stripeSubscription.id
       },
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
 
     if (!subscription) {
       // Create new subscription record
-      subscription = await authClient.subscription.create({
+      subscription = await getAuthClient().subscription.create({
         data: {
           companyId: companyId!,
           planId: planId!,
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
       });
 
       // Deactivate any other active subscriptions for this company
-      await authClient.subscription.updateMany({
+      await getAuthClient().subscription.updateMany({
         where: {
           companyId: companyId!,
           id: { not: subscription.id },
@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await authClient.$disconnect();
+    await getAuthClient().$disconnect();
   }
 }
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { hrClient } from "@/lib/database-clients"
+import { getHRClient } from "@/lib/database-clients"
 
 // GET /api/employees/[id] - Get specific employee details
 export async function GET(
@@ -23,7 +23,7 @@ export async function GET(
     console.log('- User Company ID:', session.user.companyId);
 
     // First try to find the employee with the exact company match
-    let employee = await hrClient.employee.findFirst({
+    let employee = await getHRClient().employee.findFirst({
       where: {
         id: id,
         companyId: session.user.companyId
@@ -51,7 +51,7 @@ export async function GET(
       
       // In development, be more lenient and allow viewing any employee
       if (process.env.NODE_ENV !== 'production') {
-        employee = await hrClient.employee.findUnique({
+        employee = await getHRClient().employee.findUnique({
           where: { id: id },
           include: {
             LeaveRequest: {
@@ -117,7 +117,7 @@ export async function PUT(
     console.log('Request data:', JSON.stringify(data, null, 2));
     
     // Check if employee exists and belongs to the company
-    const existingEmployee = await hrClient.employee.findFirst({
+    const existingEmployee = await getHRClient().employee.findFirst({
       where: {
         id: id,
         companyId: session.user.companyId
@@ -139,7 +139,7 @@ export async function PUT(
         }, { status: 400 })
       }
       
-      const existingBSN = await hrClient.employee.findFirst({
+      const existingBSN = await getHRClient().employee.findFirst({
         where: { 
           bsn: data.bsn,
           companyId: session.user.companyId,
@@ -157,7 +157,7 @@ export async function PUT(
     
     // Validate employee number if being updated
     if (data.employeeNumber && data.employeeNumber !== existingEmployee.employeeNumber) {
-      const existingEmployeeNumber = await hrClient.employee.findFirst({
+      const existingEmployeeNumber = await getHRClient().employee.findFirst({
         where: { 
           employeeNumber: data.employeeNumber,
           companyId: session.user.companyId,
@@ -255,7 +255,7 @@ export async function PUT(
     console.log('🔄 Attempting to update employee with data:', JSON.stringify(updateData, null, 2));
     
     // Update employee
-    const updatedEmployee = await hrClient.employee.update({
+    const updatedEmployee = await getHRClient().employee.update({
       where: { id: id },
       data: updateData
     })
@@ -292,7 +292,7 @@ export async function DELETE(
     const { id } = await params
     
     // Check if employee exists and belongs to the company
-    const existingEmployee = await hrClient.employee.findFirst({
+    const existingEmployee = await getHRClient().employee.findFirst({
       where: {
         id: id,
         companyId: session.user.companyId
@@ -305,7 +305,7 @@ export async function DELETE(
     
     // Since we don't have payroll records in the current schema, just soft delete
     // Soft delete by setting isActive to false and endDate to now
-    await hrClient.employee.update({
+    await getHRClient().employee.update({
       where: { id: id },
       data: {
         isActive: false,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { authClient } from "@/lib/database-clients";
+import { getAuthClient } from "@/lib/database-clients";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch available points packages
-    const packages = await authClient.pointsPackage.findMany({
+    const packages = await getAuthClient().pointsPackage.findMany({
       where: {
         isActive: true
       },
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await authClient.$disconnect();
+    await getAuthClient().$disconnect();
   }
 }
 

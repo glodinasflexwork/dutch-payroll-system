@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { authClient } from "@/lib/database-clients";
+import { getAuthClient } from "@/lib/database-clients";
 import Stripe from 'stripe';
 
 
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await authClient.$disconnect();
+    await getAuthClient().$disconnect();
   }
 }
 

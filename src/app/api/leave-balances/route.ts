@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { hrClient } from "@/lib/database-clients"
+import { getHRClient } from "@/lib/database-clients"
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       whereClause.employeeId = employeeId
     }
 
-    const leaveBalances = await hrClient.leaveBalance.findMany({
+    const leaveBalances = await getHRClient().leaveBalance.findMany({
       where: whereClause,
       include: {
         Employee: {
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if balance already exists
-    const existingBalance = await hrClient.leaveBalance.findUnique({
+    const existingBalance = await getHRClient().leaveBalance.findUnique({
       where: {
         employeeId_leaveTypeId_year: {
           employeeId,
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     const carried = carriedOver || 0
     const available = totalEntitled + carried
 
-    const leaveBalance = await hrClient.leaveBalance.create({
+    const leaveBalance = await getHRClient().leaveBalance.create({
       data: {
         employeeId,
         companyId,
@@ -152,7 +152,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Get all active employees for the company
-    const employees = await hrClient.employee.findMany({
+    const employees = await getHRClient().employee.findMany({
       where: {
         companyId,
         isActive: true
@@ -160,7 +160,7 @@ export async function PUT(request: NextRequest) {
     })
 
     // Get all active leave types for the company
-    const leaveTypes = await hrClient.leaveType.findMany({
+    const leaveTypes = await getHRClient().leaveType.findMany({
       where: {
         companyId,
         isActive: true
@@ -172,7 +172,7 @@ export async function PUT(request: NextRequest) {
     for (const employee of employees) {
       for (const leaveType of leaveTypes) {
         // Check if balance already exists
-        const existingBalance = await hrClient.leaveBalance.findUnique({
+        const existingBalance = await getHRClient().leaveBalance.findUnique({
           where: {
             employeeId_leaveTypeId_year: {
               employeeId: employee.id,
@@ -208,7 +208,7 @@ export async function PUT(request: NextRequest) {
     }
 
     if (balancesToCreate.length > 0) {
-      await hrClient.leaveBalance.createMany({
+      await getHRClient().leaveBalance.createMany({
         data: balancesToCreate
       })
     }

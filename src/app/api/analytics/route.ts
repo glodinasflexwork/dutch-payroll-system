@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { validateAuth } from "@/lib/auth-utils"
-import { hrClient, payrollClient } from "@/lib/database-clients"
+import { getHRClient, getPayrollClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 
 export async function GET(request: NextRequest) {
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     console.log("Analytics API - Fetching data for company:", companyId, "from", startDate, "to", endDate)
 
     // Fetch payroll records for the company within date range
-    const payrollRecords = await payrollClient.payrollRecord.findMany({
+    const payrollRecords = await getPayrollClient().payrollRecord.findMany({
       where: {
         companyId: companyId,
         createdAt: {
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
     console.log("Analytics API - Found payroll records:", payrollRecords.length)
 
     // Fetch active employees count
-    const activeEmployees = await hrClient.employee.count({
+    const activeEmployees = await getHRClient().employee.count({
       where: {
         companyId: companyId,
         isActive: true
@@ -159,7 +159,7 @@ export async function GET(request: NextRequest) {
     
     // Get employee details from HR database for department information
     const employeeIds = Array.from(new Set(currentMonthRecords.map(record => record.employeeId)))
-    const employees = await hrClient.employee.findMany({
+    const employees = await getHRClient().employee.findMany({
       where: {
         id: { in: employeeIds },
         companyId: companyId
@@ -184,7 +184,7 @@ export async function GET(request: NextRequest) {
 
     // Employee distribution by employment type
     const employmentTypeData = new Map<string, number>()
-    const allEmployees = await hrClient.employee.findMany({
+    const allEmployees = await getHRClient().employee.findMany({
       where: {
         companyId: companyId,
         isActive: true
