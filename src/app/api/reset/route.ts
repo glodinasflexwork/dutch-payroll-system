@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { authClient } from "@/lib/database-clients"
+import { getAuthClient } from "@/lib/database-clients"
 import bcrypt from "bcryptjs"
 
 // This is a temporary reset endpoint for development
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     console.log("Resetting user:", email)
 
     // Delete existing user and related data
-    const existingUser = await authClient.user.findUnique({
+    const existingUser = await getAuthClient().user.findUnique({
       where: { email },
       include: { Company: true }
     })
@@ -32,35 +32,35 @@ export async function POST(request: NextRequest) {
       // Delete related data in the correct order to avoid foreign key constraints
       if (existingUser.companyId) {
         // Delete payroll records first
-        await authClient.payrollRecord.deleteMany({
+        await getAuthClient().payrollRecord.deleteMany({
           where: { companyId: existingUser.companyId }
         })
         
         // Delete employees
-        await authClient.employee.deleteMany({
+        await getAuthClient().employee.deleteMany({
           where: { companyId: existingUser.companyId }
         })
         
         // Delete tax settings
-        await authClient.taxSettings.deleteMany({
+        await getAuthClient().taxSettings.deleteMany({
           where: { companyId: existingUser.companyId }
         })
         
         // Now delete the company
-        await authClient.company.delete({
+        await getAuthClient().company.delete({
           where: { id: existingUser.companyId }
         })
       }
       
       // Delete user
-      await authClient.user.delete({
+      await getAuthClient().user.delete({
         where: { id: existingUser.id }
       })
     }
 
     // Create new company
     console.log("Creating new company...")
-    const company = await authClient.company.create({
+    const company = await getAuthClient().company.create({
       data: {
         name: companyName,
         country: "Netherlands",
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     // Create new user
     console.log("Creating new user...")
-    const user = await authClient.user.create({
+    const user = await getAuthClient().user.create({
       data: {
         name,
         email,
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     // Create default tax settings
     console.log("Creating default tax settings...")
-    await authClient.taxSettings.create({
+    await getAuthClient().taxSettings.create({
       data: {
         taxYear: 2025,
         

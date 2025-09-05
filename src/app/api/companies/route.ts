@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { validateAuth } from "@/lib/auth-utils"
-import { authClient } from "@/lib/database-clients"
+import { getAuthClient } from "@/lib/database-clients"
 import { z } from "zod"
 
 // Dutch business number validation patterns
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error }, { status })
     }
 
-    const company = await authClient.company.findUnique({
+    const company = await getAuthClient().company.findUnique({
       where: {
         id: context.companyId
       }
@@ -119,7 +119,7 @@ export async function PUT(request: NextRequest) {
     console.log("Validated data:", validatedData)
 
     // Check if company exists
-    const existingCompany = await authClient.company.findUnique({
+    const existingCompany = await getAuthClient().company.findUnique({
       where: {
         id: context.companyId
       }
@@ -130,7 +130,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update the company
-    const updatedCompany = await authClient.company.update({
+    const updatedCompany = await getAuthClient().company.update({
       where: { id: context.companyId },
       data: validatedData
     })

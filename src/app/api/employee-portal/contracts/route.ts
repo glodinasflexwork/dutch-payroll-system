@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { hrClient } from "@/lib/database-clients"
+import { getHRClient } from "@/lib/database-clients"
 import fs from 'fs'
 
 // GET /api/employee-portal/contracts - Get employee contracts
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify employee exists and has portal access
-    const employee = await hrClient.employee.findUnique({
+    const employee = await getHRClient().employee.findUnique({
       where: { id: employeeId },
       include: { portalAccess: true }
     })
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     if (contractId) {
       // Get specific contract
-      const contract = await hrClient.contract.findFirst({
+      const contract = await getHRClient().contract.findFirst({
         where: { 
           id: contractId,
           employeeId: employeeId 
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all contracts for employee
-    const contracts = await hrClient.contract.findMany({
+    const contracts = await getHRClient().contract.findMany({
       where: { 
         employeeId: employeeId,
         isActive: true 
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify employee exists and has portal access
-    const employee = await hrClient.employee.findUnique({
+    const employee = await getHRClient().employee.findUnique({
       where: { id: employeeId },
       include: { portalAccess: true }
     })
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get contract
-    const contract = await hrClient.contract.findFirst({
+    const contract = await getHRClient().contract.findFirst({
       where: { 
         id: contractId,
         employeeId: employeeId,
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update contract with signature
-    const updatedContract = await hrClient.contract.update({
+    const updatedContract = await getHRClient().contract.update({
       where: { id: contractId },
       data: {
         status: 'signed',

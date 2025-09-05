@@ -3,7 +3,7 @@
  * Handles trial creation, validation, and expiration logic
  */
 
-import { authClient } from "@/lib/database-clients";
+import { getAuthClient } from "@/lib/database-clients";
 
 
 
@@ -27,7 +27,7 @@ export async function createTrial(companyId: string): Promise<void> {
   const trialEnd = new Date(now.getTime() + (TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000));
 
   // Find the Free Trial Plan
-  const trialPlan = await authClient.plan.findFirst({
+  const trialPlan = await getAuthClient().plan.findFirst({
     where: { name: 'Free Trial' }
   });
 
@@ -36,7 +36,7 @@ export async function createTrial(companyId: string): Promise<void> {
   }
 
   // Check if subscription already exists for this company
-  const existingSubscription = await authClient.subscription.findFirst({
+  const existingSubscription = await getAuthClient().subscription.findFirst({
     where: { companyId }
   });
 
@@ -46,7 +46,7 @@ export async function createTrial(companyId: string): Promise<void> {
   }
 
   // Create subscription with trial
-  await authClient.subscription.create({
+  await getAuthClient().subscription.create({
     data: {
       companyId,
       planId: trialPlan.id,
@@ -64,7 +64,7 @@ export async function createTrial(companyId: string): Promise<void> {
  * Get trial status for a company
  */
 export async function getTrialStatus(companyId: string): Promise<TrialStatus | null> {
-  const subscription = await authClient.subscription.findFirst({
+  const subscription = await getAuthClient().subscription.findFirst({
     where: { companyId },
     include: { Plan: true }
   });
@@ -113,7 +113,7 @@ export async function hasTrialAccess(companyId: string): Promise<boolean> {
  * Extend trial by additional days (admin function)
  */
 export async function extendTrial(companyId: string, additionalDays: number = 7): Promise<void> {
-  const subscription = await authClient.subscription.findUnique({
+  const subscription = await getAuthClient().subscription.findUnique({
     where: { companyId }
   });
 
@@ -123,7 +123,7 @@ export async function extendTrial(companyId: string, additionalDays: number = 7)
 
   const newTrialEnd = new Date(subscription.trialEnd.getTime() + (additionalDays * 24 * 60 * 60 * 1000));
 
-  await authClient.subscription.update({
+  await getAuthClient().subscription.update({
     where: { companyId },
     data: {
       trialEnd: newTrialEnd,
@@ -143,7 +143,7 @@ export async function convertTrialToPaid(
 ): Promise<void> {
   const now = new Date();
   
-  await authClient.subscription.update({
+  await getAuthClient().subscription.update({
     where: { companyId },
     data: {
       planId,
@@ -159,7 +159,7 @@ export async function convertTrialToPaid(
  * Expire trial and update status
  */
 export async function expireTrial(companyId: string): Promise<void> {
-  await authClient.subscription.update({
+  await getAuthClient().subscription.update({
     where: { companyId },
     data: {
       status: 'trial_expired',
@@ -175,7 +175,7 @@ export async function getExpiringTrials(daysBeforeExpiry: number = 3): Promise<s
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() + daysBeforeExpiry);
 
-  const subscriptions = await authClient.subscription.findMany({
+  const subscriptions = await getAuthClient().subscription.findMany({
     where: {
       isTrialActive: true,
       trialEnd: {
@@ -197,7 +197,7 @@ export async function getExpiringTrials(daysBeforeExpiry: number = 3): Promise<s
 export async function cleanupExpiredTrials(): Promise<number> {
   const now = new Date();
   
-  const result = await authClient.subscription.updateMany({
+  const result = await getAuthClient().subscription.updateMany({
     where: {
       isTrialActive: true,
       trialEnd: {

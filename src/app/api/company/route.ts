@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { authClient } from "@/lib/database-clients"
+import { getAuthClient } from "@/lib/database-clients"
 import { 
   resolveCompanyFromSession, 
   handleCompanyResolutionError,
@@ -137,7 +137,7 @@ export async function PUT(request: NextRequest) {
     console.log(`🔧 [CompanyAPI] Updating company: ${companyId} by user: ${session.user.id}`)
 
     // Update company in auth database
-    const updatedCompany = await authClient.company.update({
+    const updatedCompany = await getAuthClient().company.update({
       where: { id: companyId },
       data: {
         name: updateData.name,

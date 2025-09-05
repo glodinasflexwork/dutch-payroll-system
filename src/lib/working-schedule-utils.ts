@@ -20,7 +20,7 @@ export interface EmployeeWorkingSchedule extends WorkingSchedule {
 export async function getCurrentWorkingSchedule(employeeId: string, companyId: string): Promise<WorkingSchedule | null> {
   try {
     // Get the most recent active employment contract
-    const contract = await hrClient.contract.findFirst({
+    const contract = await getHRClient().contract.findFirst({
       where: {
         employeeId,
         companyId,
@@ -34,7 +34,7 @@ export async function getCurrentWorkingSchedule(employeeId: string, companyId: s
 
     if (!contract) {
       // Fallback to company defaults if no contract found
-      const company = await hrClient.company.findUnique({
+      const company = await getHRClient().company.findUnique({
         where: { id: companyId }
       })
 
@@ -65,7 +65,7 @@ export async function getCurrentWorkingSchedule(employeeId: string, companyId: s
  */
 export async function getWorkingScheduleHistory(employeeId: string, companyId: string): Promise<WorkingSchedule[]> {
   try {
-    const contracts = await hrClient.contract.findMany({
+    const contracts = await getHRClient().contract.findMany({
       where: {
         employeeId,
         companyId,
@@ -94,7 +94,7 @@ export async function getWorkingScheduleHistory(employeeId: string, companyId: s
  */
 export async function getCompanyWorkingSchedules(companyId: string): Promise<EmployeeWorkingSchedule[]> {
   try {
-    const employees = await hrClient.employee.findMany({
+    const employees = await getHRClient().employee.findMany({
       where: {
         companyId,
         isActive: true
@@ -113,7 +113,7 @@ export async function getCompanyWorkingSchedules(companyId: string): Promise<Emp
       }
     })
 
-    const company = await hrClient.company.findUnique({
+    const company = await getHRClient().company.findUnique({
       where: { id: companyId }
     })
 

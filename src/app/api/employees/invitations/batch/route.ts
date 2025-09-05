@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { hrClient, authClient } from '@/lib/database-clients'
+import { getHRClient, getAuthClient } from '@/lib/database-clients'
 import { sendEmployeeInvitationEmail } from '@/lib/email-service'
 import crypto from 'crypto'
 
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user has permission for this company
-    const userCompany = await authClient.userCompany.findUnique({
+    const userCompany = await getAuthClient().userCompany.findUnique({
       where: {
         userId_companyId: {
           userId: session.user.id,
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const employees = await hrClient.employee.findMany({
+    const employees = await getHRClient().employee.findMany({
       where: whereClause,
       select: {
         id: true,
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
           }
 
           // Check for existing invitation
-          const existingInvitation = await authClient.verificationToken.findFirst({
+          const existingInvitation = await getAuthClient().verificationToken.findFirst({
             where: {
               identifier: employee.email,
               expires: {
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
           const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
 
           // Store invitation token
-          const verificationToken = await authClient.verificationToken.create({
+          const verificationToken = await getAuthClient().verificationToken.create({
             data: {
               identifier: employee.email,
               token: invitationToken,
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
             )
 
             // Update employee status
-            await hrClient.employee.update({
+            await getHRClient().employee.update({
               where: { id: employee.id },
               data: {
                 portalAccessStatus: 'INVITED',
@@ -280,7 +280,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify user has permission for this company
-    const userCompany = await authClient.userCompany.findUnique({
+    const userCompany = await getAuthClient().userCompany.findUnique({
       where: {
         userId_companyId: {
           userId: session.user.id,
@@ -294,7 +294,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get employees needing invitations
-    const employeesNeedingInvitations = await hrClient.employee.findMany({
+    const employeesNeedingInvitations = await getHRClient().employee.findMany({
       where: {
         companyId,
         isActive: true,
@@ -319,7 +319,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Get invitation statistics
-    const totalEmployees = await hrClient.employee.count({
+    const totalEmployees = await getHRClient().employee.count({
       where: {
         companyId,
         isActive: true,
@@ -329,7 +329,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const invitedEmployees = await hrClient.employee.count({
+    const invitedEmployees = await getHRClient().employee.count({
       where: {
         companyId,
         isActive: true,
@@ -337,7 +337,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const activeEmployees = await hrClient.employee.count({
+    const activeEmployees = await getHRClient().employee.count({
       where: {
         companyId,
         isActive: true,

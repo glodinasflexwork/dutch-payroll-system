@@ -109,7 +109,7 @@ async function getEmployeeWithRetry(companyId: string, employeeId: string): Prom
       console.log('🔍 Searching for employeeId:', employeeId)
       
       // First try by ID (direct match)
-      let employee = await hrClient.employee.findFirst({
+      let employee = await getHRClient().employee.findFirst({
         where: {
           id: employeeId,
           companyId: companyId,
@@ -120,7 +120,7 @@ async function getEmployeeWithRetry(companyId: string, employeeId: string): Prom
       // If not found by ID, try by employeeNumber (fallback for payroll records)
       if (!employee) {
         console.log('🔍 Employee not found by ID, trying by employeeNumber')
-        employee = await hrClient.employee.findFirst({
+        employee = await getHRClient().employee.findFirst({
           where: {
             employeeNumber: employeeId,
             companyId: companyId,
@@ -132,7 +132,7 @@ async function getEmployeeWithRetry(companyId: string, employeeId: string): Prom
       // If still not found, try partial matches
       if (!employee) {
         console.log('🔍 Employee not found by employeeNumber, trying partial matches')
-        const employees = await hrClient.employee.findMany({
+        const employees = await getHRClient().employee.findMany({
           where: {
             companyId: companyId,
             isActive: true,
@@ -152,7 +152,7 @@ async function getEmployeeWithRetry(companyId: string, employeeId: string): Prom
 
       if (!employee) {
         // Log available employees for debugging
-        const availableEmployees = await hrClient.employee.findMany({
+        const availableEmployees = await getHRClient().employee.findMany({
           where: {
             companyId: companyId,
             isActive: true

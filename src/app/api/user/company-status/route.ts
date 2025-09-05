@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { authClient } from '@/lib/database-clients'
+import { getAuthClient } from '@/lib/database-clients'
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     console.log('Checking company status for user:', session.user.email)
 
     // Check if user has any companies
-    const user = await authClient.user.findUnique({
+    const user = await getAuthClient().user.findUnique({
       where: {
         email: session.user.email
       },

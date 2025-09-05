@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { hrClient } from "@/lib/database-clients"
+import { getHRClient } from "@/lib/database-clients"
 
 // GET /api/employee-portal/time-entries - Get employee time entries
 export async function GET(request: NextRequest) {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify employee exists and has portal access
-    const employee = await hrClient.employee.findUnique({
+    const employee = await getHRClient().employee.findUnique({
       where: { id: employeeId },
       include: { portalAccess: true }
     })
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get time entries
-    const timeEntries = await hrClient.timeEntry.findMany({
+    const timeEntries = await getHRClient().timeEntry.findMany({
       where: { 
         employeeId: employeeId,
         ...dateFilter
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify employee exists and has portal access
-    const employee = await hrClient.employee.findUnique({
+    const employee = await getHRClient().employee.findUnique({
       where: { id: employeeId },
       include: { portalAccess: true }
     })
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if entry already exists for this date
-    const existingEntry = await hrClient.timeEntry.findFirst({
+    const existingEntry = await getHRClient().timeEntry.findFirst({
       where: {
         employeeId: employeeId,
         date: workDate
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create time entry
-    const timeEntry = await hrClient.timeEntry.create({
+    const timeEntry = await getHRClient().timeEntry.create({
       data: {
         employeeId: employeeId,
         date: workDate,
@@ -159,7 +159,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Verify employee exists and has portal access
-    const employee = await hrClient.employee.findUnique({
+    const employee = await getHRClient().employee.findUnique({
       where: { id: employeeId },
       include: { portalAccess: true }
     })
@@ -169,7 +169,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Get existing time entry
-    const existingEntry = await hrClient.timeEntry.findFirst({
+    const existingEntry = await getHRClient().timeEntry.findFirst({
       where: {
         id: timeEntryId,
         employeeId: employeeId
@@ -197,7 +197,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update time entry
-    const updatedEntry = await hrClient.timeEntry.update({
+    const updatedEntry = await getHRClient().timeEntry.update({
       where: { id: timeEntryId },
       data: {
         hoursWorked: hours,

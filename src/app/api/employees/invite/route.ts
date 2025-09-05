@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateAuth } from "@/lib/auth-utils";
-import { hrClient, authClient } from "@/lib/database-clients";
+import { getHRClient, getAuthClient } from "@/lib/database-clients";
 import { BillingGuard } from "@/lib/billingGuard";
 import { sendEmployeeInvitationEmail } from "@/lib/email-service"; // Assuming this service exists or will be created
 
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Employee ID is required" }, { status: 400 });
     }
 
-    const employee = await hrClient.employee.findUnique({
+    const employee = await getHRClient().employee.findUnique({
       where: { id: employeeId, companyId: context.companyId },
     });
 
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     const expires = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours from now
 
     // Store the invitation token in the auth database (VerificationToken model)
-    await authClient.verificationToken.create({
+    await getAuthClient().verificationToken.create({
       data: {
         identifier: employee.email, // Use employee email as identifier
         token: invitationToken,
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     await sendEmployeeInvitationEmail(employee.email, employee.firstName, invitationLink);
 
     // Update employee status in HR database
-    await hrClient.employee.update({
+    await getHRClient().employee.update({
       where: { id: employeeId },
       data: {
         portalAccessStatus: "INVITED",

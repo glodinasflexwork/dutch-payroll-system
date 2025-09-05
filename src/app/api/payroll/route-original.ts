@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { validateAuth } from "@/lib/auth-utils"
-import { payrollClient, hrClient, authClient } from "@/lib/database-clients"
+import { getPayrollClient, getHRClient, getAuthClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { calculateDutchPayroll, generatePayrollBreakdown, formatCurrency } from "@/lib/payroll-calculations"
 import { ensurePayrollInitialized } from "@/lib/lazy-initialization"
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch employee data from HR database
-    const employee = await hrClient.employee.findFirst({
+    const employee = await getHRClient().employee.findFirst({
       where: {
         id: employeeId,
         companyId: context.companyId,
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch company data from auth database
-    const company = await authClient.company.findFirst({
+    const company = await getAuthClient().company.findFirst({
       where: { id: context.companyId }
     })
 
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     const year = payPeriodDate.getFullYear()
     const month = payPeriodDate.getMonth() + 1 // JavaScript months are 0-indexed
     
-    const existingRecord = await payrollClient.payrollRecord.findFirst({
+    const existingRecord = await getPayrollClient().payrollRecord.findFirst({
       where: {
         employeeId: employeeId,
         year: year,
@@ -185,7 +185,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Fetch employee data from HR database
-    const employee = await hrClient.employee.findFirst({
+    const employee = await getHRClient().employee.findFirst({
       where: {
         id: employeeId,
         companyId: context.companyId,
@@ -201,7 +201,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Fetch company data from auth database
-    const company = await authClient.company.findFirst({
+    const company = await getAuthClient().company.findFirst({
       where: { id: context.companyId }
     })
 
@@ -244,7 +244,7 @@ export async function PUT(request: NextRequest) {
     const payrollResult = calculateDutchPayroll(employeeData, companyData)
 
     // Check if record already exists
-    const existingRecord = await payrollClient.payrollRecord.findFirst({
+    const existingRecord = await getPayrollClient().payrollRecord.findFirst({
       where: {
         employeeId: employeeId,
         payPeriodStart: new Date(payPeriodStart),
@@ -254,7 +254,7 @@ export async function PUT(request: NextRequest) {
 
     if (existingRecord) {
       // Update existing record
-      const updatedRecord = await payrollClient.payrollRecord.update({
+      const updatedRecord = await getPayrollClient().payrollRecord.update({
         where: { id: existingRecord.id },
         data: {
           baseSalary: baseSalary,
@@ -285,7 +285,7 @@ export async function PUT(request: NextRequest) {
       })
     } else {
       // Create new payroll record
-      const payrollRecord = await payrollClient.payrollRecord.create({
+      const payrollRecord = await getPayrollClient().payrollRecord.create({
         data: {
           employeeId: employeeId,
           companyId: context.companyId,
@@ -369,7 +369,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch payroll records (employee data is already stored in PayrollRecord)
-    const payrollRecords = await payrollClient.payrollRecord.findMany({
+    const payrollRecords = await getPayrollClient().payrollRecord.findMany({
       where: whereClause,
       include: {
         PayrollBatch: true,
@@ -384,12 +384,12 @@ export async function GET(request: NextRequest) {
     })
 
     // Get total count
-    const totalCount = await payrollClient.payrollRecord.count({
+    const totalCount = await getPayrollClient().payrollRecord.count({
       where: whereClause
     })
 
     // Calculate summary statistics using correct field names
-    const summary = await payrollClient.payrollRecord.aggregate({
+    const summary = await getPayrollClient().payrollRecord.aggregate({
       where: whereClause,
       _sum: {
         grossSalary: true,
@@ -466,7 +466,7 @@ export async function DELETE(request: NextRequest) {
 
     if (deleteAll && payPeriodStart && payPeriodEnd) {
       // Delete all payroll records for a specific pay period
-      const deleteResult = await payrollClient.payrollRecord.deleteMany({
+      const deleteResult = await getPayrollClient().payrollRecord.deleteMany({
         where: {
           companyId: context.companyId,
           payPeriodStart: new Date(payPeriodStart),
@@ -483,7 +483,7 @@ export async function DELETE(request: NextRequest) {
       })
     } else if (payrollRecordId) {
       // Delete specific payroll record
-      const payrollRecord = await payrollClient.payrollRecord.findFirst({
+      const payrollRecord = await getPayrollClient().payrollRecord.findFirst({
         where: {
           id: payrollRecordId,
           companyId: context.companyId
@@ -494,7 +494,7 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ error: "Payroll record not found" }, { status: 404 })
       }
 
-      await payrollClient.payrollRecord.delete({
+      await getPayrollClient().payrollRecord.delete({
         where: { id: payrollRecordId }
       })
 

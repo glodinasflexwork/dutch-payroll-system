@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { payrollClient } from "@/lib/database-clients"
+import { getPayrollClient } from "@/lib/database-clients"
 import { withRetry } from "@/lib/database-retry"
 
 // POST /api/admin/cleanup - Clean up payroll and payslip records for testing
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     // Step 1: Delete PayslipGeneration records first (due to foreign key constraints)
     const deletedPayslips = await withRetry(async () => {
       console.log('🗑️ [AdminCleanup] Deleting PayslipGeneration records...')
-      return await payrollClient.payslipGeneration.deleteMany({
+      return await getPayrollClient().payslipGeneration.deleteMany({
         where: {
           companyId: companyId
         }
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     // Step 2: Delete PayrollRecord records
     const deletedPayrolls = await withRetry(async () => {
       console.log('🗑️ [AdminCleanup] Deleting PayrollRecord records...')
-      return await payrollClient.payrollRecord.deleteMany({
+      return await getPayrollClient().payrollRecord.deleteMany({
         where: {
           companyId: companyId
         }
@@ -47,11 +47,11 @@ export async function POST(request: NextRequest) {
     console.log(`✅ [AdminCleanup] Deleted ${deletedPayrolls.count} PayrollRecord records`)
 
     // Step 3: Verify cleanup
-    const remainingPayrolls = await payrollClient.payrollRecord.count({
+    const remainingPayrolls = await getPayrollClient().payrollRecord.count({
       where: { companyId: companyId }
     })
 
-    const remainingPayslips = await payrollClient.payslipGeneration.count({
+    const remainingPayslips = await getPayrollClient().payslipGeneration.count({
       where: { companyId: companyId }
     })
 
@@ -102,16 +102,16 @@ export async function GET(request: NextRequest) {
 
     const companyId = session.user.companyId
 
-    const payrollCount = await payrollClient.payrollRecord.count({
+    const payrollCount = await getPayrollClient().payrollRecord.count({
       where: { companyId: companyId }
     })
 
-    const payslipCount = await payrollClient.payslipGeneration.count({
+    const payslipCount = await getPayrollClient().payslipGeneration.count({
       where: { companyId: companyId }
     })
 
     // Get recent records for reference
-    const recentPayrolls = await payrollClient.payrollRecord.findMany({
+    const recentPayrolls = await getPayrollClient().payrollRecord.findMany({
       where: { companyId: companyId },
       orderBy: { createdAt: 'desc' },
       take: 5,
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const recentPayslips = await payrollClient.payslipGeneration.findMany({
+    const recentPayslips = await getPayrollClient().payslipGeneration.findMany({
       where: { companyId: companyId },
       orderBy: { createdAt: 'desc' },
       take: 5,

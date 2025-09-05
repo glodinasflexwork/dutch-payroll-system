@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { validateAuth } from "@/lib/auth-utils"
-import { payrollClient } from "@/lib/database-clients"
+import { getPayrollClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 import { calculateDutchPayroll, generatePayrollBreakdown } from "@/lib/payroll-calculations"
 import { ensurePayrollInitialized } from "@/lib/lazy-initialization"
@@ -51,7 +51,7 @@ async function createAuditLog(data: {
   userAgent?: string
 }) {
   try {
-    await payrollClient.payrollAuditLog.create({
+    await getPayrollClient().payrollAuditLog.create({
       data: {
         ...data,
         riskLevel: data.riskLevel || 'low',
@@ -76,7 +76,7 @@ async function createVersionHistory(data: {
   changedFields?: string[]
 }) {
   try {
-    await payrollClient.payrollVersionHistory.create({
+    await getPayrollClient().payrollVersionHistory.create({
       data: {
         ...data,
         changedAt: new Date()
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch employee data with active check
-    const employee = await payrollClient.employee.findFirst({
+    const employee = await getPayrollClient().employee.findFirst({
       where: {
         id: employeeId,
         companyId: context.companyId,
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for existing payroll record
-    const existingRecord = await payrollClient.payrollRecord.findFirst({
+    const existingRecord = await getPayrollClient().payrollRecord.findFirst({
       where: {
         employeeId: employeeId,
         payPeriodStart: new Date(payPeriodStart),
@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
         hasMultipleJobs: false
       }
 
-      const company = await payrollClient.company.findFirst({
+      const company = await getPayrollClient().company.findFirst({
         where: { id: context.companyId }
       })
 
@@ -482,7 +482,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch payroll records with security information
-    const payrollRecords = await payrollClient.payrollRecord.findMany({
+    const payrollRecords = await getPayrollClient().payrollRecord.findMany({
       where: whereClause,
       include: {
         Employee: {
@@ -544,10 +544,10 @@ export async function GET(request: NextRequest) {
       success: true,
       payrollRecords: secureRecords,
       pagination: {
-        total: await payrollClient.payrollRecord.count({ where: whereClause }),
+        total: await getPayrollClient().payrollRecord.count({ where: whereClause }),
         limit,
         offset,
-        hasMore: offset + limit < await payrollClient.payrollRecord.count({ where: whereClause })
+        hasMore: offset + limit < await getPayrollClient().payrollRecord.count({ where: whereClause })
       },
       securitySummary: {
         totalRecords: secureRecords.length,
@@ -584,7 +584,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Fetch existing record with security checks
-    const existingRecord = await payrollClient.payrollRecord.findFirst({
+    const existingRecord = await getPayrollClient().payrollRecord.findFirst({
       where: {
         id: payrollRecordId,
         companyId: context.companyId
@@ -631,7 +631,7 @@ export async function PUT(request: NextRequest) {
     })
 
     // Update the record
-    const updatedRecord = await payrollClient.payrollRecord.update({
+    const updatedRecord = await getPayrollClient().payrollRecord.update({
       where: { id: payrollRecordId },
       data: {
         ...updates,

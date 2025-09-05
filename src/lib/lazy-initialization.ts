@@ -7,7 +7,7 @@
  * SYSTEM-WIDE FIX: Robust initialization that works for ALL companies
  */
 
-import { hrClient } from './database-clients'
+import { getHRClient, getAuthClient } from './database-clients'
 
 /**
  * System-wide robust HR database initialization
@@ -18,7 +18,7 @@ export async function initializeHRDatabase(companyId: string) {
     console.log(`🔄 Starting HR database initialization for company: ${companyId}`)
 
     // Step 1: Check if HR company record already exists
-    const existingHRCompany = await hrClient.company.findUnique({
+    const existingHRCompany = await getHRClient().company.findUnique({
       where: { id: companyId },
       include: {
         leaveTypes: true
@@ -41,10 +41,7 @@ export async function initializeHRDatabase(companyId: string) {
     // Step 2: Get company name from auth database for proper initialization
     let companyName = "Company" // Default fallback
     try {
-      const { PrismaClient: AuthClient } = await import('@prisma/client')
-      const authClient = new AuthClient()
-      
-      const authCompany = await authClient.company.findUnique({
+      const authCompany = await getAuthClient().company.findUnique({
         where: { id: companyId },
         select: { name: true }
       })
@@ -52,8 +49,6 @@ export async function initializeHRDatabase(companyId: string) {
       if (authCompany?.name) {
         companyName = authCompany.name
       }
-      
-      await authClient.$disconnect()
     } catch (authError) {
       console.warn(`⚠️ Could not fetch company name from auth database: ${authError}`)
       // Continue with default name - this is not a critical failure
@@ -92,7 +87,7 @@ async function createHRCompanyWithRetry(companyId: string, companyName: string, 
       console.log(`🔄 HR company creation attempt ${attempt}/${maxRetries}`)
       
       // Use transaction to ensure atomicity
-      const hrCompany = await hrClient.$transaction(async (tx) => {
+      const hrCompany = await getHRClient().$transaction(async (tx) => {
         // Create company with all required fields
         const company = await tx.company.create({
           data: {
@@ -219,18 +214,15 @@ async function validateAndFixHRCompany(hrCompany: any) {
 
   try {
     // Fix the issues
-    const fixedCompany = await hrClient.$transaction(async (tx) => {
+    const fixedCompany = await getHRClient().$transaction(async (tx) => {
       // Update company name if needed
       let updatedCompany = hrCompany
       if (issues.includes('Invalid company name')) {
         try {
-          const { PrismaClient: AuthClient } = await import('@prisma/client')
-          const authClient = new AuthClient()
-          const authCompany = await authClient.company.findUnique({
+          const authCompany = await getAuthClient().company.findUnique({
             where: { id: hrCompany.id },
             select: { name: true }
           })
-          await authClient.$disconnect()
           
           if (authCompany?.name) {
             updatedCompany = await tx.company.update({
@@ -303,7 +295,7 @@ async function attemptHRDatabaseRecovery(companyId: string, originalError: any) 
 
   try {
     // Check if the company was partially created
-    const partialCompany = await hrClient.company.findUnique({
+    const partialCompany = await getHRClient().company.findUnique({
       where: { id: companyId },
       include: { leaveTypes: true }
     })
@@ -320,12 +312,12 @@ async function attemptHRDatabaseRecovery(companyId: string, originalError: any) 
     console.log(`🧹 Cleaning up any partial data and recreating...`)
     
     // Clean up any orphaned leave types
-    await hrClient.leaveType.deleteMany({
+    await getHRClient().leaveType.deleteMany({
       where: { companyId: companyId }
     })
 
     // Clean up partial company record
-    await hrClient.company.deleteMany({
+    await getHRClient().company.deleteMany({
       where: { id: companyId }
     })
 
@@ -352,7 +344,7 @@ export async function ensureHRInitialized(companyId: string) {
  */
 export async function getCompanyInitializationStatus(companyId: string) {
   try {
-    const hrCompany = await hrClient.company.findUnique({ 
+    const hrCompany = await getHRClient().company.findUnique({ 
       where: { id: companyId },
       include: { leaveTypes: true }
     })

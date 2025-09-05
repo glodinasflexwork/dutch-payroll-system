@@ -1,4 +1,4 @@
-import { authClient, hrClient } from './database-clients'
+import { getAuthClient, getHRClient } from './database-clients'
 
 export interface CompanyData {
   id: string
@@ -162,7 +162,7 @@ export class UniversalCompanyResolver {
    */
   private async getUserCompanies(userId: string) {
     try {
-      const userCompanies = await authClient.userCompany.findMany({
+      const userCompanies = await getAuthClient().userCompany.findMany({
         where: {
           userId: userId,
           isActive: true
@@ -190,13 +190,13 @@ export class UniversalCompanyResolver {
   private async validateAndGetCompanyData(companyId: string): Promise<CompanyData | null> {
     try {
       // Try auth database first
-      let company = await authClient.company.findUnique({
+      let company = await getAuthClient().company.findUnique({
         where: { id: companyId }
       })
 
       // Fallback to HR database
       if (!company) {
-        company = await hrClient.company.findUnique({
+        company = await getHRClient().company.findUnique({
           where: { id: companyId }
         })
       }

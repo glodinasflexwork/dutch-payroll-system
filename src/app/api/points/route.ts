@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { authClient } from "@/lib/database-clients";
+import { getAuthClient } from "@/lib/database-clients";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user's company
-    const userCompany = await authClient.userCompany.findFirst({
+    const userCompany = await getAuthClient().userCompany.findFirst({
       where: {
         userId: session.user.id,
         isActive: true
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     if (!companyPoints) {
       // Create initial points record if it doesn't exist
-      const newCompanyPoints = await authClient.companyPoints.create({
+      const newCompanyPoints = await getAuthClient().companyPoints.create({
         data: {
           companyId: userCompany.Company.id,
           pointsBalance: 0,
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await authClient.$disconnect();
+    await getAuthClient().$disconnect();
   }
 }
 
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     const { type, amount, description, payrollRunId } = await request.json();
 
     // Get user's company
-    const userCompany = await authClient.userCompany.findFirst({
+    const userCompany = await getAuthClient().userCompany.findFirst({
       where: {
         userId: session.user.id,
         isActive: true
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     // Create points record if it doesn't exist
     if (!companyPoints) {
-      companyPoints = await authClient.companyPoints.create({
+      companyPoints = await getAuthClient().companyPoints.create({
         data: {
           companyId: userCompany.Company.id,
           pointsBalance: 0,
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
       companyPoints.totalUsed;
 
     // Update points balance and create transaction
-    const result = await authClient.$transaction(async (tx) => {
+    const result = await getAuthClient().$transaction(async (tx) => {
       // Update company points
       const updatedPoints = await tx.companyPoints.update({
         where: { id: companyPoints.id },
@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await authClient.$disconnect();
+    await getAuthClient().$disconnect();
   }
 }
 

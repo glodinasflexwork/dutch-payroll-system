@@ -37,7 +37,7 @@ export async function PUT(
     }
 
     // Check if the tax settings belongs to the user's company
-    const existingSettings = await payrollClient.taxSettings.findFirst({
+    const existingSettings = await getPayrollClient().taxSettings.findFirst({
       where: {
         id: params.id,
         companyId: session.user.companyId
@@ -50,7 +50,7 @@ export async function PUT(
 
     // If setting as active, deactivate other tax settings for this company
     if (isActive) {
-      await payrollClient.taxSettings.updateMany({
+      await getPayrollClient().taxSettings.updateMany({
         where: {
           companyId: session.user.companyId,
           id: { not: params.id }
@@ -61,7 +61,7 @@ export async function PUT(
       })
     }
 
-    const updatedSettings = await payrollClient.taxSettings.update({
+    const updatedSettings = await getPayrollClient().taxSettings.update({
       where: {
         id: params.id
       },
@@ -101,7 +101,7 @@ export async function DELETE(
     }
 
     // Check if the tax settings belongs to the user's company
-    const existingSettings = await payrollClient.taxSettings.findFirst({
+    const existingSettings = await getPayrollClient().taxSettings.findFirst({
       where: {
         id: params.id,
         companyId: session.user.companyId
@@ -112,7 +112,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Tax settings not found" }, { status: 404 })
     }
 
-    await payrollClient.taxSettings.delete({
+    await getPayrollClient().taxSettings.delete({
       where: {
         id: params.id
       }

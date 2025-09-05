@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { authClient, hrClient } from '@/lib/database-clients'
+import { getAuthClient, getHRClient } from '@/lib/database-clients'
 import { sendEmployeeInvitationEmail } from '@/lib/email-service'
 import crypto from 'crypto'
 
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user has permission for this company
-    const userCompany = await authClient.userCompany.findUnique({
+    const userCompany = await getAuthClient().userCompany.findUnique({
       where: {
         userId_companyId: {
           userId: session.user.id,
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get employee details from HR database
-    const employee = await hrClient.employee.findUnique({
+    const employee = await getHRClient().employee.findUnique({
       where: { id: employeeId },
       select: {
         id: true,
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if billing record already exists
-    const existingBilling = await authClient.portalAccessBilling.findUnique({
+    const existingBilling = await getAuthClient().portalAccessBilling.findUnique({
       where: {
         companyId_employeeId: {
           companyId,
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
     const nextBillingDate = new Date(startDate)
     nextBillingDate.setMonth(nextBillingDate.getMonth() + 1)
 
-    const portalBilling = await authClient.portalAccessBilling.create({
+    const portalBilling = await getAuthClient().portalAccessBilling.create({
       data: {
         companyId,
         employeeId,
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
         const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
 
         // Store invitation token
-        await authClient.verificationToken.create({
+        await getAuthClient().verificationToken.create({
           data: {
             identifier: employee.email,
             token: invitationToken,
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
         )
 
         // Update employee status in HR database
-        await hrClient.employee.update({
+        await getHRClient().employee.update({
           where: { id: employeeId },
           data: {
             portalAccessStatus: 'INVITED',
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
         })
 
         // Update portal billing record
-        await authClient.portalAccessBilling.update({
+        await getAuthClient().portalAccessBilling.update({
           where: { id: portalBilling.id },
           data: {
             invitationSentAt: new Date()
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
         })
 
         // Update quota statistics
-        await authClient.portalAccessQuota.update({
+        await getAuthClient().portalAccessQuota.update({
           where: { companyId },
           data: {
             totalInvitationsSent: {
@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
         console.error('Error sending invitation email:', emailError)
         
         // Rollback the billing record if email fails
-        await authClient.portalAccessBilling.delete({
+        await getAuthClient().portalAccessBilling.delete({
           where: { id: portalBilling.id }
         })
 

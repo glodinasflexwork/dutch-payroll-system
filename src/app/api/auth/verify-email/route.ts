@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authClient } from '@/lib/database-clients';
+import { getAuthClient } from '@/lib/database-clients';
 import crypto from 'crypto';
 
 export async function POST(request: NextRequest) {
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find the verification token
-    const verificationToken = await authClient.verificationToken.findUnique({
+    const verificationToken = await getAuthClient().verificationToken.findUnique({
       where: { token }
     });
 
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     // Check if token is expired
     if (verificationToken.expires < new Date()) {
       // Clean up expired token
-      await authClient.verificationToken.delete({
+      await getAuthClient().verificationToken.delete({
         where: { token }
       });
       
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find the user by email (identifier in verification token)
-    const user = await authClient.user.findUnique({
+    const user = await getAuthClient().user.findUnique({
       where: { email: verificationToken.identifier }
     });
 
@@ -51,13 +51,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Update user as verified
-    await authClient.user.update({
+    await getAuthClient().user.update({
       where: { id: user.id },
       data: { emailVerified: new Date() }
     });
 
     // Clean up the verification token
-    await authClient.verificationToken.delete({
+    await getAuthClient().verificationToken.delete({
       where: { token }
     });
 
@@ -81,12 +81,12 @@ export async function generateVerificationToken(email: string): Promise<string> 
   const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
   // Clean up any existing tokens for this email
-  await authClient.verificationToken.deleteMany({
+  await getAuthClient().verificationToken.deleteMany({
     where: { identifier: email }
   });
 
   // Create new verification token
-  await authClient.verificationToken.create({
+  await getAuthClient().verificationToken.create({
     data: {
       identifier: email,
       token,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { authClient, hrClient } from '@/lib/database-clients'
+import { getAuthClient, getHRClient } from '@/lib/database-clients'
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all companies the user has access to
-    const userCompanies = await authClient.userCompany.findMany({
+    const userCompanies = await getAuthClient().userCompany.findMany({
       where: {
         userId: session.user.id,
         isActive: true
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     // Get real-time employee counts from HR database
     const companyIds = userCompanies.map(uc => uc.Company.id)
-    const employeeCounts = await hrClient.employee.groupBy({
+    const employeeCounts = await getHRClient().employee.groupBy({
       by: ['companyId'],
       where: {
         companyId: { in: companyIds },
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
 
     // Always fetch current company from database, not from session
     // This ensures we get the latest company selection after switching
-    const user = await authClient.user.findUnique({
+    const user = await getAuthClient().user.findUnique({
       where: { id: session.user.id },
       select: { companyId: true }
     })
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   } finally {
-    await hrClient.$disconnect()
+    await getHRClient().$disconnect()
   }
 }
 

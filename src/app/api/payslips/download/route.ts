@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { payrollClient } from "@/lib/database-clients"
+import { getPayrollClient } from "@/lib/database-clients"
 import { withRetry } from "@/lib/database-retry"
 import { 
   resolveCompanyFromSession, 
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
 
     // Find the PayslipGeneration record
     let payslipGeneration = await withRetry(async () => {
-      return await payrollClient.payslipGeneration.findFirst({
+      return await getPayrollClient().payslipGeneration.findFirst({
         where: {
           employeeId: employeeId,
           companyId: companyId,
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
       
       // First, verify the PayrollRecord exists
       const payrollRecord = await withRetry(async () => {
-        return await payrollClient.payrollRecord.findFirst({
+        return await getPayrollClient().payrollRecord.findFirst({
           where: {
             employeeId: employeeId,
             companyId: companyId,
@@ -157,7 +157,7 @@ export async function GET(request: NextRequest) {
       
       // Update download timestamp
       await withRetry(async () => {
-        await payrollClient.payslipGeneration.update({
+        await getPayrollClient().payslipGeneration.update({
           where: { id: payslipGeneration.id },
           data: { downloadedAt: new Date() }
         })
@@ -208,7 +208,7 @@ export async function GET(request: NextRequest) {
         
         // Update download timestamp
         await withRetry(async () => {
-          await payrollClient.payslipGeneration.update({
+          await getPayrollClient().payslipGeneration.update({
             where: { id: payslipGeneration.id },
             data: { downloadedAt: new Date() }
           })
@@ -289,7 +289,7 @@ export async function POST(request: NextRequest) {
 
     // Check if PayslipGeneration record exists
     const payslipGeneration = await withRetry(async () => {
-      return await payrollClient.payslipGeneration.findFirst({
+      return await getPayrollClient().payslipGeneration.findFirst({
         where: {
           employeeId: employeeId,
           companyId: companyId,

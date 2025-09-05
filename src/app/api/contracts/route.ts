@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { validateAuth } from "@/lib/auth-utils"
-import { hrClient } from "@/lib/database-clients"
+import { getHRClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 
 // GET /api/contracts - Get all contracts for the current company
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get contracts
-    const contracts = await hrClient.contract.findMany({
+    const contracts = await getHRClient().contract.findMany({
       where: filter,
       include: {
         Employee: {
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if employee exists and belongs to the company
-    const employee = await hrClient.employee.findFirst({
+    const employee = await getHRClient().employee.findFirst({
       where: {
         id: data.employeeId,
         companyId: context.companyId
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Get company defaults for working schedule
-    const company = await hrClient.company.findUnique({
+    const company = await getHRClient().company.findUnique({
       where: { id: context.companyId }
     })
 
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     const workSchedule = data.workSchedule || 'Monday-Friday'
     
     // Create contract
-    const contract = await hrClient.contract.create({
+    const contract = await getHRClient().contract.create({
       data: {
         employeeId: data.employeeId,
         contractType: data.contractType,
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     
     // If this is a new employment contract and it's active, update employee's working hours
     if (data.contractType === 'employment' && data.isActive !== false) {
-      await hrClient.employee.update({
+      await getHRClient().employee.update({
         where: { id: data.employeeId },
         data: {
           workingHours: workingHoursPerWeek // Update for backward compatibility
@@ -172,7 +172,7 @@ export async function PUT(request: NextRequest) {
     const data = await request.json()
     
     // Check if contract exists and belongs to the company
-    const existingContract = await hrClient.contract.findFirst({
+    const existingContract = await getHRClient().contract.findFirst({
       where: {
         id: contractId,
         companyId: context.companyId
@@ -191,7 +191,7 @@ export async function PUT(request: NextRequest) {
     if (data.signedAt) updateData.signedAt = new Date(data.signedAt)
     
     // Update contract
-    const updatedContract = await hrClient.contract.update({
+    const updatedContract = await getHRClient().contract.update({
       where: { id: contractId },
       data: updateData
     })
@@ -202,7 +202,7 @@ export async function PUT(request: NextRequest) {
       existingContract.contractType === 'employment' && 
       existingContract.isActive
     ) {
-      await hrClient.employee.update({
+      await getHRClient().employee.update({
         where: { id: existingContract.employeeId },
         data: {
           workingHours: parseFloat(data.workingHoursPerWeek) // Update for backward compatibility

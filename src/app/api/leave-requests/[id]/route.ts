@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { hrClient } from "@/lib/database-clients"
+import { getHRClient } from "@/lib/database-clients"
 
 export async function PUT(
   request: NextRequest,
@@ -24,7 +24,7 @@ export async function PUT(
     }
 
     // Check if leave request exists
-    const existingRequest = await hrClient.leaveRequest.findUnique({
+    const existingRequest = await getHRClient().leaveRequest.findUnique({
       where: { id: leaveRequestId },
       include: {
         Employee: true,
@@ -58,7 +58,7 @@ export async function PUT(
       updateData.approvedAt = new Date()
     }
 
-    const updatedRequest = await hrClient.leaveRequest.update({
+    const updatedRequest = await getHRClient().leaveRequest.update({
       where: { id: leaveRequestId },
       data: updateData,
       include: {
@@ -88,7 +88,7 @@ export async function PUT(
     // If approved, update leave balance
     if (action === 'approve') {
       try {
-        await hrClient.leaveBalance.updateMany({
+        await getHRClient().leaveBalance.updateMany({
           where: {
             employeeId: existingRequest.employeeId,
             leaveTypeId: existingRequest.leaveTypeId,

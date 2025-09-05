@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
-import { authClient } from '@/lib/database-clients'
+import { getAuthClient } from '@/lib/database-clients'
 
 export interface SubscriptionLimits {
   maxEmployees?: number
@@ -118,7 +118,7 @@ export async function validateSubscription(companyId: string) {
   try {
     console.log(`🔍 Validating subscription for company: ${companyId}`)
     
-    const company = await authClient.company.findUnique({
+    const company = await getAuthClient().company.findUnique({
       where: { id: companyId },
       include: {
         Subscription: {
@@ -136,7 +136,7 @@ export async function validateSubscription(companyId: string) {
         console.log(`✅ Trial subscription created for company: ${companyId}`)
         
         // Re-fetch the company with the new subscription
-        const updatedCompany = await authClient.company.findUnique({
+        const updatedCompany = await getAuthClient().company.findUnique({
           where: { id: companyId },
           include: {
             Subscription: {
@@ -287,7 +287,7 @@ async function ensureTrialSubscription(companyId: string) {
   console.log(`🔧 Ensuring trial subscription for company: ${companyId}`)
   
   // Find the canonical trial plan
-  const trialPlan = await authClient.plan.findFirst({
+  const trialPlan = await getAuthClient().plan.findFirst({
     where: { 
       name: "Free Trial",
       isActive: true 
@@ -301,7 +301,7 @@ async function ensureTrialSubscription(companyId: string) {
   const now = new Date()
   const trialEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000) // 14 days from now
 
-  await authClient.subscription.create({
+  await getAuthClient().subscription.create({
     data: {
       companyId: companyId,
       planId: trialPlan.id,

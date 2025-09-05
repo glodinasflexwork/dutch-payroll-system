@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { authClient } from "@/lib/database-clients";
+import { getAuthClient } from "@/lib/database-clients";
 import Stripe from 'stripe';
 
 
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get company with Stripe customer ID
-    const company = await authClient.company.findUnique({
+    const company = await getAuthClient().company.findUnique({
       where: { id: session.user.companyId }
     });
 
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await authClient.$disconnect();
+    await getAuthClient().$disconnect();
   }
 }
 

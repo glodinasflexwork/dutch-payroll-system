@@ -41,7 +41,7 @@ export async function calculateCumulativeData(
       console.log(`📊 Querying payroll records from ${year}-01 through ${year}-${month.toString().padStart(2, '0')}`)
       
       // Try multiple lookup strategies to find payroll records
-      let records = await payrollClient.payrollRecord.findMany({
+      let records = await getPayrollClient().payrollRecord.findMany({
         where: {
           employeeId: employeeId,
           companyId: companyId,
@@ -63,7 +63,7 @@ export async function calculateCumulativeData(
         
         // Get employee info to find employeeNumber
         const { hrClient } = require('@/lib/database-clients')
-        const employee = await hrClient.employee.findFirst({
+        const employee = await getHRClient().employee.findFirst({
           where: {
             id: employeeId,
             companyId: companyId,
@@ -75,7 +75,7 @@ export async function calculateCumulativeData(
           console.log(`🔍 Trying lookup by employeeNumber: ${employee.employeeNumber}`)
           
           // Try by employeeId field matching employeeNumber
-          records = await payrollClient.payrollRecord.findMany({
+          records = await getPayrollClient().payrollRecord.findMany({
             where: {
               employeeId: employee.employeeNumber,
               companyId: companyId,
@@ -93,7 +93,7 @@ export async function calculateCumulativeData(
 
           // Try by employeeNumber field
           if (records.length === 0) {
-            records = await payrollClient.payrollRecord.findMany({
+            records = await getPayrollClient().payrollRecord.findMany({
               where: {
                 employeeNumber: employee.employeeNumber,
                 companyId: companyId,
@@ -233,7 +233,7 @@ export async function validateCumulativeCalculations(
     const discrepancies: string[] = []
 
     // Get individual records for validation
-    const payrollRecords = await payrollClient.payrollRecord.findMany({
+    const payrollRecords = await getPayrollClient().payrollRecord.findMany({
       where: {
         employeeId: employeeId,
         companyId: companyId,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/lib/auth"
-import { payrollClient } from "@/lib/database-clients"
+import { getPayrollClient } from "@/lib/database-clients"
 import { validateSubscription } from "@/lib/subscription"
 
 export type PayrollStatus = 
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify payroll records belong to the company
-    const payrollRecords = await payrollClient.payrollRecord.findMany({
+    const payrollRecords = await getPayrollClient().payrollRecord.findMany({
       where: {
         id: { in: payrollRecordIds },
         companyId: session.user.companyId
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     for (const payrollRecord of payrollRecords) {
       try {
         // Get or create approval workflow
-        let approval = await payrollClient.payrollApproval.findFirst({
+        let approval = await getPayrollClient().payrollApproval.findFirst({
           where: { payrollRecordId: payrollRecord.id }
         })
 
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
 
         // Create or update approval record
         if (!approval) {
-          approval = await payrollClient.payrollApproval.create({
+          approval = await getPayrollClient().payrollApproval.create({
             data: {
               payrollRecordId: payrollRecord.id,
               companyId: session.user.companyId,
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
             }
           })
         } else {
-          approval = await payrollClient.payrollApproval.update({
+          approval = await getPayrollClient().payrollApproval.update({
             where: { id: approval.id },
             data: {
               status: newStatus,
@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Create history entry
-        await payrollClient.payrollApprovalHistory.create({
+        await getPayrollClient().payrollApprovalHistory.create({
           data: {
             payrollApprovalId: approval.id,
             action: action,
@@ -294,7 +294,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch approval workflows
-    const approvals = await payrollClient.payrollApproval.findMany({
+    const approvals = await getPayrollClient().payrollApproval.findMany({
       where: approvalWhere,
       include: {
         payrollRecord: {
@@ -356,7 +356,7 @@ export async function GET(request: NextRequest) {
     const filteredApprovals = approvals.filter(approval => approval.payrollRecord)
 
     // Get total count
-    const totalCount = await payrollClient.payrollApproval.count({
+    const totalCount = await getPayrollClient().payrollApproval.count({
       where: {
         ...approvalWhere,
         payrollRecord: payrollWhere
@@ -364,7 +364,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Get status summary
-    const statusSummary = await payrollClient.payrollApproval.groupBy({
+    const statusSummary = await getPayrollClient().payrollApproval.groupBy({
       by: ['status'],
       where: {
         ...approvalWhere,

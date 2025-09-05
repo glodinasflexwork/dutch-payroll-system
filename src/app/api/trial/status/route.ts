@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { authClient } from '@/lib/database-clients';
+import { getAuthClient } from '@/lib/database-clients';
 import { getTrialStatus } from '@/lib/trial';
 import { validateSubscription } from '@/lib/subscription';
 
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     // Step 1: Check if session companyId exists and has active trial
     if (companyId) {
       try {
-        resolvedCompany = await authClient.company.findUnique({
+        resolvedCompany = await getAuthClient().company.findUnique({
           where: { id: companyId },
           include: {
             Subscription: true,
@@ -34,10 +34,10 @@ export async function GET(request: NextRequest) {
           }
         });
         
-        if (resolvedCompany && resolvedCompany.Subscription?.isTrialActive) {
-          console.log(`[TRIAL API] Session company found with active trial: ${resolvedCompany.name}`);
+        if (resolvedCompany && (resolvedCompany.Subscription?.isTrialActive || resolvedCompany.Subscription?.status === 'active')) {
+          console.log(`[TRIAL API] Session company found with active subscription: ${resolvedCompany.name}`);
         } else if (resolvedCompany) {
-          console.log(`[TRIAL API] Session company found but no active trial: ${resolvedCompany.name}`);
+          console.log(`[TRIAL API] Session company found but no active subscription: ${resolvedCompany.name}`);
           resolvedCompany = null; // Reset to trigger fallback
         } else {
           console.log(`[TRIAL API] Session company not found: ${companyId}`);
@@ -51,14 +51,14 @@ export async function GET(request: NextRequest) {
     // Step 2: Fallback to user's primary companyId if session company invalid
     if (!resolvedCompany) {
       console.log(`[TRIAL API] Falling back to user's primary company`);
-      const user = await authClient.user.findUnique({
+      const user = await getAuthClient().user.findUnique({
         where: { id: session.user.id },
         select: { companyId: true }
       });
       
       if (user?.companyId && user.companyId !== companyId) {
         try {
-          resolvedCompany = await authClient.company.findUnique({
+          resolvedCompany = await getAuthClient().company.findUnique({
             where: { id: user.companyId },
             include: {
               Subscription: true,
@@ -69,8 +69,8 @@ export async function GET(request: NextRequest) {
             }
           });
           
-          if (resolvedCompany?.Subscription?.isTrialActive) {
-            console.log(`[TRIAL API] User's primary company has active trial: ${resolvedCompany.name}`);
+          if (resolvedCompany?.Subscription?.isTrialActive || resolvedCompany?.Subscription?.status === 'active') {
+            console.log(`[TRIAL API] User's primary company has active subscription: ${resolvedCompany.name}`);
             companyId = user.companyId;
           } else {
             resolvedCompany = null;
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     // Step 3: Final fallback - find ANY company user has access to with active trial
     if (!resolvedCompany) {
       console.log(`[TRIAL API] Final fallback - searching all user companies for active trial`);
-      const userCompanies = await authClient.userCompany.findMany({
+      const userCompanies = await getAuthClient().userCompany.findMany({
         where: { userId: session.user.id },
         include: {
           Company: {
@@ -95,20 +95,20 @@ export async function GET(request: NextRequest) {
         }
       });
       
-      // Find first company with active trial
-      const companyWithTrial = userCompanies.find(uc => 
-        uc.Company.Subscription?.isTrialActive
+      // Find first company with active trial or paid subscription
+      const companyWithSubscription = userCompanies.find(uc => 
+        uc.Company.Subscription?.isTrialActive || uc.Company.Subscription?.status === 'active'
       );
       
-      if (companyWithTrial) {
-        resolvedCompany = companyWithTrial.Company;
+      if (companyWithSubscription) {
+        resolvedCompany = companyWithSubscription.Company;
         companyId = resolvedCompany.id;
-        console.log(`[TRIAL API] Found company with active trial: ${resolvedCompany.name} (${companyId})`);
+        console.log(`[TRIAL API] Found company with active subscription: ${resolvedCompany.name} (${companyId})`);
       }
     }
 
     if (!companyId || !resolvedCompany) {
-      console.log(`[TRIAL API] No company with active trial found for user`);
+      console.log(`[TRIAL API] No company with active subscription found for user`);
       return NextResponse.json({ 
         trial: {
           isActive: false,

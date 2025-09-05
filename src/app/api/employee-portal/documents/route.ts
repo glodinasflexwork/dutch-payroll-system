@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hrClient } from '@/lib/database-clients'
+import { getHRClient } from '@/lib/database-clients'
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch employee documents
-    const documents = await hrClient.document.findMany({
+    const documents = await getHRClient().document.findMany({
       where: {
         employeeId: employeeId
       },
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     const filePath = `/documents/${employeeId}/${fileName}`
 
     // Create document record
-    const document = await hrClient.document.create({
+    const document = await getHRClient().document.create({
       data: {
         employeeId,
         documentType: documentType as any,
@@ -112,7 +112,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Verify document belongs to employee
-    const document = await hrClient.document.findFirst({
+    const document = await getHRClient().document.findFirst({
       where: {
         id: documentId,
         employeeId: employeeId
@@ -127,7 +127,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete document record
-    await hrClient.document.delete({
+    await getHRClient().document.delete({
       where: {
         id: documentId
       }

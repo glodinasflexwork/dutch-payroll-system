@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { hrClient, payrollClient } from "@/lib/database-clients"
+import { getHRClient, getPayrollClient } from "@/lib/database-clients"
 import fs from 'fs'
 import path from 'path'
 
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify employee exists and has portal access
-    const employee = await hrClient.employee.findUnique({
+    const employee = await getHRClient().employee.findUnique({
       where: { id: employeeId }
     })
 
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     if (payslipId) {
       // Get specific payslip for download
-      const payslip = await payrollClient.payslipGeneration.findFirst({
+      const payslip = await getPayrollClient().payslipGeneration.findFirst({
         where: { 
           id: payslipId,
           employeeId: employeeId 
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
       if (download && payslip.filePath) {
         // Update download timestamp
-        await payrollClient.payslipGeneration.update({
+        await getPayrollClient().payslipGeneration.update({
           where: { id: payslipId },
           data: { downloadedAt: new Date() }
         })
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all payslips for employee
-    const payslips = await payrollClient.payslipGeneration.findMany({
+    const payslips = await getPayrollClient().payslipGeneration.findMany({
       where: { employeeId: employeeId },
       include: {
         PayrollRecord: true

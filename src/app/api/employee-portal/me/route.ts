@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getEmployeeForAuthUser } from "@/lib/employee-auth";
-import { hrClient, payrollClient } from "@/lib/database-clients";
+import { getHRClient, getPayrollClient } from "@/lib/database-clients";
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get employee's contract for working schedule information
-    const contract = await hrClient.contract.findFirst({
+    const contract = await getHRClient().contract.findFirst({
       where: {
         employeeId: employee.id,
         isActive: true,
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Get employee's documents
-    const documents = await hrClient.document.findMany({
+    const documents = await getHRClient().document.findMany({
       where: {
         employeeId: employee.id,
       },
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Get employee's leave requests
-    const leaveRequests = await hrClient.leaveRequest.findMany({
+    const leaveRequests = await getHRClient().leaveRequest.findMany({
       where: {
         employeeId: employee.id,
       },
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Get employee's payslips
-    const payrollRecords = await payrollClient.payrollRecord.findMany({
+    const payrollRecords = await getPayrollClient().payrollRecord.findMany({
       where: {
         employeeId: employee.id,
       },

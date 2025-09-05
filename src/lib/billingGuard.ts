@@ -1,8 +1,8 @@
-import { authClient } from "./database-clients";
+import { getAuthClient } from "./database-clients";
 
 export class BillingGuard {
   public static async canAddEmployeeUser(companyId: string): Promise<{ canAdd: boolean; reason: string }> {
-    const subscription = await authClient.subscription.findUnique({
+    const subscription = await getAuthClient().subscription.findUnique({
       where: { companyId },
       include: { plan: true },
     });
@@ -12,7 +12,7 @@ export class BillingGuard {
     }
 
     // Count active users associated with this company in the auth database
-    const activeAuthUserCount = await authClient.user.count({
+    const activeAuthUserCount = await getAuthClient().user.count({
       where: {
         companyId: companyId,
         // Assuming 'employee' role implies an active portal user

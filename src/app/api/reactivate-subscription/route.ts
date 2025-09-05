@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { authClient } from "@/lib/database-clients";
+import { getAuthClient } from "@/lib/database-clients";
 import Stripe from 'stripe';
 
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify the subscription belongs to the user's company
-    const subscription = await authClient.subscription.findFirst({
+    const subscription = await getAuthClient().subscription.findFirst({
       where: {
         stripeSubscriptionId: subscriptionId,
         companyId: session.user.companyId
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Update the subscription in our database
-    await authClient.subscription.update({
+    await getAuthClient().subscription.update({
       where: { id: subscription.id },
       data: {
         cancelAtPeriodEnd: false,
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await authClient.$disconnect();
+    await getAuthClient().$disconnect();
   }
 }
 

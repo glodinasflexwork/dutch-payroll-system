@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { authClient } from '@/lib/database-clients'
+import { getAuthClient } from '@/lib/database-clients'
 
 export interface AuthContext {
   userId: string
@@ -17,7 +17,7 @@ export interface AuthContext {
  */
 async function setUserCompanyContext(userId: string): Promise<string | null> {
   try {
-    return await authClient.$transaction(async (tx) => {
+    return await getAuthClient().$transaction(async (tx) => {
       console.log(`🔄 Setting company context for user: ${userId}`)
       
       // Get user's current company context
@@ -72,7 +72,7 @@ async function setUserCompanyContext(userId: string): Promise<string | null> {
  */
 async function validateCompanyContext(userId: string, companyId: string): Promise<boolean> {
   try {
-    const userCompany = await authClient.userCompany.findUnique({
+    const userCompany = await getAuthClient().userCompany.findUnique({
       where: {
         userId_companyId: {
           userId: userId,
@@ -146,7 +146,7 @@ export async function getAuthContext(request: NextRequest): Promise<AuthContext 
     // Get user's current company with enhanced error handling
     let user
     try {
-      user = await authClient.user.findUnique({
+      user = await getAuthClient().user.findUnique({
         where: { id: session.user.id },
         select: { 
           id: true,
@@ -185,7 +185,7 @@ export async function getAuthContext(request: NextRequest): Promise<AuthContext 
     // Get user's role and company info
     let userCompany
     try {
-      userCompany = await authClient.userCompany.findUnique({
+      userCompany = await getAuthClient().userCompany.findUnique({
         where: {
           userId_companyId: {
             userId: session.user.id,
