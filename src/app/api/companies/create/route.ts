@@ -142,7 +142,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user already has a company
-    const existingUserCompany = await getAuthClient().userCompany.findFirst({
+    const authClient = await getAuthClient()
+    const existingUserCompany = await authClient.userCompany.findFirst({
       where: { userId: session.user.id }
     })
 
@@ -181,7 +182,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create company and user-company relationship in a transaction
-    const result = await getAuthClient().$transaction(async (tx) => {
+    const result = await authClient.$transaction(async (tx) => {
       // Create the company
       const company = await tx.company.create({
         data: {

@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
     console.log('Checking company status for user:', session.user.email)
 
     // Check if user has any companies
-    const user = await getAuthClient().user.findUnique({
+    const authClient = await getAuthClient()
+    const user = await authClient.user.findUnique({
       where: {
         email: session.user.email
       },

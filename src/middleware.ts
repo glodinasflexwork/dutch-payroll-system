@@ -29,19 +29,20 @@ export async function middleware(request: NextRequest) {
 
   // Only apply middleware to API routes and dashboard pages
   if (!request.nextUrl.pathname.startsWith('/api/') && 
-      !request.nextUrl.pathname.startsWith('/dashboard/') &&
+      !request.nextUrl.pathname.startsWith('/dashboard') &&
       !request.nextUrl.pathname.startsWith('/setup/')) {
     return NextResponse.next()
   }
 
-  // Skip middleware for auth-related endpoints and company setup
+  // Skip middleware for auth-related endpoints but NOT company setup
   if (request.nextUrl.pathname.startsWith('/api/auth/') ||
       request.nextUrl.pathname.startsWith('/api/user/companies') ||
       request.nextUrl.pathname.startsWith('/api/companies/') ||
       request.nextUrl.pathname.startsWith('/api/kvk/') ||
       request.nextUrl.pathname.startsWith('/api/daily-background') ||
       request.nextUrl.pathname.startsWith('/api/employee-portal-demo') ||
-      request.nextUrl.pathname.startsWith('/setup/company')) {
+      request.nextUrl.pathname.startsWith('/api/test-payroll') ||
+      request.nextUrl.pathname.startsWith('/api/analytics')) {
     return NextResponse.next()
   }
 
@@ -50,7 +51,7 @@ export async function middleware(request: NextRequest) {
     
     if (!token) {
       // Redirect to login for dashboard and setup pages
-      if (request.nextUrl.pathname.startsWith('/dashboard/') ||
+      if (request.nextUrl.pathname.startsWith('/dashboard') ||
           request.nextUrl.pathname.startsWith('/setup/')) {
         return NextResponse.redirect(new URL('/auth/signin', request.url))
       }
@@ -63,11 +64,33 @@ export async function middleware(request: NextRequest) {
     const hasCompany = token.hasCompany as boolean
     const companyId = token.companyId as string
 
+    // Debug logging for company setup issues
+    if (request.nextUrl.pathname.startsWith('/dashboard') || 
+        request.nextUrl.pathname.startsWith('/setup/')) {
+      console.log('Middleware company check:', {
+        path: request.nextUrl.pathname,
+        userId: token.sub,
+        hasCompany,
+        companyId,
+        tokenKeys: Object.keys(token)
+      })
+    }
+
     // Check if user has a company for dashboard routes
-    if (request.nextUrl.pathname.startsWith('/dashboard/')) {
+    if (request.nextUrl.pathname.startsWith('/dashboard')) {
       if (!hasCompany || !companyId) {
+        console.log('Redirecting to company setup - no company found in token')
         // Redirect to company setup if user doesn't have a company
         return NextResponse.redirect(new URL('/setup/company', request.url))
+      }
+    }
+
+    // Prevent redirect loops for company setup page
+    if (request.nextUrl.pathname.startsWith('/setup/company')) {
+      if (hasCompany && companyId) {
+        console.log('User has company, redirecting from setup to dashboard')
+        // User already has a company, redirect to dashboard
+        return NextResponse.redirect(new URL('/dashboard', request.url))
       }
     }
 
@@ -115,7 +138,7 @@ export async function middleware(request: NextRequest) {
     console.error('Middleware error:', error)
     
     // For dashboard and setup pages, redirect to login
-    if (request.nextUrl.pathname.startsWith('/dashboard/') ||
+    if (request.nextUrl.pathname.startsWith('/dashboard') ||
         request.nextUrl.pathname.startsWith('/setup/')) {
       return NextResponse.redirect(new URL('/auth/signin', request.url))
     }

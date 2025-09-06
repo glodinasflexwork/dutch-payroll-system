@@ -417,24 +417,47 @@ export default function CompanySetup() {
         
         try {
           // Force session refresh to get updated user data with companyId
-          await update()
+          const updateResult = await update()
           
           if (debugMode) {
-            addDebugInfo('Session Updated', 'Session refreshed successfully', 'success')
+            addDebugInfo('Session Updated', `Session refreshed successfully: ${JSON.stringify(updateResult, null, 2)}`, 'success')
           }
           
-          // Redirect to dashboard after session refresh
-          setTimeout(() => {
-            router.push('/dashboard')
-          }, 1000)
+          // Wait a bit for the session to propagate
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          
+          // Check if the session was properly updated
+          const checkResponse = await fetch('/api/user/company-status')
+          const checkData = await checkResponse.json()
+          
+          if (debugMode) {
+            addDebugInfo('Company Status Check', `Post-creation status: ${JSON.stringify(checkData, null, 2)}`, 'info')
+          }
+          
+          if (checkData.hasCompany) {
+            if (debugMode) {
+              addDebugInfo('Redirect Success', 'Company properly linked, redirecting to dashboard', 'success')
+            }
+            
+            // Redirect to dashboard with company parameter
+            const primaryCompanyId = checkData.primaryCompany?.id
+            router.push(`/dashboard?company=${primaryCompanyId}`)
+          } else {
+            if (debugMode) {
+              addDebugInfo('Session Refresh Issue', 'Company not yet reflected in session, trying alternative approach', 'warning')
+            }
+            
+            // Alternative approach: force a page reload to refresh the session
+            window.location.href = '/dashboard'
+          }
         } catch (sessionError) {
           if (debugMode) {
-            addDebugInfo('Session Refresh Failed', 'Session update failed, redirecting anyway', 'warning')
+            addDebugInfo('Session Refresh Failed', `Session update failed: ${sessionError.message}`, 'warning')
           }
           
-          // Fallback: redirect anyway after a longer delay
+          // Fallback: force a page reload to refresh the session
           setTimeout(() => {
-            router.push('/dashboard')
+            window.location.href = '/dashboard'
           }, 2000)
         }
       } else {

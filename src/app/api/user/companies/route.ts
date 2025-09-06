@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all companies the user has access to
-    const userCompanies = await getAuthClient().userCompany.findMany({
+    const authClient = await getAuthClient()
+    const userCompanies = await authClient.userCompany.findMany({
       where: {
         userId: session.user.id,
         isActive: true
@@ -34,7 +35,8 @@ export async function GET(request: NextRequest) {
 
     // Get real-time employee counts from HR database
     const companyIds = userCompanies.map(uc => uc.Company.id)
-    const employeeCounts = await getHRClient().employee.groupBy({
+    const hrClient = await getHRClient()
+    const employeeCounts = await hrClient.employee.groupBy({
       by: ['companyId'],
       where: {
         companyId: { in: companyIds },
@@ -144,8 +146,6 @@ export async function GET(request: NextRequest) {
       { error: 'Failed to fetch companies' },
       { status: 500 }
     )
-  } finally {
-    await getHRClient().$disconnect()
   }
 }
 

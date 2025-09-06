@@ -64,14 +64,15 @@ export const authOptions: NextAuthOptions = {
         
         // Fetch user's current company and cache it in the token
         try {
-          const userWithCompany = await getAuthClient().user.findUnique({
+          const authClient = await getAuthClient()
+          const userWithCompany = await authClient.user.findUnique({
             where: { id: user.id },
             select: { companyId: true }
           })
 
           if (userWithCompany?.companyId) {
             // Get company details and user role
-            const userCompany = await getAuthClient().userCompany.findUnique({
+            const userCompany = await authClient.userCompany.findUnique({
               where: {
                 userId_companyId: {
                   userId: user.id,
@@ -116,7 +117,7 @@ export const authOptions: NextAuthOptions = {
 
             if (firstUserCompany) {
               // Update user's companyId and cache in token
-              await getAuthClient().user.update({
+              await authClient.user.update({
                 where: { id: user.id },
                 data: { companyId: firstUserCompany.Company.id }
               })
@@ -135,18 +136,25 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
-      // Handle session updates (e.g., when switching companies)
+      // Handle session updates (e.g., when switching companies or getting first company)
       if (trigger === "update" && session) {
         console.log('Session update triggered:', session)
         
-        if (session.companyId) {
-          // Fetch fresh company data when switching
-          try {
-            const userCompany = await getAuthClient().userCompany.findUnique({
+        // Refresh company information from database
+        try {
+          const authClient = await getAuthClient()
+          const userWithCompany = await authClient.user.findUnique({
+            where: { id: token.sub! },
+            select: { companyId: true }
+          })
+
+          if (userWithCompany?.companyId) {
+            // Get company details and user role
+            const userCompany = await authClient.userCompany.findUnique({
               where: {
                 userId_companyId: {
                   userId: token.sub!,
-                  companyId: session.companyId
+                  companyId: userWithCompany.companyId
                 }
               },
               include: {
@@ -168,12 +176,60 @@ export const authOptions: NextAuthOptions = {
               console.log('Updated token with company:', {
                 companyId: token.companyId,
                 companyName: token.companyName,
-                companyRole: token.companyRole
+                companyRole: token.companyRole,
+                hasCompany: token.hasCompany
               })
             }
-          } catch (error) {
-            console.error('Error updating company in session:', error)
+          } else {
+            // Check if user has any companies (in case companyId is not set but user has companies)
+            const firstUserCompany = await authClient.userCompany.findFirst({
+              where: {
+                userId: token.sub!,
+                isActive: true
+              },
+              include: {
+                Company: {
+                  select: {
+                    id: true,
+                    name: true
+                  }
+                }
+              },
+              orderBy: {
+                createdAt: 'asc'
+              }
+            })
+
+            if (firstUserCompany) {
+              // Update user's companyId and cache in token
+              await authClient.user.update({
+                where: { id: token.sub! },
+                data: { companyId: firstUserCompany.Company.id }
+              })
+
+              token.companyId = firstUserCompany.Company.id
+              token.companyName = firstUserCompany.Company.name
+              token.companyRole = firstUserCompany.role
+              token.hasCompany = true
+              
+              console.log('Found and set first company for user:', {
+                companyId: token.companyId,
+                companyName: token.companyName,
+                companyRole: token.companyRole,
+                hasCompany: token.hasCompany
+              })
+            } else {
+              // User has no companies
+              token.companyId = undefined
+              token.companyName = undefined
+              token.companyRole = undefined
+              token.hasCompany = false
+              
+              console.log('User has no companies, cleared company data from token')
+            }
           }
+        } catch (error) {
+          console.error('Error refreshing company info during session update:', error)
         }
       }
 
