@@ -7,11 +7,12 @@ import {
   resolveCompanyFromSession, 
   handleCompanyResolutionError 
 } from "@/lib/universal-company-resolver"
+import { withApiErrorHandler, createErrorResponse } from "@/lib/api-error-handler"
 import fs from 'fs/promises'
 import path from 'path'
 
 // GET /api/payslips/download - Download pre-generated payslip
-export async function GET(request: NextRequest) {
+async function getHandler(request: NextRequest) {
   try {
     console.log('🔍 [PayslipDownload] Starting payslip download request with Universal Company Resolution')
     
@@ -60,7 +61,8 @@ export async function GET(request: NextRequest) {
 
     // Find the PayslipGeneration record
     let payslipGeneration = await withRetry(async () => {
-      return await getPayrollClient().payslipGeneration.findFirst({
+      const payrollClient = await getPayrollClient()
+      return await payrollClient.payslipGeneration.findFirst({
         where: {
           employeeId: employeeId,
           companyId: companyId,
@@ -81,7 +83,8 @@ export async function GET(request: NextRequest) {
       
       // First, verify the PayrollRecord exists
       const payrollRecord = await withRetry(async () => {
-        return await getPayrollClient().payrollRecord.findFirst({
+        const payrollClient = await getPayrollClient()
+        return await payrollClient.payrollRecord.findFirst({
           where: {
             employeeId: employeeId,
             companyId: companyId,
@@ -157,7 +160,8 @@ export async function GET(request: NextRequest) {
       
       // Update download timestamp
       await withRetry(async () => {
-        await getPayrollClient().payslipGeneration.update({
+        const payrollClient = await getPayrollClient()
+        await payrollClient.payslipGeneration.update({
           where: { id: payslipGeneration.id },
           data: { downloadedAt: new Date() }
         })
@@ -208,7 +212,8 @@ export async function GET(request: NextRequest) {
         
         // Update download timestamp
         await withRetry(async () => {
-          await getPayrollClient().payslipGeneration.update({
+          const payrollClient = await getPayrollClient()
+          await payrollClient.payslipGeneration.update({
             where: { id: payslipGeneration.id },
             data: { downloadedAt: new Date() }
           })
@@ -236,17 +241,15 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error("💥 [PayslipDownload] Error downloading payslip:", error)
-    return NextResponse.json({
-      success: false,
-      error: "Failed to download payslip",
-      code: "DOWNLOAD_ERROR",
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 })
+    throw error // Let the error handler deal with it
   }
 }
 
+// Export GET with error handler wrapper
+export const GET = withApiErrorHandler(getHandler, 'PayslipDownload')
+
 // POST /api/payslips/download - Check payslip availability
-export async function POST(request: NextRequest) {
+async function postHandler(request: NextRequest) {
   try {
     console.log('🔍 [PayslipDownload] Checking payslip availability with Universal Company Resolution')
     
@@ -289,7 +292,8 @@ export async function POST(request: NextRequest) {
 
     // Check if PayslipGeneration record exists
     const payslipGeneration = await withRetry(async () => {
-      return await getPayrollClient().payslipGeneration.findFirst({
+      const payrollClient = await getPayrollClient()
+      return await payrollClient.payslipGeneration.findFirst({
         where: {
           employeeId: employeeId,
           companyId: companyId,
@@ -325,12 +329,10 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error("💥 [PayslipDownload] Error checking payslip availability:", error)
-    return NextResponse.json({
-      success: false,
-      error: "Failed to check payslip availability",
-      code: "AVAILABILITY_CHECK_ERROR",
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 })
+    throw error // Let the error handler deal with it
   }
 }
+
+// Export POST with error handler wrapper
+export const POST = withApiErrorHandler(postHandler, 'PayslipDownload')
 

@@ -5,25 +5,65 @@ import { PrismaClient as AuthClient } from '@prisma/client'
 import { PrismaClient as HRClient } from '@prisma/hr-client'
 import { PrismaClient as PayrollClient } from '@prisma/payroll-client'
 
-// Singleton pattern for database clients
+// Singleton pattern for database clients with connection tracking
 let authClient: AuthClient | null = null
 let hrClient: HRClient | null = null
 let payrollClient: PayrollClient | null = null
+
+// Connection state tracking
+let authConnected = false
+let hrConnected = false
+let payrollConnected = false
+
+// Connection promises to prevent race conditions
+let authConnecting: Promise<void> | null = null
+let hrConnecting: Promise<void> | null = null
+let payrollConnecting: Promise<void> | null = null
+
+/**
+ * Initialize and ensure database connection
+ */
+async function ensureConnection(client: any, type: 'auth' | 'hr' | 'payroll'): Promise<void> {
+  try {
+    await client.$connect()
+    await client.$queryRaw`SELECT 1`
+    console.log(`✅ ${type.toUpperCase()} database connected successfully`)
+  } catch (error) {
+    console.error(`❌ ${type.toUpperCase()} database connection failed:`, error)
+    throw error
+  }
+}
 
 /**
  * Get AUTH Database Client
  * Handles user authentication, companies, subscriptions
  */
-export function getAuthClient(): AuthClient {
+export async function getAuthClient(): Promise<AuthClient> {
   if (!authClient) {
     authClient = new AuthClient({
       datasources: {
         db: {
           url: process.env.AUTH_DATABASE_URL
         }
-      }
+      },
+      log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error']
     })
   }
+
+  if (!authConnected && !authConnecting) {
+    authConnecting = ensureConnection(authClient, 'auth').then(() => {
+      authConnected = true
+      authConnecting = null
+    }).catch((error) => {
+      authConnecting = null
+      throw error
+    })
+  }
+
+  if (authConnecting) {
+    await authConnecting
+  }
+
   return authClient
 }
 
@@ -31,16 +71,32 @@ export function getAuthClient(): AuthClient {
  * Get HR Database Client
  * Handles employee records, departments, leave management
  */
-export function getHRClient(): HRClient {
+export async function getHRClient(): Promise<HRClient> {
   if (!hrClient) {
     hrClient = new HRClient({
       datasources: {
         db: {
           url: process.env.HR_DATABASE_URL
         }
-      }
+      },
+      log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error']
     })
   }
+
+  if (!hrConnected && !hrConnecting) {
+    hrConnecting = ensureConnection(hrClient, 'hr').then(() => {
+      hrConnected = true
+      hrConnecting = null
+    }).catch((error) => {
+      hrConnecting = null
+      throw error
+    })
+  }
+
+  if (hrConnecting) {
+    await hrConnecting
+  }
+
   return hrClient
 }
 
@@ -48,16 +104,32 @@ export function getHRClient(): HRClient {
  * Get PAYROLL Database Client
  * Handles payroll calculations, tax records, payslips
  */
-export function getPayrollClient(): PayrollClient {
+export async function getPayrollClient(): Promise<PayrollClient> {
   if (!payrollClient) {
     payrollClient = new PayrollClient({
       datasources: {
         db: {
           url: process.env.PAYROLL_DATABASE_URL
         }
-      }
+      },
+      log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error']
     })
   }
+
+  if (!payrollConnected && !payrollConnecting) {
+    payrollConnecting = ensureConnection(payrollClient, 'payroll').then(() => {
+      payrollConnected = true
+      payrollConnecting = null
+    }).catch((error) => {
+      payrollConnecting = null
+      throw error
+    })
+  }
+
+  if (payrollConnecting) {
+    await payrollConnecting
+  }
+
   return payrollClient
 }
 
@@ -69,18 +141,21 @@ export async function disconnectAllClients(): Promise<void> {
   const promises: Promise<void>[] = []
   
   if (authClient) {
-    promises.push(getAuthClient().$disconnect())
+    promises.push((await getAuthClient()).$disconnect())
     authClient = null
+    authConnected = false
   }
   
   if (hrClient) {
-    promises.push(getHRClient().$disconnect())
+    promises.push((await getHRClient()).$disconnect())
     hrClient = null
+    hrConnected = false
   }
   
   if (payrollClient) {
-    promises.push(getPayrollClient().$disconnect())
+    promises.push((await getPayrollClient()).$disconnect())
     payrollClient = null
+    payrollConnected = false
   }
   
   await Promise.all(promises)
@@ -103,7 +178,7 @@ export async function testAllConnections(): Promise<{
 
   // Test AUTH connection
   try {
-    const auth = getAuthClient()
+    const auth = await getAuthClient()
     await auth.$queryRaw`SELECT 1`
     results.auth.connected = true
   } catch (error) {
@@ -112,7 +187,7 @@ export async function testAllConnections(): Promise<{
 
   // Test HR connection
   try {
-    const hr = getHRClient()
+    const hr = await getHRClient()
     await hr.$queryRaw`SELECT 1`
     results.hr.connected = true
   } catch (error) {
@@ -121,7 +196,7 @@ export async function testAllConnections(): Promise<{
 
   // Test PAYROLL connection
   try {
-    const payroll = getPayrollClient()
+    const payroll = await getPayrollClient()
     await payroll.$queryRaw`SELECT 1`
     results.payroll.connected = true
   } catch (error) {
@@ -153,9 +228,9 @@ export async function getDatabaseStatistics(): Promise<{
     payslipGenerations: number
   }
 }> {
-  const auth = getAuthClient()
-  const hr = getHRClient()
-  const payroll = getPayrollClient()
+  const auth = await getAuthClient()
+  const hr = await getHRClient()
+  const payroll = await getPayrollClient()
 
   const [authStats, hrStats, payrollStats] = await Promise.all([
     // AUTH statistics
@@ -218,10 +293,11 @@ export async function performHealthCheck(): Promise<{
   
   const checkDatabase = async (
     name: string,
-    client: AuthClient | HRClient | PayrollClient
+    clientGetter: () => Promise<AuthClient | HRClient | PayrollClient>
   ): Promise<{ status: 'up' | 'down'; responseTime: number; error?: string }> => {
     const dbStartTime = Date.now()
     try {
+      const client = await clientGetter()
       await client.$queryRaw`SELECT 1`
       return {
         status: 'up',
@@ -237,9 +313,9 @@ export async function performHealthCheck(): Promise<{
   }
 
   const [authResult, hrResult, payrollResult] = await Promise.all([
-    checkDatabase('auth', getAuthClient()),
-    checkDatabase('hr', getHRClient()),
-    checkDatabase('payroll', getPayrollClient())
+    checkDatabase('auth', getAuthClient),
+    checkDatabase('hr', getHRClient),
+    checkDatabase('payroll', getPayrollClient)
   ])
 
   const databases = {
