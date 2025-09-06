@@ -293,9 +293,17 @@ export async function POST(request: NextRequest) {
 
         if (!dryRun) {
           // Parse pay period dates to get year and month
-          const payPeriodStartDate = new Date(payPeriodStart)
-          const year = payPeriodStartDate.getFullYear()
-          const month = payPeriodStartDate.getMonth() + 1
+          // Fix: Use proper date parsing to handle month correctly
+          const payPeriodStartDate = new Date(payPeriodStart + 'T00:00:00.000Z')
+          const year = payPeriodStartDate.getUTCFullYear()
+          const month = payPeriodStartDate.getUTCMonth() + 1
+
+          console.log("🗓️ Date parsing debug:")
+          console.log("- Input payPeriodStart:", payPeriodStart)
+          console.log("- Parsed date object:", payPeriodStartDate)
+          console.log("- Extracted year:", year)
+          console.log("- Extracted month:", month)
+          console.log("- Expected for November: month should be 11")
 
           // Check if record already exists using year and month (schema fields)
           const existingRecord = await getPayrollClient().payrollRecord.findFirst({
