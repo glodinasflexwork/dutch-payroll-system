@@ -12,58 +12,11 @@ export async function GET(request: NextRequest) {
     console.log("Session user ID:", session?.user?.id)
     console.log("Session company ID:", session?.user?.companyId)
     
-    // For testing purposes, show mock analytics data
-    if (!session?.user?.companyId || true) { // Always show mock data for demo
-      console.log("Showing mock analytics data for demonstration")
-      
-      // Return mock analytics data for testing
-      const mockAnalyticsData = {
-        kpis: {
-          totalPayroll: 125000,
-          totalEmployees: 15,
-          averageSalary: 65000,
-          totalTaxes: 45000,
-          payrollGrowth: 8.5,
-          employeeGrowth: 12.0,
-          taxEfficiency: 92.5
-        },
-        trends: [
-          { month: 'Aug', totalPayroll: 110000, employees: 12, averageSalary: 62000, aow: 8500, anw: 1200, wlz: 2800, zvw: 3200 },
-          { month: 'Sep', totalPayroll: 115000, employees: 13, averageSalary: 63000, aow: 8800, anw: 1250, wlz: 2900, zvw: 3300 },
-          { month: 'Oct', totalPayroll: 120000, employees: 14, averageSalary: 64000, aow: 9200, anw: 1300, wlz: 3000, zvw: 3400 },
-          { month: 'Nov', totalPayroll: 125000, employees: 15, averageSalary: 65000, aow: 9500, anw: 1350, wlz: 3100, zvw: 3500 }
-        ],
-        departmentDistribution: [
-          { department: 'Engineering', employees: 8, avgSalary: 75000 },
-          { department: 'Sales', employees: 4, avgSalary: 55000 },
-          { department: 'Marketing', employees: 2, avgSalary: 60000 },
-          { department: 'HR', employees: 1, avgSalary: 50000 }
-        ],
-        employmentTypeDistribution: [
-          { name: 'Full-time', value: 12, color: '#3B82F6' },
-          { name: 'Part-time', value: 3, color: '#60A5FA' }
-        ],
-        taxBreakdown: {
-          monthly: [
-            { month: 'Aug', aow: 8500, anw: 1200, wlz: 2800, zvw: 3200 },
-            { month: 'Sep', aow: 8800, anw: 1250, wlz: 2900, zvw: 3300 },
-            { month: 'Oct', aow: 9200, anw: 1300, wlz: 3000, zvw: 3400 },
-            { month: 'Nov', aow: 9500, anw: 1350, wlz: 3100, zvw: 3500 }
-          ],
-          current: {
-            aow: 9500,
-            anw: 1350,
-            wlz: 3100,
-            zvw: 3500
-          }
-        }
-      }
-      
+    if (!session?.user?.companyId) {
       return NextResponse.json({
-        success: true,
-        data: mockAnalyticsData,
-        message: "Mock data for testing"
-      })
+        success: false,
+        error: "No company selected"
+      }, { status: 400 })
     }
 
     // Validate subscription (with error handling)

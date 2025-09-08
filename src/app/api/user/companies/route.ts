@@ -121,7 +121,8 @@ export async function GET(request: NextRequest) {
 
     // Always fetch current company from database, not from session
     // This ensures we get the latest company selection after switching
-    const user = await getAuthClient().user.findUnique({
+    const authClientForUser = await getAuthClient()
+    const user = await authClientForUser.user.findUnique({
       where: { id: session.user.id },
       select: { companyId: true }
     })
