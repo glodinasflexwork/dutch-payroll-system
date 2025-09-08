@@ -1,76 +1,14 @@
 
 > dutch-payroll-nextjs@0.1.0 dev
-> next dev --turbopack
+> next dev --turbopack --port 3001 --hostname 0.0.0.0
 
-   ▲ Next.js 15.3.4 (Turbopack)
-   - Local:        http://localhost:3000
-   - Network:      http://169.254.0.21:3000
-   - Environments: .env.local
-
- ✓ Starting...
- ⚠ Invalid next.config.js options detected: 
- ⚠     Unrecognized key(s) in object: 'serverComponentsExternalPackages', 'outputFileTracingIncludes' at "experimental"
- ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
- ⚠ `experimental.serverComponentsExternalPackages` has been moved to `serverExternalPackages`. Please update your next.config.js file accordingly.
- ⚠ `experimental.outputFileTracingIncludes` has been moved to `outputFileTracingIncludes`. Please update your next.config.js file accordingly.
- ○ Compiling middleware ...
- ✓ Compiled middleware in 917ms
- ✓ Ready in 3.6s
- ⚠ Webpack is configured while Turbopack is not, which may cause problems.
- ⚠ See instructions if you need to configure Turbopack:
-  https://nextjs.org/docs/app/api-reference/next-config-js/turbo
-
- ✓ Compiled middleware in 2ms
- ○ Compiling middleware ...
- ✓ Compiled middleware in 569ms
- ✓ Compiled in 567ms
- ✓ Compiled middleware in 8ms
- ✓ Compiled in 10ms
-
-  #  Node.js[65724]: void node::ResetStdio() at ../src/node.cc:760
-  #  Assertion failed: !(err != 0) || (err == -1 && (*__errno_location ()) == 1)
-
------ Native stack trace -----
-
- 1: 0xf95cf7 node::Assert(node::AssertionInfo const&) [next-server (v15.3.4)]
- 2: 0xf42264  [next-server (v15.3.4)]
- 3: 0x7f1101a45495  [/lib/x86_64-linux-gnu/libc.so.6]
- 4: 0x7f1101a45610 on_exit [/lib/x86_64-linux-gnu/libc.so.6]
- 5: 0xe98a4f node::DefaultProcessExitHandlerInternal(node::Environment*, node::ExitCode) [next-server (v15.3.4)]
- 6: 0xf01e4f node::Environment::Exit(node::ExitCode) [next-server (v15.3.4)]
- 7: 0x1d755e2  [next-server (v15.3.4)]
-
-  #  Node.js[65724]: void node::ResetStdio() at ../src/node.cc:760
-  #  Assertion failed: !(err != 0) || (err == -1 && (*__errno_location ()) == 1)
-
------ Native stack trace -----
-
- 1: 0xf95cf7 node::Assert(node::AssertionInfo const&) [next-server (v15.3.4)]
- 2: 0xf42264  [next-server (v15.3.4)]
- 3: 0xf42982 node::TrapWebAssemblyOrContinue(int, siginfo_t*, void*) [next-server (v15.3.4)]
- 4: 0x7f1101a42520  [/lib/x86_64-linux-gnu/libc.so.6]
+ ⨯ Failed to start server
+Error: listen EADDRINUSE: address already in use 0.0.0.0:3001
+    at <unknown> (Error: listen EADDRINUSE: address already in use 0.0.0.0:3001) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 3001
+}
 [?25h
-
-  #  Node.js[65713]: void node::ResetStdio() at ../src/node.cc:760
-  #  Assertion failed: !(err != 0) || (err == -1 && (*__errno_location ()) == 1)
-
------ Native stack trace -----
-
- 1: 0xf95cf7 node::Assert(node::AssertionInfo const&) [node]
- 2: 0xf42264  [node]
- 3: 0x7f902de45495  [/lib/x86_64-linux-gnu/libc.so.6]
- 4: 0x7f902de45610 on_exit [/lib/x86_64-linux-gnu/libc.so.6]
- 5: 0xe98a4f node::DefaultProcessExitHandlerInternal(node::Environment*, node::ExitCode) [node]
- 6: 0xf01e4f node::Environment::Exit(node::ExitCode) [node]
- 7: 0x1d755e2  [node]
-
-  #  Node.js[65713]: void node::ResetStdio() at ../src/node.cc:760
-  #  Assertion failed: !(err != 0) || (err == -1 && (*__errno_location ()) == 1)
-
------ Native stack trace -----
-
- 1: 0xf95cf7 node::Assert(node::AssertionInfo const&) [node]
- 2: 0xf42264  [node]
- 3: 0xf42982 node::TrapWebAssemblyOrContinue(int, siginfo_t*, void*) [node]
- 4: 0x7f902de42520  [/lib/x86_64-linux-gnu/libc.so.6]
- 5: 0x325add39ea21 

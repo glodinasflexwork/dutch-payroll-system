@@ -33,30 +33,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })
     }
 
-    // Optimized single query to get all dashboard stats
+    // Optimized queries to get all dashboard stats
+    const hrClient = await getHRClient()
+    const payrollClient = await getPayrollClient()
+    
     const [employeeStats, payrollCount, companyInfo] = await Promise.all([
-      // Get employee statistics in one query
-      getHRClient().employee.groupBy({
-        by: ['employmentType'],
-        where: {
-          companyId: context.companyId,
-          isActive: true
-        },
-        _count: {
-          id: true
-        }
-      }),
+      // Get employee statistics using raw SQL
+      hrClient.$queryRaw`
+        SELECT "employmentType", COUNT(id) as count
+        FROM "Employee" 
+        WHERE "companyId" = ${context.companyId} AND "isActive" = true
+        GROUP BY "employmentType"
+      `,
       
       // Get payroll record count from payroll database
-      getPayrollClient().payrollRecord.count({
+      payrollClient.payrollRecord.count({
         where: { companyId: context.companyId }
       }),
       
-      // Get company information
-      getHRClient().company.findUnique({
-        where: { id: context.companyId },
-        select: { name: true, id: true }
-      })
+      // Get company information using raw SQL
+      hrClient.$queryRaw`
+        SELECT name, id FROM "Company" WHERE id = ${context.companyId}
+      `
     ])
 
     // Process employee statistics
@@ -64,8 +62,8 @@ export async function GET(request: NextRequest) {
     let monthlyEmployees = 0
     let hourlyEmployees = 0
 
-    employeeStats.forEach(stat => {
-      const count = stat._count.id
+    employeeStats.forEach((stat: any) => {
+      const count = parseInt(stat.count)
       totalEmployees += count
       
       if (stat.employmentType === 'monthly') {
@@ -83,7 +81,7 @@ export async function GET(request: NextRequest) {
       monthlyEmployees,
       hourlyEmployees,
       totalPayrollRecords: payrollRecords,
-      companyName: companyInfo?.name || "Your Company",
+      companyName: companyInfo[0]?.name || "Your Company",
       companyId: context.companyId
     }
 
