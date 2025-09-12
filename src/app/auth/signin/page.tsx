@@ -23,19 +23,33 @@ function SignInForm() {
     const errorParam = searchParams.get('error')
     const messageParam = searchParams.get('message')
     const emailParam = searchParams.get('email')
+    const autoReauth = searchParams.get('auto-reauth') === 'true'
+    const companyId = searchParams.get('company-id')
+    const companyName = searchParams.get('company-name')
 
     // Pre-fill email if provided in URL (from re-authentication flow)
     if (emailParam) {
       setEmail(decodeURIComponent(emailParam))
-      setMessage("Please sign in to complete the session refresh.")
+      
+      if (autoReauth) {
+        setMessage(`Please sign in to complete your company setup for "${decodeURIComponent(companyName || 'your company')}".`)
+      } else {
+        setMessage("Please sign in to complete the session refresh.")
+      }
     }
 
     if (errorParam === 'invalid-token') {
       setError("Invalid or expired verification link. Please request a new one.")
     } else if (errorParam === 'verification-failed') {
       setError("Email verification failed. Please try again.")
+    } else if (errorParam === 'reauth-failed') {
+      setError("Automatic re-authentication failed. Please sign in manually.")
     } else if (messageParam === 'already-verified') {
       setMessage("Your email is already verified. You can sign in below.")
+    } else if (messageParam === 'company-created') {
+      setMessage("Your company has been created! Please sign in to access your dashboard.")
+    } else if (messageParam === 'session-refresh-failed') {
+      setMessage("Session refresh failed. Please sign in again.")
     }
   }, [searchParams])
 

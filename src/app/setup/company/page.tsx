@@ -410,93 +410,133 @@ export default function CompanySetup() {
           addDebugInfo('Company Setup Success', 'Company created successfully!', 'success')
         }
         
-        // PRODUCTION FIX: Force JWT token refresh by signing out and back in
-        // This ensures the JWT token contains the new company information
+        // HYBRID APPROACH: Try multiple methods for seamless JWT refresh
+        const companyId = data.companyId || data.company?.id
+        const companyName = data.company?.name || formData.companyName
+        
         if (debugMode) {
-          addDebugInfo('JWT Token Refresh', 'Forcing JWT token refresh with new company data', 'info')
+          addDebugInfo('JWT Token Refresh', 'Starting hybrid JWT refresh approach', 'info')
         }
         
         try {
-          // Store credentials for automatic re-login
-          const userEmail = session?.user?.email
-          const companyId = data.companyId || data.company?.id
-          
-          if (!userEmail) {
-            throw new Error('User email not available for re-authentication')
-          }
-          
+          // PRIMARY METHOD: Session update without sign-out (most professional)
           if (debugMode) {
-            addDebugInfo('Credentials Stored', `Email: ${userEmail}, Company ID: ${companyId}`, 'info')
+            addDebugInfo('Method 1', 'Attempting session update without sign-out...', 'info')
           }
           
-          // Store the target company ID in sessionStorage for post-login redirect
-          if (companyId) {
-            sessionStorage.setItem('post-login-company-id', companyId)
-            sessionStorage.setItem('post-login-redirect', 'dashboard')
-          }
-          
-          if (debugMode) {
-            addDebugInfo('Session Storage', 'Stored post-login redirect information', 'info')
-          }
-          
-          // Sign out to clear the stale JWT token
-          if (debugMode) {
-            addDebugInfo('Sign Out', 'Signing out to clear stale JWT token', 'info')
-          }
-          
-          // Use NextAuth signOut with redirect to a special page that handles re-authentication
-          const { signOut } = await import('next-auth/react')
-          
-          // Create a special URL that will handle the re-authentication
-          const reAuthUrl = new URL('/auth/re-authenticate', window.location.origin)
-          reAuthUrl.searchParams.set('email', userEmail)
-          reAuthUrl.searchParams.set('reason', 'company-created')
-          if (companyId) {
-            reAuthUrl.searchParams.set('company-id', companyId)
-          }
-          
-          if (debugMode) {
-            addDebugInfo('Re-auth URL', `Redirecting to: ${reAuthUrl.toString()}`, 'info')
-          }
-          
-          // Sign out and redirect to re-authentication page
-          await signOut({ 
-            redirect: true, 
-            callbackUrl: reAuthUrl.toString() 
+          const updateResult = await update({
+            companyId: companyId,
+            companyName: companyName,
+            hasCompany: true,
+            companyRole: 'owner'
           })
           
-        } catch (jwtRefreshError) {
           if (debugMode) {
-            addDebugInfo('JWT Refresh Failed', `JWT refresh failed: ${jwtRefreshError.message}`, 'error')
+            addDebugInfo('Session Update Result', JSON.stringify(updateResult, null, 2), 'success')
           }
           
-          // Fallback: Use the old session update method
-          try {
-            const updateResult = await update()
-            
+          // Wait for session to propagate
+          await new Promise(resolve => setTimeout(resolve, 1500))
+          
+          // Verify the session was updated by checking current session
+          const updatedSession = await getSession()
+          
+          if (debugMode) {
+            addDebugInfo('Session Verification', JSON.stringify(updatedSession, null, 2), 'info')
+          }
+          
+          if (updatedSession?.hasCompany && updatedSession?.companyId) {
             if (debugMode) {
-              addDebugInfo('Fallback Session Update', `Using fallback session update: ${JSON.stringify(updateResult, null, 2)}`, 'warning')
+              addDebugInfo('Method 1 Success', 'Session update successful, redirecting to dashboard', 'success')
+            }
+            router.push('/dashboard')
+            return
+          } else {
+            if (debugMode) {
+              addDebugInfo('Method 1 Failed', 'Session update incomplete, trying fallback method', 'warning')
+            }
+            throw new Error('Session update did not include company data')
+          }
+          
+        } catch (sessionUpdateError) {
+          if (debugMode) {
+            addDebugInfo('Method 1 Error', `Session update failed: ${sessionUpdateError.message}`, 'error')
+          }
+          
+          try {
+            // SECONDARY METHOD: Automatic re-login with stored credentials
+            if (debugMode) {
+              addDebugInfo('Method 2', 'Attempting automatic re-authentication...', 'info')
             }
             
-            // Wait for session to propagate
-            await new Promise(resolve => setTimeout(resolve, 2000))
+            const userEmail = session?.user?.email
+            if (!userEmail) {
+              throw new Error('No user email available for re-authentication')
+            }
             
-            // Use the companyId from the API response for immediate redirect
-            const companyId = data.companyId || data.company?.id
+            // Store temporary data for re-authentication
+            const tempData = {
+              email: userEmail,
+              companyId: companyId,
+              companyName: companyName,
+              timestamp: Date.now(),
+              reason: 'company-created'
+            }
             
-            if (companyId) {
-              window.location.href = `/dashboard?company=${companyId}`
+            sessionStorage.setItem('temp-reauth-data', JSON.stringify(tempData))
+            sessionStorage.setItem('post-login-redirect', 'dashboard')
+            
+            if (debugMode) {
+              addDebugInfo('Temp Data Stored', JSON.stringify(tempData, null, 2), 'info')
+            }
+            
+            // Import signOut dynamically to avoid SSR issues
+            const { signOut } = await import('next-auth/react')
+            
+            // Create re-authentication URL with all necessary data
+            const reAuthUrl = new URL('/auth/re-authenticate-v2', window.location.origin)
+            reAuthUrl.searchParams.set('email', encodeURIComponent(userEmail))
+            reAuthUrl.searchParams.set('reason', 'company-created')
+            reAuthUrl.searchParams.set('company-id', companyId)
+            reAuthUrl.searchParams.set('company-name', encodeURIComponent(companyName))
+            reAuthUrl.searchParams.set('auto', 'true') // Flag for automatic processing
+            
+            if (debugMode) {
+              addDebugInfo('Method 2 Redirect', `Redirecting to: ${reAuthUrl.toString()}`, 'info')
+            }
+            
+            await signOut({ 
+              redirect: true, 
+              callbackUrl: reAuthUrl.toString() 
+            })
+            
+          } catch (reAuthError) {
+            if (debugMode) {
+              addDebugInfo('Method 2 Error', `Automatic re-authentication failed: ${reAuthError.message}`, 'error')
+            }
+            
+            // TERTIARY METHOD: Manual fallback with user guidance
+            if (debugMode) {
+              addDebugInfo('Method 3', 'Using manual fallback method...', 'warning')
+            }
+            
+            // Store company info for after manual sign-in
+            sessionStorage.setItem('post-login-company-id', companyId)
+            sessionStorage.setItem('post-login-redirect', 'dashboard')
+            sessionStorage.setItem('company-creation-success', 'true')
+            
+            // Show user-friendly message
+            const userMessage = `Great! "${companyName}" has been created successfully.\n\nTo access your dashboard, please sign in again. Your email will be pre-filled to make this quick and easy.`
+            
+            if (confirm(userMessage + '\n\nClick OK to go to the sign-in page.')) {
+              const signInUrl = new URL('/auth/signin', window.location.origin)
+              signInUrl.searchParams.set('email', encodeURIComponent(session?.user?.email || ''))
+              signInUrl.searchParams.set('message', 'company-created')
+              window.location.href = signInUrl.toString()
             } else {
+              // User declined, just redirect to dashboard (they'll be redirected to sign-in by middleware)
               window.location.href = '/dashboard'
             }
-          } catch (fallbackError) {
-            if (debugMode) {
-              addDebugInfo('All Methods Failed', `All refresh methods failed: ${fallbackError.message}`, 'error')
-            }
-            
-            // Last resort: manual redirect with instructions
-            alert('Company created successfully! Please refresh the page or sign out and back in to access your dashboard.')
-            window.location.href = '/dashboard'
           }
         }
       } else {
