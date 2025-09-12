@@ -356,3 +356,10 @@ export default {
   getDatabaseStatistics,
   performHealthCheck
 }
+
+/**
+ * Check database connections (alias for testAllConnections)
+ * For backward compatibility
+ */
+export const checkDatabaseConnections = testAllConnections
+

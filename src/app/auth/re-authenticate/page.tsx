@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { signIn, getSession } from 'next-auth/react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, CheckCircle, AlertCircle, RefreshCw } from "lucide-react"
 
-export default function ReAuthenticate() {
+function ReAuthenticateContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [status, setStatus] = useState<'processing' | 'success' | 'error' | 'redirecting'>('processing')
@@ -204,6 +204,29 @@ export default function ReAuthenticate() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+
+export default function ReAuthenticate() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+              <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+            </div>
+            <CardTitle>Loading...</CardTitle>
+            <CardDescription>
+              Preparing session refresh...
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    }>
+      <ReAuthenticateContent />
+    </Suspense>
   )
 }
 
