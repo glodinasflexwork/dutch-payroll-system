@@ -18,7 +18,8 @@ export async function initializeHRDatabase(companyId: string) {
     console.log(`🔄 Starting HR database initialization for company: ${companyId}`)
 
     // Step 1: Check if HR company record already exists
-    const existingHRCompany = await getHRClient().company.findUnique({
+    const hrClient = await getHRClient()
+    const existingHRCompany = await hrClient.company.findUnique({
       where: { id: companyId },
       include: {
         leaveTypes: true
@@ -41,7 +42,8 @@ export async function initializeHRDatabase(companyId: string) {
     // Step 2: Get company name from auth database for proper initialization
     let companyName = "Company" // Default fallback
     try {
-      const authCompany = await getAuthClient().company.findUnique({
+      const authClient = await getAuthClient()
+      const authCompany = await authClient.company.findUnique({
         where: { id: companyId },
         select: { name: true }
       })
@@ -219,7 +221,8 @@ async function validateAndFixHRCompany(hrCompany: any) {
       let updatedCompany = hrCompany
       if (issues.includes('Invalid company name')) {
         try {
-          const authCompany = await getAuthClient().company.findUnique({
+          const authClient = await getAuthClient()
+          const authCompany = await authClient.company.findUnique({
             where: { id: hrCompany.id },
             select: { name: true }
           })
@@ -295,7 +298,8 @@ async function attemptHRDatabaseRecovery(companyId: string, originalError: any) 
 
   try {
     // Check if the company was partially created
-    const partialCompany = await getHRClient().company.findUnique({
+    const hrClient = await getHRClient()
+    const partialCompany = await hrClient.company.findUnique({
       where: { id: companyId },
       include: { leaveTypes: true }
     })
@@ -311,13 +315,14 @@ async function attemptHRDatabaseRecovery(companyId: string, originalError: any) 
     // If no partial record, try to clean up and recreate
     console.log(`🧹 Cleaning up any partial data and recreating...`)
     
+    const hrClient2 = await getHRClient()
     // Clean up any orphaned leave types
-    await getHRClient().leaveType.deleteMany({
+    await hrClient2.leaveType.deleteMany({
       where: { companyId: companyId }
     })
 
     // Clean up partial company record
-    await getHRClient().company.deleteMany({
+    await hrClient2.company.deleteMany({
       where: { id: companyId }
     })
 
@@ -344,7 +349,8 @@ export async function ensureHRInitialized(companyId: string) {
  */
 export async function getCompanyInitializationStatus(companyId: string) {
   try {
-    const hrCompany = await getHRClient().company.findUnique({ 
+    const hrClient = await getHRClient()
+    const hrCompany = await hrClient.company.findUnique({ 
       where: { id: companyId },
       include: { leaveTypes: true }
     })

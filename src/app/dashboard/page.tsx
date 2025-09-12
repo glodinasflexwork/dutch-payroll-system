@@ -6,6 +6,7 @@ import { useEffect, useState } from "react"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import TrialBanner from "@/components/trial/TrialBanner"
 import TrialCountdown from "@/components/trial/TrialCountdown"
+import SessionRefreshHandler from "@/components/SessionRefreshHandler"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -149,6 +150,7 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
+      <SessionRefreshHandler />
       <div className="space-y-6">
         {/* Trial Banner */}
         <TrialBanner />

@@ -259,6 +259,7 @@ export async function POST(req: NextRequest) {
       // It will be retried when first employee is added
     }
 
+    // Return success response with session update flag
     return NextResponse.json({
       success: true,
       company: {
@@ -273,7 +274,10 @@ export async function POST(req: NextRequest) {
         trialStart: result.subscription.trialStart,
         trialEnd: result.subscription.trialEnd,
         daysRemaining: Math.ceil((result.subscription.trialEnd!.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-      }
+      },
+      // Signal to frontend that session needs to be updated
+      sessionUpdateRequired: true,
+      companyId: result.company.id
     })
 
   } catch (error) {

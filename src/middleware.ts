@@ -3,6 +3,10 @@ import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
 export async function middleware(request: NextRequest) {
+  console.log('=== MIDDLEWARE START ===')
+  console.log('Path:', request.nextUrl.pathname)
+  console.log('Method:', request.method)
+  
   // Define public pages that should be accessible to everyone
   const publicPages = [
     '/features',
@@ -22,8 +26,11 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith(page)
   )
   
+  console.log('Is public page:', isPublicPage)
+  
   // Allow access to public pages without authentication checks
   if (isPublicPage) {
+    console.log('=== MIDDLEWARE END (public page) ===')
     return NextResponse.next()
   }
 
@@ -31,6 +38,7 @@ export async function middleware(request: NextRequest) {
   if (!request.nextUrl.pathname.startsWith('/api/') && 
       !request.nextUrl.pathname.startsWith('/dashboard') &&
       !request.nextUrl.pathname.startsWith('/setup/')) {
+    console.log('=== MIDDLEWARE END (not protected route) ===')
     return NextResponse.next()
   }
 
@@ -43,13 +51,20 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith('/api/employee-portal-demo') ||
       request.nextUrl.pathname.startsWith('/api/test-payroll') ||
       request.nextUrl.pathname.startsWith('/api/analytics')) {
+    console.log('=== MIDDLEWARE END (skipped API route) ===')
     return NextResponse.next()
   }
 
   try {
+    console.log('Getting JWT token...')
     const token = await getToken({ req: request })
+    console.log('Token exists:', !!token)
+    console.log('Token user ID:', token?.sub)
+    console.log('Token hasCompany:', token?.hasCompany)
+    console.log('Token companyId:', token?.companyId)
     
     if (!token) {
+      console.log('No token found, redirecting to signin')
       // Redirect to login for dashboard and setup pages
       if (request.nextUrl.pathname.startsWith('/dashboard') ||
           request.nextUrl.pathname.startsWith('/setup/')) {
@@ -60,35 +75,46 @@ export async function middleware(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    // OPTIMIZED: Use company info from token (cached during login) instead of database queries
-    const hasCompany = token.hasCompany as boolean
-    const companyId = token.companyId as string
+    // Use JWT token data for company status
+    // Note: Real-time database checks cannot be performed in middleware due to Edge Runtime limitations
+    // JWT token data should be sufficient for routing decisions
+    let hasCompany = token.hasCompany as boolean
+    let companyId = token.companyId as string
+    let companyName = token.companyName as string
+    let companyRole = token.companyRole as string
 
-    // Debug logging for company setup issues
-    if (request.nextUrl.pathname.startsWith('/dashboard') || 
-        request.nextUrl.pathname.startsWith('/setup/')) {
-      console.log('Middleware company check:', {
-        path: request.nextUrl.pathname,
-        userId: token.sub,
-        hasCompany,
-        companyId,
-        tokenKeys: Object.keys(token)
-      })
-    }
+    console.log('Using JWT token values:', { hasCompany, companyId, companyName, companyRole })
 
     // Check if user has a company for dashboard routes
     if (request.nextUrl.pathname.startsWith('/dashboard')) {
+      console.log('Dashboard route - checking company status:', { hasCompany, companyId })
       if (!hasCompany || !companyId) {
-        console.log('Redirecting to company setup - no company found in token')
-        // Redirect to company setup if user doesn't have a company
-        return NextResponse.redirect(new URL('/setup/company', request.url))
+        console.log('Redirecting to company setup - no company found (JWT token check)')
+        
+        // Check if this is a session refresh request
+        const refreshSession = request.nextUrl.searchParams.get('refresh-session')
+        if (refreshSession === 'true') {
+          console.log('Session refresh requested but still no company - redirecting to setup')
+          return NextResponse.redirect(new URL('/setup/company', request.url))
+        }
+        
+        // First time - try to refresh session in case JWT is stale
+        console.log('Attempting session refresh due to potential stale JWT token')
+        const refreshUrl = new URL('/dashboard', request.url)
+        refreshUrl.searchParams.set('refresh-session', 'true')
+        
+        // Add a special header to trigger session refresh
+        const response = NextResponse.redirect(refreshUrl)
+        response.headers.set('x-refresh-session', 'true')
+        return response
       }
     }
 
     // Prevent redirect loops for company setup page
     if (request.nextUrl.pathname.startsWith('/setup/company')) {
+      console.log('Setup route - checking company status:', { hasCompany, companyId })
       if (hasCompany && companyId) {
-        console.log('User has company, redirecting from setup to dashboard')
+        console.log('User has company, redirecting from setup to dashboard (real-time check)')
         // User already has a company, redirect to dashboard
         return NextResponse.redirect(new URL('/dashboard', request.url))
       }
@@ -107,11 +133,11 @@ export async function middleware(request: NextRequest) {
       requestHeaders.set('x-user-id', token.sub || '')
       
       // OPTIMIZED: Add company info from session to avoid database lookups
-      if (token.companyName) {
-        requestHeaders.set('x-company-name', token.companyName as string)
+      if (companyName) {
+        requestHeaders.set('x-company-name', companyName)
       }
-      if (token.companyRole) {
-        requestHeaders.set('x-company-role', token.companyRole as string)
+      if (companyRole) {
+        requestHeaders.set('x-company-role', companyRole)
       }
     }
 

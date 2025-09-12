@@ -14,7 +14,8 @@ async function generateUniqueEmployeeNumber(companyId: string, maxRetries: numbe
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       // Get all existing employee numbers for this company to find gaps
-      const existingEmployees = await getHRClient().employee.findMany({
+      const hrClient = await getHRClient()
+      const existingEmployees = await hrClient.employee.findMany({
         where: { companyId },
         select: { employeeNumber: true },
         orderBy: { employeeNumber: 'asc' }
@@ -42,7 +43,7 @@ async function generateUniqueEmployeeNumber(companyId: string, maxRetries: numbe
       console.log(`Generated employee number: ${employeeNumber} for company: ${companyId}`)
       
       // Double-check that this number doesn't exist (handles race conditions)
-      const existing = await getHRClient().employee.findFirst({
+      const existing = await hrClient.employee.findFirst({
         where: { 
           employeeNumber,
           companyId 
@@ -202,7 +203,8 @@ export async function POST(request: NextRequest) {
     }
 
     // STEP 3: Check employee limits before proceeding
-    const currentEmployeeCount = await getHRClient().employee.count({
+    const hrClient = await getHRClient()
+    const currentEmployeeCount = await hrClient.employee.count({
       where: { companyId: companyId, isActive: true }
     })
 
@@ -240,7 +242,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if BSN already exists in this company
-    const existingBSN = await getHRClient().employee.findFirst({
+    const existingBSN = await hrClient.employee.findFirst({
       where: { 
         bsn: data.bsn,
         companyId: companyId
@@ -255,7 +257,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if email already exists in this company
-    const existingEmail = await getHRClient().employee.findFirst({
+    const existingEmail = await hrClient.employee.findFirst({
       where: { 
         email: data.email,
         companyId: companyId
@@ -276,7 +278,7 @@ export async function POST(request: NextRequest) {
       employeeNumber = await generateUniqueEmployeeNumber(companyId)
     } else {
       // If employee number is provided, validate it's unique within the company
-      const existingEmployeeNumber = await getHRClient().employee.findFirst({
+      const existingEmployeeNumber = await hrClient.employee.findFirst({
         where: { 
           employeeNumber: employeeNumber,
           companyId: companyId
@@ -330,7 +332,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Create new employee using a transaction for better consistency
-    const employee = await getHRClient().$transaction(async (tx) => {
+    const employee = await hrClient.$transaction(async (tx) => {
       // Final check for employee number uniqueness within the transaction
       const existingEmployee = await tx.employee.findFirst({
         where: { 
@@ -409,7 +411,7 @@ export async function POST(request: NextRequest) {
     if (data.sendInvitation) {
       try {
         // Update employee status to INVITED before sending invitation
-        await getHRClient().employee.update({
+        await hrClient.employee.update({
           where: { id: employee.id },
           data: {
             portalAccessStatus: "INVITED",
@@ -430,7 +432,7 @@ export async function POST(request: NextRequest) {
         if (!inviteResponse.ok) {
           console.warn('Failed to send employee invitation, but employee was created successfully');
           // Revert the status if invitation failed
-          await getHRClient().employee.update({
+          await hrClient.employee.update({
             where: { id: employee.id },
             data: {
               portalAccessStatus: "NO_ACCESS",
@@ -443,7 +445,7 @@ export async function POST(request: NextRequest) {
       } catch (inviteError) {
         console.error('Error sending employee invitation:', inviteError);
         // Revert the status if invitation failed
-        await getHRClient().employee.update({
+        await hrClient.employee.update({
           where: { id: employee.id },
           data: {
             portalAccessStatus: "NO_ACCESS",

@@ -22,6 +22,13 @@ function SignInForm() {
     // Check for URL parameters for messages
     const errorParam = searchParams.get('error')
     const messageParam = searchParams.get('message')
+    const emailParam = searchParams.get('email')
+
+    // Pre-fill email if provided in URL (from re-authentication flow)
+    if (emailParam) {
+      setEmail(decodeURIComponent(emailParam))
+      setMessage("Please sign in to complete the session refresh.")
+    }
 
     if (errorParam === 'invalid-token') {
       setError("Invalid or expired verification link. Please request a new one.")

@@ -410,55 +410,94 @@ export default function CompanySetup() {
           addDebugInfo('Company Setup Success', 'Company created successfully!', 'success')
         }
         
-        // CRITICAL FIX: Refresh the session to pick up the new companyId
+        // PRODUCTION FIX: Force JWT token refresh by signing out and back in
+        // This ensures the JWT token contains the new company information
         if (debugMode) {
-          addDebugInfo('Session Refresh', 'Refreshing NextAuth session to update user data', 'info')
+          addDebugInfo('JWT Token Refresh', 'Forcing JWT token refresh with new company data', 'info')
         }
         
         try {
-          // Force session refresh to get updated user data with companyId
-          const updateResult = await update()
+          // Store credentials for automatic re-login
+          const userEmail = session?.user?.email
+          const companyId = data.companyId || data.company?.id
           
-          if (debugMode) {
-            addDebugInfo('Session Updated', `Session refreshed successfully: ${JSON.stringify(updateResult, null, 2)}`, 'success')
+          if (!userEmail) {
+            throw new Error('User email not available for re-authentication')
           }
           
-          // Wait a bit for the session to propagate
-          await new Promise(resolve => setTimeout(resolve, 1000))
-          
-          // Check if the session was properly updated
-          const checkResponse = await fetch('/api/user/company-status')
-          const checkData = await checkResponse.json()
-          
           if (debugMode) {
-            addDebugInfo('Company Status Check', `Post-creation status: ${JSON.stringify(checkData, null, 2)}`, 'info')
+            addDebugInfo('Credentials Stored', `Email: ${userEmail}, Company ID: ${companyId}`, 'info')
           }
           
-          if (checkData.hasCompany) {
+          // Store the target company ID in sessionStorage for post-login redirect
+          if (companyId) {
+            sessionStorage.setItem('post-login-company-id', companyId)
+            sessionStorage.setItem('post-login-redirect', 'dashboard')
+          }
+          
+          if (debugMode) {
+            addDebugInfo('Session Storage', 'Stored post-login redirect information', 'info')
+          }
+          
+          // Sign out to clear the stale JWT token
+          if (debugMode) {
+            addDebugInfo('Sign Out', 'Signing out to clear stale JWT token', 'info')
+          }
+          
+          // Use NextAuth signOut with redirect to a special page that handles re-authentication
+          const { signOut } = await import('next-auth/react')
+          
+          // Create a special URL that will handle the re-authentication
+          const reAuthUrl = new URL('/auth/re-authenticate', window.location.origin)
+          reAuthUrl.searchParams.set('email', userEmail)
+          reAuthUrl.searchParams.set('reason', 'company-created')
+          if (companyId) {
+            reAuthUrl.searchParams.set('company-id', companyId)
+          }
+          
+          if (debugMode) {
+            addDebugInfo('Re-auth URL', `Redirecting to: ${reAuthUrl.toString()}`, 'info')
+          }
+          
+          // Sign out and redirect to re-authentication page
+          await signOut({ 
+            redirect: true, 
+            callbackUrl: reAuthUrl.toString() 
+          })
+          
+        } catch (jwtRefreshError) {
+          if (debugMode) {
+            addDebugInfo('JWT Refresh Failed', `JWT refresh failed: ${jwtRefreshError.message}`, 'error')
+          }
+          
+          // Fallback: Use the old session update method
+          try {
+            const updateResult = await update()
+            
             if (debugMode) {
-              addDebugInfo('Redirect Success', 'Company properly linked, redirecting to dashboard', 'success')
+              addDebugInfo('Fallback Session Update', `Using fallback session update: ${JSON.stringify(updateResult, null, 2)}`, 'warning')
             }
             
-            // Redirect to dashboard with company parameter
-            const primaryCompanyId = checkData.primaryCompany?.id
-            router.push(`/dashboard?company=${primaryCompanyId}`)
-          } else {
+            // Wait for session to propagate
+            await new Promise(resolve => setTimeout(resolve, 2000))
+            
+            // Use the companyId from the API response for immediate redirect
+            const companyId = data.companyId || data.company?.id
+            
+            if (companyId) {
+              window.location.href = `/dashboard?company=${companyId}`
+            } else {
+              window.location.href = '/dashboard'
+            }
+          } catch (fallbackError) {
             if (debugMode) {
-              addDebugInfo('Session Refresh Issue', 'Company not yet reflected in session, trying alternative approach', 'warning')
+              addDebugInfo('All Methods Failed', `All refresh methods failed: ${fallbackError.message}`, 'error')
             }
             
-            // Alternative approach: force a page reload to refresh the session
+            // Last resort: manual redirect with instructions
+            alert('Company created successfully! Please refresh the page or sign out and back in to access your dashboard.')
             window.location.href = '/dashboard'
           }
-        } catch (sessionError) {
-          if (debugMode) {
-            addDebugInfo('Session Refresh Failed', `Session update failed: ${sessionError.message}`, 'warning')
-          }
-          
-          // Fallback: force a page reload to refresh the session
-          setTimeout(() => {
-            window.location.href = '/dashboard'
-          }, 2000)
         }
       } else {
         const errorMessage = data.error || `Company setup failed (${response.status})`
