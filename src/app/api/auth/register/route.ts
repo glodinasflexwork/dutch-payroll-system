@@ -20,8 +20,16 @@ interface RegistrationData {
 }
 
 export async function POST(request: NextRequest) {
+  console.log("Registration API called")
+  
   try {
     const data: RegistrationData = await request.json()
+    console.log("Registration data received:", { 
+      name: data.name, 
+      email: data.email, 
+      companyName: data.companyName,
+      kvkNumber: data.kvkNumber 
+    })
     
     // Validate required fields
     const requiredFields = [
@@ -32,6 +40,7 @@ export async function POST(request: NextRequest) {
     
     for (const field of requiredFields) {
       if (!data[field as keyof RegistrationData]) {
+        console.log(`Missing field: ${field}`)
         return NextResponse.json(
           { error: `Missing required field: ${field}` },
           { status: 400 }
@@ -42,6 +51,7 @@ export async function POST(request: NextRequest) {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(data.email)) {
+      console.log("Invalid email format:", data.email)
       return NextResponse.json(
         { error: "Invalid email format" },
         { status: 400 }
@@ -50,6 +60,7 @@ export async function POST(request: NextRequest) {
 
     // Validate password strength
     if (data.password.length < 8) {
+      console.log("Password too short")
       return NextResponse.json(
         { error: "Password must be at least 8 characters long" },
         { status: 400 }
@@ -57,6 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(data.password)) {
+      console.log("Password doesn't meet complexity requirements")
       return NextResponse.json(
         { error: "Password must contain uppercase, lowercase, and number" },
         { status: 400 }
@@ -65,6 +77,7 @@ export async function POST(request: NextRequest) {
 
     // Validate KvK number format (8 digits)
     if (!/^\d{8}$/.test(data.kvkNumber)) {
+      console.log("Invalid KvK number format:", data.kvkNumber)
       return NextResponse.json(
         { error: "KvK number must be 8 digits" },
         { status: 400 }
@@ -73,18 +86,23 @@ export async function POST(request: NextRequest) {
 
     // Validate Dutch postal code format
     if (!/^\d{4}\s?[A-Z]{2}$/i.test(data.postalCode)) {
+      console.log("Invalid postal code format:", data.postalCode)
       return NextResponse.json(
         { error: "Invalid Dutch postal code format (e.g., 1234 AB)" },
         { status: 400 }
       )
     }
 
+    console.log("All validations passed")
+
     // Check if user already exists
+    console.log("Checking if user exists...")
     const existingUser = await authClient.user.findUnique({
       where: { email: data.email.toLowerCase() }
     })
 
     if (existingUser) {
+      console.log("User already exists:", data.email)
       return NextResponse.json(
         { error: "User already exists" },
         { status: 400 }
@@ -92,25 +110,33 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if KvK number already exists
+    console.log("Checking if KvK number exists...")
     const existingCompany = await authClient.company.findUnique({
       where: { kvkNumber: data.kvkNumber }
     })
 
     if (existingCompany) {
+      console.log("KvK number already exists:", data.kvkNumber)
       return NextResponse.json(
         { error: "Company with this KvK number already exists" },
         { status: 400 }
       )
     }
 
+    console.log("No existing user or company found")
+
     // Hash password
+    console.log("Hashing password...")
     const hashedPassword = await bcrypt.hash(data.password, 12)
 
     // Generate email verification token
     const verificationToken = crypto.randomBytes(32).toString("hex")
+    console.log("Generated verification token")
 
     // Create user and company in transaction
+    console.log("Starting database transaction...")
     const result = await authClient.$transaction(async (authTx) => {
+      console.log("Creating user...")
       // 1. Create user (unverified)
       const user = await authTx.user.create({
         data: {
@@ -121,7 +147,9 @@ export async function POST(request: NextRequest) {
           emailVerificationToken: verificationToken
         }
       })
+      console.log("User created with ID:", user.id)
 
+      console.log("Creating company in Auth DB...")
       // 2. Create company in Auth DB
       const authCompany = await authTx.company.create({
         data: {
@@ -130,7 +158,9 @@ export async function POST(request: NextRequest) {
           industry: data.industry
         }
       })
+      console.log("Company created in Auth DB with ID:", authCompany.id)
 
+      console.log("Creating user-company relationship...")
       // 3. Link user to company
       await authTx.userCompany.create({
         data: {
@@ -141,16 +171,19 @@ export async function POST(request: NextRequest) {
         }
       })
 
+      console.log("Setting user's default company...")
       // 4. Set user's default company
       await authTx.user.update({
         where: { id: user.id },
         data: { companyId: authCompany.id }
       })
 
+      console.log("Auth DB transaction completed successfully")
       return { user, company: authCompany }
     })
 
     // 5. Create company in HR DB (using separate client)
+    console.log("Creating company in HR DB...")
     try {
       await hrClient.company.create({
         data: {
@@ -164,20 +197,27 @@ export async function POST(request: NextRequest) {
           country: data.country || 'Netherlands'
         }
       })
+      console.log("Company created in HR DB successfully")
     } catch (hrError) {
       console.error("Failed to create company in HR database:", hrError)
       // Rollback auth database changes if HR creation fails
-      await authClient.$transaction(async (authTx) => {
-        await authTx.userCompany.deleteMany({
-          where: { userId: result.user.id }
+      console.log("Rolling back Auth DB changes...")
+      try {
+        await authClient.$transaction(async (authTx) => {
+          await authTx.userCompany.deleteMany({
+            where: { userId: result.user.id }
+          })
+          await authTx.company.delete({
+            where: { id: result.company.id }
+          })
+          await authTx.user.delete({
+            where: { id: result.user.id }
+          })
         })
-        await authTx.company.delete({
-          where: { id: result.company.id }
-        })
-        await authTx.user.delete({
-          where: { id: result.user.id }
-        })
-      })
+        console.log("Rollback completed")
+      } catch (rollbackError) {
+        console.error("Rollback failed:", rollbackError)
+      }
       
       return NextResponse.json(
         { error: "Failed to create company. Please try again." },
@@ -186,6 +226,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 6. Create trial subscription
+    console.log("Creating trial subscription...")
     try {
       const trialPlan = await authClient.subscriptionPlan.findFirst({
         where: { name: "Trial" }
@@ -200,6 +241,9 @@ export async function POST(request: NextRequest) {
             trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days
           }
         })
+        console.log("Trial subscription created")
+      } else {
+        console.log("No trial plan found, skipping subscription creation")
       }
     } catch (subscriptionError) {
       console.error("Failed to create trial subscription:", subscriptionError)
@@ -207,16 +251,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Send verification email
+    console.log("Sending verification email...")
     try {
       await sendVerificationEmail(result.user.email, verificationToken, {
         userName: result.user.name,
         companyName: result.company.name
       })
+      console.log("Verification email sent successfully")
     } catch (emailError) {
       console.error("Failed to send verification email:", emailError)
       // Don't fail registration if email fails
     }
 
+    console.log("Registration completed successfully")
     return NextResponse.json({
       message: "Registration successful! Please check your email to verify your account.",
       user: {
@@ -239,15 +286,23 @@ export async function POST(request: NextRequest) {
     console.error("Registration error:", error)
     
     // Handle specific database errors
-    if (error.code === 'P2002') {
+    if (error?.code === 'P2002') {
+      console.log("Unique constraint violation")
       return NextResponse.json(
         { error: "Email or KvK number already exists" },
         { status: 400 }
       )
     }
 
+    // Log the full error for debugging
+    console.error("Full error details:", {
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack
+    })
+
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error. Please try again." },
       { status: 500 }
     )
   }
