@@ -92,8 +92,9 @@ export async function GET(request: NextRequest) {
     console.log('Authentication successful, fetching employees for company:', companyId)
 
     // Validate subscription (with error handling)
+    let subscriptionValidation = null
     try {
-      const subscriptionValidation = await validateSubscription(companyId)
+      subscriptionValidation = await validateSubscription(companyId)
       console.log("Subscription validation:", subscriptionValidation)
       if (!subscriptionValidation.isValid) {
         return NextResponse.json({ error: subscriptionValidation.error }, { status: 403 })

@@ -89,7 +89,7 @@ async function createHRCompanyWithRetry(companyId: string, companyName: string, 
       console.log(`🔄 HR company creation attempt ${attempt}/${maxRetries}`)
       
       // Use transaction to ensure atomicity
-      const hrCompany = await getHRClient().$transaction(async (tx) => {
+      const hrClient = await getHRClient(); const hrCompany = await hrClient.$transaction(async (tx) => {
         // Create company with all required fields
         const company = await tx.company.create({
           data: {
@@ -216,7 +216,7 @@ async function validateAndFixHRCompany(hrCompany: any) {
 
   try {
     // Fix the issues
-    const fixedCompany = await getHRClient().$transaction(async (tx) => {
+    const hrClient = await getHRClient(); const fixedCompany = await hrClient.$transaction(async (tx) => {
       // Update company name if needed
       let updatedCompany = hrCompany
       if (issues.includes('Invalid company name')) {
