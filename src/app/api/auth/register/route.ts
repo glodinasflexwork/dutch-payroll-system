@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import crypto from "crypto"
-import { authClient, hrClient } from "@/lib/database-clients"
+import { getAuthClient, getHRClient } from "@/lib/database-clients"
 
 interface RegistrationData {
   // Personal Information
@@ -94,6 +94,11 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("All validations passed")
+
+    // Get database clients
+    console.log("Getting database clients...")
+    const authClient = await getAuthClient()
+    const hrClient = await getHRClient()
 
     // Check if user already exists
     console.log("Checking if user exists...")
