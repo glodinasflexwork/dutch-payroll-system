@@ -1,48 +1,74 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { authClient } from "@/lib/database-clients"
 
 export async function GET(
-  req: NextRequest,
+  request: NextRequest,
   { params }: { params: { token: string } }
 ) {
   try {
     const { token } = params
 
     if (!token) {
-      return NextResponse.redirect(new URL("/auth/signin?error=invalid-token", req.url))
+      return NextResponse.redirect(
+        new URL("/auth/signin?error=invalid-token", request.url)
+      )
     }
 
-    // Find user with verification token
-    const user = await prisma.user.findFirst({
-      where: {
-        emailVerificationToken: token
+    // Find user by verification token
+    const user = await authClient.user.findUnique({
+      where: { emailVerificationToken: token },
+      include: {
+        UserCompany: {
+          include: { Company: true }
+        }
       }
     })
 
     if (!user) {
-      return NextResponse.redirect(new URL("/auth/signin?error=invalid-token", req.url))
+      return NextResponse.redirect(
+        new URL("/auth/signin?error=invalid-token", request.url)
+      )
     }
 
-    // Check if already verified
     if (user.emailVerified) {
-      return NextResponse.redirect(new URL("/auth/signin?message=already-verified", req.url))
+      return NextResponse.redirect(
+        new URL("/auth/signin?message=already-verified", request.url)
+      )
     }
 
-    // Verify the email
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        emailVerified: new Date(),
-        emailVerificationToken: null
+    // Activate user and company in transaction
+    await authClient.$transaction(async (tx) => {
+      // Activate user
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          emailVerified: new Date(),
+          emailVerificationToken: null
+        }
+      })
+
+      // Update company timestamp (companies are created active by default)
+      // This step is mainly for consistency and future extensibility
+      if (user.UserCompany?.[0]?.Company) {
+        await tx.company.update({
+          where: { id: user.UserCompany[0].Company.id },
+          data: {
+            updatedAt: new Date()
+          }
+        })
       }
     })
 
-    // Redirect to success page
-    return NextResponse.redirect(new URL("/auth/verified", req.url))
+    // Redirect to success page with company context
+    const companyName = user.UserCompany?.[0]?.Company?.name || 'your company'
+    return NextResponse.redirect(
+      new URL(`/auth/verification-success?company=${encodeURIComponent(companyName)}`, request.url)
+    )
 
   } catch (error) {
     console.error("Email verification error:", error)
-    return NextResponse.redirect(new URL("/auth/signin?error=verification-failed", req.url))
+    return NextResponse.redirect(
+      new URL("/auth/signin?error=verification-failed", request.url)
+    )
   }
 }
-
