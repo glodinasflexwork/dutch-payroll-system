@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
 
     // Check if KvK number already exists
     console.log("Checking if KvK number exists...")
-    const existingCompany = await authClient.company.findUnique({
+    const existingCompany = await authClient.company.findFirst({
       where: { kvkNumber: data.kvkNumber }
     })
 
