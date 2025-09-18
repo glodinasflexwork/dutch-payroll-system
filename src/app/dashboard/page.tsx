@@ -7,6 +7,7 @@ import DashboardLayout from "@/components/layout/dashboard-layout"
 import TrialBanner from "@/components/trial/TrialBanner"
 import TrialCountdown from "@/components/trial/TrialCountdown"
 import SessionRefreshHandler from "@/components/SessionRefreshHandler"
+import { TutorialSystem } from "@/components/tutorial/TutorialSystem"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -24,7 +25,10 @@ import {
   Plus,
   ArrowRight,
   BarChart3,
-  Activity
+  Activity,
+  X,
+  BookOpen,
+  HelpCircle
 } from "lucide-react"
 
 interface DashboardStats {
@@ -40,6 +44,9 @@ export default function Dashboard() {
   const router = useRouter()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showQuickSetup, setShowQuickSetup] = useState(true)
+  const [showTutorial, setShowTutorial] = useState(false)
+  const [tutorialDismissed, setTutorialDismissed] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -50,8 +57,32 @@ export default function Dashboard() {
   useEffect(() => {
     if (status === "authenticated") {
       checkUserCompanyAndLoadDashboard()
+      loadUserPreferences()
     }
   }, [session, status, router])
+
+  const loadUserPreferences = () => {
+    // Load user preferences from localStorage
+    const quickSetupDismissed = localStorage.getItem('quickSetupDismissed') === 'true'
+    const tutorialPermanentlyDismissed = localStorage.getItem('tutorialDismissed') === 'true'
+    
+    setShowQuickSetup(!quickSetupDismissed)
+    setTutorialDismissed(tutorialPermanentlyDismissed)
+  }
+
+  const dismissQuickSetup = () => {
+    setShowQuickSetup(false)
+    localStorage.setItem('quickSetupDismissed', 'true')
+  }
+
+  const handleTutorialPermanentDismiss = () => {
+    setTutorialDismissed(true)
+    localStorage.setItem('tutorialDismissed', 'true')
+  }
+
+  const openTutorial = () => {
+    setShowTutorial(true)
+  }
 
   const checkUserCompanyAndLoadDashboard = async () => {
     try {
@@ -155,104 +186,159 @@ export default function Dashboard() {
         {/* Trial Banner */}
         <TrialBanner />
 
-        {/* Professional Quick Setup Panel - Blue Tones Only */}
-        <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-xl text-blue-900 flex items-center">
-                  <Play className="w-5 h-5 mr-2" />
-                  Quick Setup Guide
-                </CardTitle>
-                <CardDescription className="text-blue-700">
-                  Get your payroll system ready in 3 simple steps
-                </CardDescription>
+        {/* Tutorial Help Button - Always visible */}
+        {!showTutorial && (
+          <div className="flex justify-end">
+            <Button 
+              variant="outline" 
+              onClick={openTutorial}
+              className="flex items-center space-x-2"
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>Open Tutorial</span>
+            </Button>
+          </div>
+        )}
+
+        {/* Professional Quick Setup Panel - Dismissible */}
+        {showQuickSetup && (
+          <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl text-blue-900 flex items-center">
+                    <Play className="w-5 h-5 mr-2" />
+                    Quick Setup Guide
+                  </CardTitle>
+                  <CardDescription className="text-blue-700">
+                    Get your payroll system ready in 3 simple steps
+                  </CardDescription>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Badge variant="outline" className="border-blue-300 text-blue-700">
+                    Setup Progress: 50%
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={dismissQuickSetup}
+                    className="h-8 w-8 text-blue-600 hover:text-blue-800 hover:bg-blue-200"
+                    title="Dismiss setup guide"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
-              <Badge variant="outline" className="border-blue-300 text-blue-700">
-                Setup Progress: 50%
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Step 1 - Add Employees - Completed (Blue-Green) */}
-              <Card className="border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                      <CheckCircle className="w-5 h-5 text-white" />
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Step 1 - Add Employees - Completed (Blue-Green) */}
+                <Card className="border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                        <CheckCircle className="w-5 h-5 text-white" />
+                      </div>
+                      <Badge variant="secondary" className="bg-blue-200 text-blue-800">
+                        Completed
+                      </Badge>
                     </div>
-                    <Badge variant="secondary" className="bg-blue-200 text-blue-800">
-                      Completed
-                    </Badge>
-                  </div>
-                  <h3 className="font-semibold text-blue-900 mb-2">Add Employees</h3>
-                  <p className="text-sm text-blue-700 mb-3">
-                    You have {stats?.totalEmployees || 0} employee(s) configured
-                  </p>
-                  <Button 
-                    size="sm" 
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                    onClick={() => router.push("/dashboard/employees")}
-                  >
-                    Manage Employees
-                  </Button>
-                </CardContent>
-              </Card>
+                    <h3 className="font-semibold text-blue-900 mb-2">Add Employees</h3>
+                    <p className="text-sm text-blue-700 mb-3">
+                      You have {stats?.totalEmployees || 0} employee(s) configured
+                    </p>
+                    <div className="space-y-2">
+                      <Button 
+                        size="sm" 
+                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        onClick={() => router.push("/dashboard/employees")}
+                      >
+                        Manage Employees
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="w-full border-blue-300 text-blue-700 hover:bg-blue-50"
+                        onClick={() => {
+                          setShowTutorial(true)
+                          // Jump to employee creation phase
+                        }}
+                      >
+                        <HelpCircle className="w-4 h-4 mr-1" />
+                        Tutorial Help
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
 
-              {/* Step 2 - Process Payroll - Next Step (Darker Blue) */}
-              <Card className="border-blue-400 bg-gradient-to-br from-blue-100 to-blue-200">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center text-white font-bold">
-                      2
+                {/* Step 2 - Process Payroll - Next Step (Darker Blue) */}
+                <Card className="border-blue-400 bg-gradient-to-br from-blue-100 to-blue-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center text-white font-bold">
+                        2
+                      </div>
+                      <Badge variant="secondary" className="bg-blue-300 text-blue-900">
+                        Next Step
+                      </Badge>
                     </div>
-                    <Badge variant="secondary" className="bg-blue-300 text-blue-900">
-                      Next Step
-                    </Badge>
-                  </div>
-                  <h3 className="font-semibold text-blue-900 mb-2">Process First Payroll</h3>
-                  <p className="text-sm text-blue-700 mb-3">
-                    Calculate salaries and taxes for your employees
-                  </p>
-                  <Button 
-                    size="sm" 
-                    className="w-full bg-blue-700 hover:bg-blue-800"
-                    onClick={() => router.push("/payroll")}
-                  >
-                    Start Payroll <ArrowRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </CardContent>
-              </Card>
+                    <h3 className="font-semibold text-blue-900 mb-2">Process First Payroll</h3>
+                    <p className="text-sm text-blue-700 mb-3">
+                      Calculate salaries and taxes for your employees
+                    </p>
+                    <Button 
+                      size="sm" 
+                      className="w-full bg-blue-700 hover:bg-blue-800"
+                      onClick={() => router.push("/payroll")}
+                    >
+                      Start Payroll <ArrowRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </CardContent>
+                </Card>
 
-              {/* Step 3 - Monitor - Coming Soon (Light Blue/Gray) */}
-              <Card className="border-slate-300 bg-gradient-to-br from-slate-50 to-slate-100">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="w-8 h-8 bg-slate-400 rounded-full flex items-center justify-center text-white font-bold">
-                      3
+                {/* Step 3 - Monitor - Coming Soon (Light Blue/Gray) */}
+                <Card className="border-slate-300 bg-gradient-to-br from-slate-50 to-slate-100">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="w-8 h-8 bg-slate-400 rounded-full flex items-center justify-center text-white font-bold">
+                        3
+                      </div>
+                      <Badge variant="outline" className="border-slate-300 text-slate-600">
+                        Coming Soon
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="border-slate-300 text-slate-600">
+                    <h3 className="font-semibold text-slate-700 mb-2">Monitor & Analyze</h3>
+                    <p className="text-sm text-slate-600 mb-3">
+                      View reports and analytics for your payroll
+                    </p>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="w-full border-slate-300 text-slate-600"
+                      disabled
+                    >
                       Coming Soon
-                    </Badge>
-                  </div>
-                  <h3 className="font-semibold text-slate-700 mb-2">Monitor & Analyze</h3>
-                  <p className="text-sm text-slate-600 mb-3">
-                    View reports and analytics for your payroll
-                  </p>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="w-full border-slate-300 text-slate-600"
-                    disabled
-                  >
-                    Coming Soon
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </CardContent>
-        </Card>
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Show Quick Setup Restore Option when dismissed */}
+        {!showQuickSetup && (
+          <div className="flex justify-between items-center">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowQuickSetup(true)}
+              className="flex items-center space-x-2"
+            >
+              <Play className="w-4 h-4" />
+              <span>Show Setup Guide</span>
+            </Button>
+          </div>
+        )}
 
         {/* Professional Stats Grid - Blue Gradient Variations Only */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -386,7 +472,14 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Tutorial System */}
+      <TutorialSystem 
+        isOpen={showTutorial}
+        onClose={() => setShowTutorial(false)}
+        onPermanentDismiss={handleTutorialPermanentDismiss}
+        startPhase={3} // Start with employee management phase
+      />
     </DashboardLayout>
   )
 }
-

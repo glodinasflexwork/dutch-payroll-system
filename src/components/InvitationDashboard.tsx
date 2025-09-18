@@ -501,7 +501,7 @@ export default function InvitationDashboard({ companyId }: InvitationDashboardPr
                   <div className="text-center">
                     <div className="text-lg font-bold text-yellow-600">{metrics.healthChecks.stuckInvitations}</div>
                     <div className="text-sm text-gray-600">Stuck Invitations</div>
-                    <div className="text-xs text-gray-500">Pending > 7 days</div>
+                    <div className="text-xs text-gray-500">Pending &gt; 7 days</div>
                   </div>
                   <div className="text-center">
                     <div className="text-lg font-bold text-red-600">{metrics.healthChecks.expiredTokens}</div>

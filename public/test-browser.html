@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #results {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Browser Tool Test Page</h1>
+        
+        <div class="status success">
+            ✅ This page loaded successfully! The browser tool is working.
+        </div>
+        
+        <div class="status info">
+            📋 This confirms that the Next.js application is serving static files correctly.
+        </div>
+        
+        <h2>Test Actions</h2>
+        <button onclick="testAPI()">Test API Endpoints</button>
+        <button onclick="testAuth()">Test Authentication</button>
+        <button onclick="testNavigation()">Test Navigation</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function log(message) {
+            const results = document.getElementById('results');
+            results.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
+        }
+
+        async function testAPI() {
+            log('🔍 Testing API endpoints...');
+            
+            try {
+                // Test providers endpoint
+                const providersResponse = await fetch('/api/auth/providers');
+                if (providersResponse.ok) {
+                    const providers = await providersResponse.json();
+                    log('✅ Providers API working: ' + Object.keys(providers).join(', '));
+                } else {
+                    log('❌ Providers API failed: ' + providersResponse.status);
+                }
+
+                // Test session endpoint
+                const sessionResponse = await fetch('/api/auth/session');
+                if (sessionResponse.ok) {
+                    const session = await sessionResponse.json();
+                    log('✅ Session API working: ' + (session ? 'Has session' : 'No session'));
+                } else {
+                    log('❌ Session API failed: ' + sessionResponse.status);
+                }
+
+                // Test background API
+                const backgroundResponse = await fetch('/api/daily-background');
+                if (backgroundResponse.ok) {
+                    const background = await backgroundResponse.json();
+                    log('✅ Background API working: ' + background.backgroundUrl);
+                } else {
+                    log('❌ Background API failed: ' + backgroundResponse.status);
+                }
+
+            } catch (error) {
+                log('❌ API test error: ' + error.message);
+            }
+        }
+
+        async function testAuth() {
+            log('🔐 Testing authentication...');
+            
+            try {
+                const authResponse = await fetch('/api/auth/signin/credentials', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'testuser.demo@example.com',
+                        password: 'TestPassword123!',
+                        redirect: false
+                    })
+                });
+
+                log('Auth response status: ' + authResponse.status);
+                
+                if (authResponse.ok) {
+                    const contentType = authResponse.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        const authResult = await authResponse.json();
+                        log('✅ Authentication result: ' + JSON.stringify(authResult));
+                    } else {
+                        log('✅ Authentication returned HTML (likely success page)');
+                    }
+                } else {
+                    log('❌ Authentication failed: ' + authResponse.status);
+                }
+
+            } catch (error) {
+                log('❌ Auth test error: ' + error.message);
+            }
+        }
+
+        function testNavigation() {
+            log('🧭 Testing navigation...');
+            log('Current URL: ' + window.location.href);
+            log('User Agent: ' + navigator.userAgent);
+            log('✅ JavaScript is working correctly in the browser');
+        }
+
+        // Auto-run basic test on page load
+        window.onload = function() {
+            log('🚀 Page loaded successfully');
+            log('Browser tool is functioning correctly');
+        };
+    </script>
+</body>
+</html>

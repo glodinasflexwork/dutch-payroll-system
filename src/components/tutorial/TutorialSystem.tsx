@@ -16,7 +16,10 @@ import {
   ArrowRight,
   Clock,
   Target,
-  BookOpen
+  BookOpen,
+  Minimize2,
+  XCircle,
+  SkipForward
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,6 +30,7 @@ import { cn } from "@/lib/utils"
 interface TutorialSystemProps {
   isOpen: boolean
   onClose: () => void
+  onPermanentDismiss?: () => void
   startPhase?: number
 }
 
@@ -130,14 +134,20 @@ const tutorialPhases: TutorialPhase[] = [
       },
       {
         id: "add-employee",
-        title: "Add First Employee",
-        description: "Fill in required Dutch employee information including personal details, employment info, and tax data",
+        title: "Create Your First Employee",
+        description: "Add a new employee with all required Dutch payroll information including personal details, employment contract, salary information, and tax settings. This is essential for processing payroll in the Netherlands.",
         highlight: "add-employee-form"
+      },
+      {
+        id: "employee-details",
+        title: "Employee Information Requirements",
+        description: "Understand the mandatory fields for Dutch employees: BSN (social security number), employment type (monthly/hourly), salary details, tax table selection, and vacation entitlements according to Dutch labor law.",
+        action: "Learn More About Requirements"
       },
       {
         id: "leave-management",
         title: "Leave Management",
-        description: "Understand Dutch vacation requirements and how leave affects payroll",
+        description: "Understand Dutch vacation requirements (minimum 20 days annually) and how leave affects payroll calculations",
         action: "Explore Leave Management",
         href: "/dashboard/leave-management"
       }
@@ -207,11 +217,12 @@ const tutorialPhases: TutorialPhase[] = [
   }
 ]
 
-export function TutorialSystem({ isOpen, onClose, startPhase = 1 }: TutorialSystemProps) {
+export function TutorialSystem({ isOpen, onClose, onPermanentDismiss, startPhase = 1 }: TutorialSystemProps) {
   const [currentPhase, setCurrentPhase] = useState(startPhase)
   const [currentStep, setCurrentStep] = useState(0)
   const [completedPhases, setCompletedPhases] = useState<Set<number>>(new Set())
   const [isMinimized, setIsMinimized] = useState(false)
+  const [showDismissConfirm, setShowDismissConfirm] = useState(false)
   const router = useRouter()
 
   const phase = tutorialPhases.find(p => p.id === currentPhase)
@@ -259,6 +270,12 @@ export function TutorialSystem({ isOpen, onClose, startPhase = 1 }: TutorialSyst
     setCurrentStep(0)
   }
 
+  const skipToEnd = () => {
+    setCurrentPhase(tutorialPhases.length)
+    setCurrentStep((tutorialPhases[tutorialPhases.length - 1]?.steps.length || 1) - 1)
+    setCompletedPhases(new Set(tutorialPhases.map(p => p.id)))
+  }
+
   const handleAction = () => {
     if (step?.href) {
       router.push(step.href)
@@ -268,7 +285,52 @@ export function TutorialSystem({ isOpen, onClose, startPhase = 1 }: TutorialSyst
     }
   }
 
+  const handlePermanentDismiss = () => {
+    if (onPermanentDismiss) {
+      onPermanentDismiss()
+    }
+    onClose()
+    setShowDismissConfirm(false)
+  }
+
   if (!isOpen) return null
+
+  // Dismiss confirmation dialog
+  if (showDismissConfirm) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="flex items-center text-orange-600">
+              <XCircle className="w-5 h-5 mr-2" />
+              Dismiss Tutorial?
+            </CardTitle>
+            <CardDescription>
+              Are you sure you want to permanently dismiss this tutorial? You can always access it later from the help menu.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex space-x-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowDismissConfirm(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handlePermanentDismiss}
+                className="flex-1"
+              >
+                Yes, Dismiss
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   if (isMinimized) {
     return (
@@ -341,17 +403,37 @@ export function TutorialSystem({ isOpen, onClose, startPhase = 1 }: TutorialSyst
             <div className="flex items-center space-x-2">
               <Button 
                 variant="ghost" 
+                size="sm"
+                className="text-white hover:bg-white hover:bg-opacity-20"
+                onClick={skipToEnd}
+              >
+                <SkipForward className="w-4 h-4 mr-1" />
+                Skip to End
+              </Button>
+              <Button 
+                variant="ghost" 
                 size="icon"
                 className="text-white hover:bg-white hover:bg-opacity-20"
                 onClick={() => setIsMinimized(true)}
+                title="Minimize tutorial"
               >
-                <Target className="w-5 h-5" />
+                <Minimize2 className="w-5 h-5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                className="text-white hover:bg-white hover:bg-opacity-20"
+                onClick={() => setShowDismissConfirm(true)}
+                title="Permanently dismiss tutorial"
+              >
+                <XCircle className="w-5 h-5" />
               </Button>
               <Button 
                 variant="ghost" 
                 size="icon"
                 className="text-white hover:bg-white hover:bg-opacity-20"
                 onClick={onClose}
+                title="Close tutorial (can be reopened)"
               >
                 <X className="w-5 h-5" />
               </Button>
@@ -473,16 +555,70 @@ export function TutorialSystem({ isOpen, onClose, startPhase = 1 }: TutorialSyst
                     </div>
                   )}
 
-                  {/* Completion Criteria */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h5 className="font-medium text-gray-900 mb-2">Phase Goal:</h5>
-                    <p className="text-gray-700 text-sm">{phase?.completionCriteria}</p>
-                  </div>
+                  {step.id === "add-employee" && (
+                    <div className="bg-purple-50 p-6 rounded-lg mb-6">
+                      <h5 className="font-semibold text-purple-900 mb-3">Employee Creation Checklist:</h5>
+                      <ul className="space-y-3 text-purple-800">
+                        <li className="flex items-start space-x-2">
+                          <div className="w-5 h-5 border-2 border-purple-400 rounded mt-0.5"></div>
+                          <div>
+                            <span className="font-medium">Personal Information:</span>
+                            <p className="text-sm">Full name, date of birth, address, and BSN (social security number)</p>
+                          </div>
+                        </li>
+                        <li className="flex items-start space-x-2">
+                          <div className="w-5 h-5 border-2 border-purple-400 rounded mt-0.5"></div>
+                          <div>
+                            <span className="font-medium">Employment Details:</span>
+                            <p className="text-sm">Job title, start date, employment type (monthly/hourly), and contract duration</p>
+                          </div>
+                        </li>
+                        <li className="flex items-start space-x-2">
+                          <div className="w-5 h-5 border-2 border-purple-400 rounded mt-0.5"></div>
+                          <div>
+                            <span className="font-medium">Salary Information:</span>
+                            <p className="text-sm">Gross salary amount, payment frequency, and any allowances or benefits</p>
+                          </div>
+                        </li>
+                        <li className="flex items-start space-x-2">
+                          <div className="w-5 h-5 border-2 border-purple-400 rounded mt-0.5"></div>
+                          <div>
+                            <span className="font-medium">Tax Settings:</span>
+                            <p className="text-sm">Tax table selection, pension contributions, and health insurance details</p>
+                          </div>
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+
+                  {step.id === "employee-details" && (
+                    <div className="bg-amber-50 p-6 rounded-lg mb-6">
+                      <h5 className="font-semibold text-amber-900 mb-3">Dutch Employment Requirements:</h5>
+                      <div className="space-y-4 text-amber-800">
+                        <div>
+                          <span className="font-medium">BSN (Burgerservicenummer):</span>
+                          <p className="text-sm">Required 9-digit social security number for all employees working in the Netherlands</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Employment Type:</span>
+                          <p className="text-sm">Choose between monthly salary (vast contract) or hourly wages (flexibel contract)</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Vacation Days:</span>
+                          <p className="text-sm">Minimum 20 days annually (4 weeks) as required by Dutch labor law</p>
+                        </div>
+                        <div>
+                          <span className="font-medium">Tax Table:</span>
+                          <p className="text-sm">Select appropriate tax table based on employee's personal situation and income level</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Footer Actions */}
+            {/* Navigation Footer */}
             <div className="p-6 border-t bg-gray-50 flex items-center justify-between">
               <Button 
                 variant="outline" 
@@ -493,12 +629,6 @@ export function TutorialSystem({ isOpen, onClose, startPhase = 1 }: TutorialSyst
                 Previous
               </Button>
               
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-600">
-                  Step {currentStepNumber} of {totalSteps}
-                </span>
-              </div>
-
               <div className="flex items-center space-x-2">
                 {step?.href && (
                   <Button variant="outline" onClick={handleAction}>
@@ -521,4 +651,3 @@ export function TutorialSystem({ isOpen, onClose, startPhase = 1 }: TutorialSyst
     </div>
   )
 }
-
