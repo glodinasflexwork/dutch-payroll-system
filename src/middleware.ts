@@ -50,7 +50,11 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith('/api/daily-background') ||
       request.nextUrl.pathname.startsWith('/api/employee-portal-demo') ||
       request.nextUrl.pathname.startsWith('/api/test-payroll') ||
-      request.nextUrl.pathname.startsWith('/api/analytics')) {
+      request.nextUrl.pathname.startsWith('/api/analytics') ||
+      request.nextUrl.pathname.startsWith('/api/seed-subscription-plans') ||
+      request.nextUrl.pathname.startsWith('/api/health') ||
+      request.nextUrl.pathname.startsWith('/api/debug-registration') ||
+      request.nextUrl.pathname.startsWith('/api/test-registration')) {
     console.log('=== MIDDLEWARE END (skipped API route) ===')
     return NextResponse.next()
   }
