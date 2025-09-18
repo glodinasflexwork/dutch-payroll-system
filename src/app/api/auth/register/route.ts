@@ -318,7 +318,12 @@ async function sendVerificationEmail(
   token: string, 
   context: { userName: string; companyName: string }
 ) {
-  const verificationUrl = `${process.env.NEXTAUTH_URL}/api/auth/verify-email/${token}`
+  // Generate verification URL based on environment
+  const baseUrl = process.env.NEXTAUTH_URL || 
+    (process.env.NODE_ENV === 'production' 
+      ? `https://${process.env.VERCEL_URL}` 
+      : 'http://localhost:3001')
+  const verificationUrl = `${baseUrl}/api/auth/verify-email/${token}`
   
   const emailResponse = await fetch(process.env.MAILTRAP_API_URL!, {
     method: "POST",
