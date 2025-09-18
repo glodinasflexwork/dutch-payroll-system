@@ -138,6 +138,36 @@ export async function POST(request: NextRequest) {
     const verificationToken = crypto.randomBytes(32).toString("hex")
     console.log("Generated verification token")
 
+    // Ensure trial plan exists
+    console.log("Ensuring trial plan exists...")
+    let trialPlan = await authClient.plan.findFirst({
+      where: { name: "Trial" }
+    })
+
+    if (!trialPlan) {
+      console.log("Creating trial plan...")
+      trialPlan = await authClient.plan.create({
+        data: {
+          id: 'trial',
+          name: 'Trial',
+          price: 0,
+          currency: 'EUR',
+          maxEmployees: 10,
+          maxPayrolls: 100,
+          features: {
+            payroll: true,
+            employees: true,
+            reports: true,
+            support: false
+          },
+          isActive: true
+        }
+      })
+      console.log("Trial plan created:", trialPlan.id)
+    } else {
+      console.log("Trial plan found:", trialPlan.id)
+    }
+
     // Create user and company in transaction
     console.log("Starting database transaction...")
     const result = await authClient.$transaction(async (authTx) => {
@@ -183,11 +213,39 @@ export async function POST(request: NextRequest) {
         data: { companyId: authCompany.id }
       })
 
+      console.log("Creating trial subscription...")
+      // 5. Create trial subscription with correct field names
+      const trialStart = new Date()
+      const trialEnd = new Date()
+      trialEnd.setDate(trialEnd.getDate() + 14) // 14-day trial
+
+      const subscription = await authTx.subscription.create({
+        data: {
+          companyId: authCompany.id,
+          planId: trialPlan.id,
+          status: "trialing",
+          isTrialActive: true,
+          trialStart: trialStart,
+          trialEnd: trialEnd,
+          currentPeriodStart: trialStart,
+          currentPeriodEnd: trialEnd,
+          cancelAtPeriodEnd: false,
+          trialExtensions: 0
+        }
+      })
+      console.log("Trial subscription created:", {
+        id: subscription.id,
+        status: subscription.status,
+        isTrialActive: subscription.isTrialActive,
+        trialStart: subscription.trialStart,
+        trialEnd: subscription.trialEnd
+      })
+
       console.log("Auth DB transaction completed successfully")
-      return { user, company: authCompany }
+      return { user, company: authCompany, subscription }
     })
 
-    // 5. Create company in HR DB (using separate client)
+    // 6. Create company in HR DB (using separate client)
     console.log("Creating company in HR DB...")
     try {
       await hrClient.company.create({
@@ -209,6 +267,9 @@ export async function POST(request: NextRequest) {
       console.log("Rolling back Auth DB changes...")
       try {
         await authClient.$transaction(async (authTx) => {
+          await authTx.subscription.deleteMany({
+            where: { companyId: result.company.id }
+          })
           await authTx.userCompany.deleteMany({
             where: { userId: result.user.id }
           })
@@ -228,31 +289,6 @@ export async function POST(request: NextRequest) {
         { error: "Failed to create company. Please try again." },
         { status: 500 }
       )
-    }
-
-    // 6. Create trial subscription
-    console.log("Creating trial subscription...")
-    try {
-      const trialPlan = await authClient.plan.findFirst({
-        where: { name: "Trial" }
-      })
-
-      if (trialPlan) {
-        await authClient.subscription.create({
-          data: {
-            companyId: result.company.id,
-            planId: trialPlan.id,
-            status: "trialing",
-            trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days
-          }
-        })
-        console.log("Trial subscription created")
-      } else {
-        console.log("No trial plan found, skipping subscription creation")
-      }
-    } catch (subscriptionError) {
-      console.error("Failed to create trial subscription:", subscriptionError)
-      // Don't fail registration if subscription creation fails
     }
 
     // Send verification email
@@ -282,8 +318,14 @@ export async function POST(request: NextRequest) {
         name: result.company.name,
         kvkNumber: result.company.kvkNumber
       },
+      subscription: {
+        id: result.subscription.id,
+        status: result.subscription.status,
+        isTrialActive: result.subscription.isTrialActive,
+        trialEnd: result.subscription.trialEnd
+      },
       nextSteps: {
-        message: "After email verification, you'll have immediate access to your company dashboard!"
+        message: "After email verification, you'll have immediate access to your company dashboard with a 14-day free trial!"
       }
     })
 

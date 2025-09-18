@@ -1,56 +1,114 @@
 import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { PrismaAdapter } from "@next-auth/prisma-adapter"
-import { authPrisma } from "@/lib/auth-prisma"
 import { authClient } from "@/lib/auth-client"
 import bcrypt from "bcryptjs"
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(authPrisma),
   providers: [
     CredentialsProvider({
+      id: "credentials",
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null
-        }
-
-        const user = await authClient.user.findUnique({
-          where: { email: credentials.email.toLowerCase() },
-          include: {
-            UserCompany: {
-              include: { Company: true }
-            }
-          }
+      async authorize(credentials, req) {
+        console.log('[AUTH] Authorize function called with:', {
+          email: credentials?.email,
+          hasPassword: !!credentials?.password
         })
 
-        if (!user || !user.password) {
+        if (!credentials?.email || !credentials?.password) {
+          console.log('[AUTH] Missing credentials')
           return null
         }
 
-        // Check if email is verified
-        if (!user.emailVerified) {
-          throw new Error("Please verify your email before signing in")
-        }
+        try {
+          console.log('[AUTH] Attempting to find user:', credentials.email)
 
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        )
+          const user = await authClient.user.findUnique({
+            where: { email: credentials.email.toLowerCase() },
+            include: {
+              Company: true,
+              UserCompany: {
+                include: {
+                  Company: true
+                }
+              }
+            }
+          })
 
-        if (!isPasswordValid) {
+          if (!user || !user.password) {
+            console.log('[AUTH] User not found or no password')
+            return null
+          }
+
+          // Check if email is verified
+          if (!user.emailVerified) {
+            console.log('[AUTH] Email not verified')
+            throw new Error("Please verify your email before signing in")
+          }
+
+          console.log('[AUTH] User found, verifying password...')
+          const isPasswordValid = await bcrypt.compare(
+            credentials.password,
+            user.password
+          )
+
+          if (!isPasswordValid) {
+            console.log('[AUTH] Invalid password')
+            return null
+          }
+
+          console.log('[AUTH] Password valid, determining company information...')
+
+          // Determine company information
+          let companyId = null
+          let companyName = null
+          let companyRole = null
+          let hasCompany = false
+
+          // First, check if user has a direct company reference
+          if (user.companyId && user.Company) {
+            companyId = user.Company.id
+            companyName = user.Company.name
+            companyRole = "owner"
+            hasCompany = true
+            console.log('[AUTH] Using direct company reference:', companyName)
+          }
+          // Otherwise, check UserCompany relationships
+          else if (user.UserCompany && user.UserCompany.length > 0) {
+            // Use the first active company relationship
+            const activeUserCompany = user.UserCompany.find(uc => uc.isActive) || user.UserCompany[0]
+            if (activeUserCompany && activeUserCompany.Company) {
+              companyId = activeUserCompany.Company.id
+              companyName = activeUserCompany.Company.name
+              companyRole = activeUserCompany.role
+              hasCompany = true
+              console.log('[AUTH] Using UserCompany relationship:', companyName, 'Role:', companyRole)
+            }
+          }
+
+          const authResult = {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            emailVerified: user.emailVerified,
+            companyId,
+            companyName,
+            hasCompany,
+            companyRole
+          }
+
+          console.log('[AUTH] Authorization successful:', authResult)
+          return authResult
+
+        } catch (error) {
+          console.error('[AUTH] Authorization error:', error)
+          if (error.message === "Please verify your email before signing in") {
+            throw error
+          }
           return null
-        }
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          emailVerified: user.emailVerified
         }
       }
     })
@@ -58,35 +116,40 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        // User just logged in - fetch their company context
-        const userWithCompany = await authClient.user.findUnique({
-          where: { id: user.id },
-          include: {
-            UserCompany: {
-              include: { Company: true }
-            }
-          }
+        console.log('[JWT] Storing user data in token:', {
+          id: user.id,
+          companyId: user.companyId,
+          companyName: user.companyName,
+          hasCompany: user.hasCompany,
+          companyRole: user.companyRole
         })
-
-        if (userWithCompany?.UserCompany?.[0]) {
-          const userCompany = userWithCompany.UserCompany[0]
-          token.companyId = userCompany.Company.id
-          token.companyName = userCompany.Company.name
-          token.companyRole = userCompany.role
-          token.hasCompany = true
-        } else {
-          token.hasCompany = false
-        }
+        
+        // Store user data in JWT token
+        token.sub = user.id // NextAuth uses 'sub' for user ID
+        token.id = user.id
+        token.companyId = user.companyId
+        token.companyName = user.companyName
+        token.hasCompany = user.hasCompany
+        token.companyRole = user.companyRole
       }
       return token
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.sub!
+      if (token) {
+        console.log('[SESSION] Creating session from token:', {
+          id: token.id,
+          companyId: token.companyId,
+          companyName: token.companyName,
+          hasCompany: token.hasCompany,
+          companyRole: token.companyRole
+        })
+        
+        // Pass token data to session
+        session.user.id = token.id as string
         session.user.companyId = token.companyId as string
         session.user.companyName = token.companyName as string
-        session.user.companyRole = token.companyRole as string
         session.user.hasCompany = token.hasCompany as boolean
+        session.user.companyRole = token.companyRole as string
       }
       return session
     }
@@ -96,7 +159,9 @@ export const authOptions: NextAuthOptions = {
     signUp: "/auth/signup"
   },
   session: {
-    strategy: "jwt"
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: process.env.NEXTAUTH_SECRET
+  secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === 'development'
 }

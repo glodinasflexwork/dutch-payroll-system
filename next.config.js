@@ -1,3 +1,4 @@
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
@@ -10,30 +11,17 @@ const nextConfig = {
   },
   
   // Optimize for serverless environments and stability
-  experimental: {
-    // Reduce bundle size and improve cold starts
-    serverComponentsExternalPackages: [
-      '@prisma/client',
-      '@prisma/hr-client', 
-      '@prisma/payroll-client'
-    ],
-    // Optimize function bundling for better performance
-    outputFileTracingIncludes: {
-      '/api/**/*': ['./prisma/**/*'],
-    },
+  serverExternalPackages: [
+    '@prisma/client',
+    '@prisma/hr-client',
+    '@prisma/payroll-client'
+  ],
+  outputFileTracingIncludes: {
+    '/api/**/*': ['./prisma/**/*'],
   },
-  
-  serverExternalPackages: ['@prisma/client', '@prisma/hr-client', '@prisma/payroll-client'],
   
   webpack: (config, { isServer }) => {
     if (isServer) {
-      // Copy Prisma engines for all clients
-      config.externals.push({
-        '@prisma/client': '@prisma/client',
-        '@prisma/hr-client': '@prisma/hr-client', 
-        '@prisma/payroll-client': '@prisma/payroll-client'
-      })
-      
       // Additional optimizations for serverless stability
       config.externals.push({
         'utf-8-validate': 'commonjs utf-8-validate',
@@ -67,7 +55,7 @@ const nextConfig = {
         source: '/api/:path*',
         headers: [
           {
-            key: 'X-Powered-By',
+            key: 'X-Powered-by',
             value: 'SalarySync-Stable',
           },
         ],

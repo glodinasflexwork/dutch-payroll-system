@@ -1,3 +1,4 @@
+
 import { getAuthClient, getHRClient } from './database-clients'
 
 export interface CompanyData {
@@ -162,22 +163,27 @@ export class UniversalCompanyResolver {
    */
   private async getUserCompanies(userId: string) {
     try {
-      const userCompanies = await getAuthClient().userCompany.findMany({
-        where: {
-          userId: userId,
-          isActive: true
-        },
+      // Get user with their company (based on auth schema structure)
+      const user = await getAuthClient().user.findUnique({
+        where: { id: userId },
         include: {
           Company: true
         }
       })
 
-      return userCompanies.map(uc => ({
-        companyId: uc.companyId,
-        role: uc.role,
-        isActive: uc.isActive,
-        company: uc.Company
-      }))
+      if (!user || !user.Company) {
+        return []
+      }
+
+      // Return in the expected format for compatibility
+      return [{
+        id: `${userId}-${user.Company.id}`, // Synthetic ID
+        userId: userId,
+        companyId: user.Company.id,
+        role: 'owner', // Based on schema, user owns the company
+        isActive: true,
+        Company: user.Company
+      }]
     } catch (error) {
       console.error('Error fetching user companies:', error)
       return []
