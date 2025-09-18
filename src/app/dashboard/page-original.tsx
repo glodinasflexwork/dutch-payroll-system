@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
@@ -6,18 +6,29 @@ import { useEffect, useState } from "react"
 import DashboardLayout from "@/components/layout/dashboard-layout"
 import TrialBanner from "@/components/trial/TrialBanner"
 import TrialCountdown from "@/components/trial/TrialCountdown"
+import SessionRefreshHandler from "@/components/SessionRefreshHandler"
+import { TutorialSystem } from "@/components/tutorial/TutorialSystem"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { DashboardStatsSkeleton, CardSkeleton, Skeleton } from "@/components/ui/loading-skeleton"
 import { 
   Users, 
   Calculator, 
   FileText, 
-  TrendingUp,
   Building2,
   Euro,
   Clock,
-  CheckCircle
+  CheckCircle,
+  Play,
+  Settings,
+  Plus,
+  ArrowRight,
+  BarChart3,
+  Activity,
+  X,
+  BookOpen,
+  HelpCircle
 } from "lucide-react"
 
 interface DashboardStats {
@@ -33,6 +44,9 @@ export default function Dashboard() {
   const router = useRouter()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showQuickSetup, setShowQuickSetup] = useState(true)
+  const [showTutorial, setShowTutorial] = useState(false)
+  const [tutorialDismissed, setTutorialDismissed] = useState(false)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -41,54 +55,79 @@ export default function Dashboard() {
   }, [status, router])
 
   useEffect(() => {
-    if (session?.user?.companyId) {
-      setLoading(true)
-      fetchDashboardStats()
+    if (status === "authenticated") {
+      checkUserCompanyAndLoadDashboard()
+      loadUserPreferences()
     }
-  }, [session?.user?.companyId]) // Fix: trigger on companyId changes, not just session
+  }, [session, status, router])
 
-  const fetchDashboardStats = async () => {
+  const loadUserPreferences = () => {
+    // Load user preferences from localStorage
+    const quickSetupDismissed = localStorage.getItem('quickSetupDismissed') === 'true'
+    const tutorialPermanentlyDismissed = localStorage.getItem('tutorialDismissed') === 'true'
+    
+    setShowQuickSetup(!quickSetupDismissed)
+    setTutorialDismissed(tutorialPermanentlyDismissed)
+  }
+
+  const dismissQuickSetup = () => {
+    setShowQuickSetup(false)
+    localStorage.setItem('quickSetupDismissed', 'true')
+  }
+
+  const handleTutorialPermanentDismiss = () => {
+    setTutorialDismissed(true)
+    localStorage.setItem('tutorialDismissed', 'true')
+  }
+
+  const openTutorial = () => {
+    setShowTutorial(true)
+  }
+
+  const checkUserCompanyAndLoadDashboard = async () => {
     try {
-      console.log('=== DASHBOARD DEBUG ===')
-      console.log('Session object:', session)
-      console.log('Session user:', session?.user)
-      console.log('Session companyId:', session?.user?.companyId)
-      console.log('Fetching dashboard stats for company:', session?.user?.companyId)
+      setLoading(true)
       
-      // Fetch company info with employee counts
-      const companyResponse = await fetch("/api/companies")
-      const companyData = await companyResponse.json()
-      console.log('Company API response:', companyData)
-
-      // Fetch employees to get detailed counts
-      const employeesResponse = await fetch("/api/employees")
-      const employeesResult = await employeesResponse.json()
-      const employeesData = employeesResult.success ? employeesResult.employees : []
+      const response = await fetch('/api/user/company-status')
+      const data = await response.json()
       
-      console.log('Employees API response:', employeesResult)
-      console.log('Dashboard employees data:', employeesData)
-
-      // Fetch payroll records
-      const payrollResponse = await fetch("/api/payroll")
-      const payrollResult = await payrollResponse.json()
-      const payrollData = payrollResult.success ? payrollResult.records || payrollResult.payrollRecords || [] : []
-
-      const monthlyEmployees = employeesData.filter((emp: any) => emp.employmentType === "monthly").length
-      const hourlyEmployees = employeesData.filter((emp: any) => emp.employmentType === "hourly").length
-
-      const dashboardStats = {
-        totalEmployees: employeesData.length,
-        monthlyEmployees,
-        hourlyEmployees,
-        totalPayrollRecords: payrollData.length,
-        companyName: companyData.name || "Your Company"
+      if (!data.hasCompany || data.companies.length === 0) {
+        router.push("/setup/company")
+        return
       }
       
-      console.log('Setting dashboard stats:', dashboardStats)
-      setStats(dashboardStats)
+      await fetchDashboardStats(data.primaryCompany)
+      
+    } catch (error) {
+      console.error('Error checking company status:', error)
+      router.push("/setup/company")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchDashboardStats = async (primaryCompany?: any) => {
+    try {
+      // Use optimized dashboard stats API endpoint
+      const response = await fetch("/api/dashboard/stats")
+      const result = await response.json()
+      
+      if (result.success) {
+        const dashboardStats = {
+          totalEmployees: result.totalEmployees,
+          monthlyEmployees: result.monthlyEmployees,
+          hourlyEmployees: result.hourlyEmployees,
+          totalPayrollRecords: result.totalPayrollRecords,
+          companyName: result.companyName
+        }
+        
+        console.log("Dashboard stats loaded:", dashboardStats, result.cached ? "(cached)" : "(fresh)")
+        setStats(dashboardStats)
+      } else {
+        throw new Error(result.error || "Failed to fetch dashboard stats")
+      }
     } catch (error) {
       console.error("Error fetching dashboard stats:", error)
-      // Set default stats on error
       setStats({
         totalEmployees: 0,
         monthlyEmployees: 0,
@@ -104,10 +143,32 @@ export default function Dashboard() {
   if (status === "loading" || loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading dashboard...</p>
+        <div className="space-y-6">
+          {/* Trial Banner Skeleton */}
+          <div className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <Skeleton className="h-6 w-48" />
+                  <Skeleton className="h-4 w-64" />
+                </div>
+                <Skeleton className="h-6 w-32" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[...Array(3)].map((_, i) => (
+                  <CardSkeleton key={i} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Stats Grid Skeleton */}
+          <DashboardStatsSkeleton />
+
+          {/* Additional Cards Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <CardSkeleton />
+            <CardSkeleton />
           </div>
         </div>
       </DashboardLayout>
@@ -118,203 +179,307 @@ export default function Dashboard() {
     return null
   }
 
-  const quickActions = [
-    {
-      title: "Add Employee",
-      description: "Register a new employee",
-      icon: Users,
-      href: "/dashboard/employees",
-      color: "bg-blue-500"
-    },
-    {
-      title: "Process Payroll",
-      description: "Calculate monthly payroll",
-      icon: Calculator,
-      href: "/payroll",
-      color: "bg-green-500"
-    },
-    {
-      title: "View Reports",
-      description: "Generate payroll reports",
-      icon: FileText,
-      href: "/dashboard/reports",
-      color: "bg-purple-500"
-    },
-    {
-      title: "Tax Settings",
-      description: "Configure tax rates",
-      icon: TrendingUp,
-      href: "/dashboard/tax-settings",
-      color: "bg-orange-500"
-    }
-  ]
-
   return (
     <DashboardLayout>
+      <SessionRefreshHandler />
       <div className="space-y-6">
-        {/* Welcome Section */}
-        <div className="bg-gradient-to-r from-primary to-primary/80 rounded-lg p-6 text-primary-foreground">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold mb-2">
-                Welcome back, {session.user.name}!
-              </h1>
-              <p className="text-primary-foreground/80">
-                Here's what's happening with your payroll system today.
-              </p>
-            </div>
-            <div className="hidden md:block">
-              <Building2 className="w-16 h-16 text-primary-foreground/20" />
-            </div>
-          </div>
-        </div>
-
         {/* Trial Banner */}
         <TrialBanner />
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="hover-lift">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+        {/* Tutorial Help Button - Always visible */}
+        {!showTutorial && (
+          <div className="flex justify-end">
+            <Button 
+              variant="outline" 
+              onClick={openTutorial}
+              className="flex items-center space-x-2"
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>Open Tutorial</span>
+            </Button>
+          </div>
+        )}
+
+        {/* Professional Quick Setup Panel - Dismissible */}
+        {showQuickSetup && (
+          <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-xl text-blue-900 flex items-center">
+                    <Play className="w-5 h-5 mr-2" />
+                    Quick Setup Guide
+                  </CardTitle>
+                  <CardDescription className="text-blue-700">
+                    Get your payroll system ready in 3 simple steps
+                  </CardDescription>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Badge variant="outline" className="border-blue-300 text-blue-700">
+                    Setup Progress: 50%
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={dismissQuickSetup}
+                    className="h-8 w-8 text-blue-600 hover:text-blue-800 hover:bg-blue-200"
+                    title="Dismiss setup guide"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.totalEmployees || 0}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Step 1 - Add Employees - Completed (Blue-Green) */}
+                <Card className="border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                        <CheckCircle className="w-5 h-5 text-white" />
+                      </div>
+                      <Badge variant="secondary" className="bg-blue-200 text-blue-800">
+                        Completed
+                      </Badge>
+                    </div>
+                    <h3 className="font-semibold text-blue-900 mb-2">Add Employees</h3>
+                    <p className="text-sm text-blue-700 mb-3">
+                      You have {stats?.totalEmployees || 0} employee(s) configured
+                    </p>
+                    <div className="space-y-2">
+                      <Button 
+                        size="sm" 
+                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        onClick={() => router.push("/dashboard/employees")}
+                      >
+                        Manage Employees
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="w-full border-blue-300 text-blue-700 hover:bg-blue-50"
+                        onClick={() => {
+                          setShowTutorial(true)
+                          // Jump to employee creation phase
+                        }}
+                      >
+                        <HelpCircle className="w-4 h-4 mr-1" />
+                        Tutorial Help
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Step 2 - Process Payroll - Next Step (Darker Blue) */}
+                <Card className="border-blue-400 bg-gradient-to-br from-blue-100 to-blue-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center text-white font-bold">
+                        2
+                      </div>
+                      <Badge variant="secondary" className="bg-blue-300 text-blue-900">
+                        Next Step
+                      </Badge>
+                    </div>
+                    <h3 className="font-semibold text-blue-900 mb-2">Process First Payroll</h3>
+                    <p className="text-sm text-blue-700 mb-3">
+                      Calculate salaries and taxes for your employees
+                    </p>
+                    <Button 
+                      size="sm" 
+                      className="w-full bg-blue-700 hover:bg-blue-800"
+                      onClick={() => router.push("/payroll")}
+                    >
+                      Start Payroll <ArrowRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Step 3 - Monitor - Coming Soon (Light Blue/Gray) */}
+                <Card className="border-slate-300 bg-gradient-to-br from-slate-50 to-slate-100">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="w-8 h-8 bg-slate-400 rounded-full flex items-center justify-center text-white font-bold">
+                        3
+                      </div>
+                      <Badge variant="outline" className="border-slate-300 text-slate-600">
+                        Coming Soon
+                      </Badge>
+                    </div>
+                    <h3 className="font-semibold text-slate-700 mb-2">Monitor & Analyze</h3>
+                    <p className="text-sm text-slate-600 mb-3">
+                      View reports and analytics for your payroll
+                    </p>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="w-full border-slate-300 text-slate-600"
+                      disabled
+                    >
+                      Coming Soon
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Show Quick Setup Restore Option when dismissed */}
+        {!showQuickSetup && (
+          <div className="flex justify-between items-center">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowQuickSetup(true)}
+              className="flex items-center space-x-2"
+            >
+              <Play className="w-4 h-4" />
+              <span>Show Setup Guide</span>
+            </Button>
+          </div>
+        )}
+
+        {/* Professional Stats Grid - Blue Gradient Variations Only */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-blue-50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-blue-900">Total Employees</CardTitle>
+              <Users className="h-5 w-5 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-blue-700">{stats?.totalEmployees || 0}</div>
+              <p className="text-xs text-blue-600 mt-1">
                 Active employees in system
               </p>
             </CardContent>
           </Card>
 
-          <Card className="hover-lift">
+          <Card className="border-l-4 border-l-blue-600 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-blue-50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Monthly Employees</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-blue-900">Monthly Employees</CardTitle>
+              <Clock className="h-5 w-5 text-blue-700" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.monthlyEmployees || 0}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-3xl font-bold text-blue-800">{stats?.monthlyEmployees || 0}</div>
+              <p className="text-xs text-blue-600 mt-1">
                 Fixed salary employees
               </p>
             </CardContent>
           </Card>
 
-          <Card className="hover-lift">
+          <Card className="border-l-4 border-l-blue-700 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-blue-50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Hourly Employees</CardTitle>
-              <Euro className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-blue-900">Hourly Employees</CardTitle>
+              <Euro className="h-5 w-5 text-blue-800" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.hourlyEmployees || 0}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-3xl font-bold text-blue-900">{stats?.hourlyEmployees || 0}</div>
+              <p className="text-xs text-blue-600 mt-1">
                 Hourly rate employees
               </p>
             </CardContent>
           </Card>
 
-          <Card className="hover-lift">
+          <Card className="border-l-4 border-l-blue-800 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-blue-50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Payroll Records</CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-blue-900">Payroll Records</CardTitle>
+              <BarChart3 className="h-5 w-5 text-blue-900" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.totalPayrollRecords || 0}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-3xl font-bold text-blue-900">{stats?.totalPayrollRecords || 0}</div>
+              <p className="text-xs text-blue-600 mt-1">
                 Total processed records
               </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Trial Countdown and Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Trial Countdown - Takes 1 column */}
-          <div className="lg:col-span-1">
-            <TrialCountdown />
-          </div>
-          
-          {/* Quick Actions - Takes 3 columns */}
-          <div className="lg:col-span-3">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {quickActions.map((action, index) => (
-                <Card key={index} className="hover-lift cursor-pointer group" onClick={() => router.push(action.href)}>
-                  <CardHeader className="pb-3">
-                    <div className={`w-12 h-12 ${action.color} rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
-                      <action.icon className="w-6 h-6 text-white" />
-                    </div>
-                    <CardTitle className="text-lg">{action.title}</CardTitle>
-                    <CardDescription>{action.description}</CardDescription>
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* System Status */}
-        <Card>
+        {/* Professional Setup Workflow - Blue Tones Only */}
+        <Card className="bg-gradient-to-r from-blue-50 to-slate-50">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <CheckCircle className="w-5 h-5 text-green-500" />
-              <span>System Status</span>
+            <CardTitle className="text-xl text-blue-900 flex items-center">
+              <Activity className="w-5 h-5 mr-2" />
+              Setup Workflow
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-blue-700">
+              Track your progress through the payroll setup process
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-5 h-5 text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-blue-900">Add Employees</span>
+                </div>
+                <div className="w-8 h-0.5 bg-blue-300"></div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                    2
+                  </div>
+                  <span className="text-sm font-medium text-blue-900">Process Payroll</span>
+                </div>
+                <div className="w-8 h-0.5 bg-slate-300"></div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-slate-400 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                    3
+                  </div>
+                  <span className="text-sm font-medium text-slate-600">Monitor & Manage</span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Professional System Status - Blue Gradient */}
+        <Card className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center">
+              <CheckCircle className="w-5 h-5 mr-2" />
+              System Status
+            </CardTitle>
+            <CardDescription className="text-blue-100">
               Your Dutch payroll system is running smoothly
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="flex items-center space-x-3">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
                 <div>
                   <p className="font-medium">Database</p>
-                  <p className="text-sm text-muted-foreground">Connected</p>
+                  <p className="text-sm text-blue-100">Connected</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
                 <div>
                   <p className="font-medium">Authentication</p>
-                  <p className="text-sm text-muted-foreground">Active</p>
+                  <p className="text-sm text-blue-100">Active</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
                 <div>
                   <p className="font-medium">Tax Calculations</p>
-                  <p className="text-sm text-muted-foreground">2025 Rates</p>
+                  <p className="text-sm text-blue-100">2025 Rates</p>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Company Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Company Information</CardTitle>
-            <CardDescription>
-              Current company details and settings
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-lg">{stats?.companyName}</p>
-                <p className="text-sm text-muted-foreground">Netherlands</p>
-                <Badge variant="secondary" className="mt-2">
-                  Dutch Tax Compliant
-                </Badge>
-              </div>
-              <Button variant="outline" onClick={() => router.push("/dashboard/company")}>
-                Manage Company
-              </Button>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Tutorial System */}
+      <TutorialSystem 
+        isOpen={showTutorial}
+        onClose={() => setShowTutorial(false)}
+        onPermanentDismiss={handleTutorialPermanentDismiss}
+        startPhase={3} // Start with employee management phase
+      />
     </DashboardLayout>
   )
 }
-

@@ -1,14 +1,16 @@
-"use client"
+'use client'
 
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import DashboardLayout from "@/components/layout/dashboard-layout"
-import AnalyticsDashboard from "@/components/dashboard/analytics-dashboard"
+import ModernAnalyticsDashboard from "@/components/dashboard/analytics-dashboard-modern"
+import { DashboardStatsSkeleton } from "@/components/ui/loading-skeleton"
 
-export default function AnalyticsPage() {
+export default function EnhancedAnalyticsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -16,14 +18,27 @@ export default function AnalyticsPage() {
     }
   }, [status, router])
 
-  if (status === "loading") {
+  useEffect(() => {
+    if (status === "authenticated") {
+      // Simulate loading time for analytics data
+      setTimeout(() => setLoading(false), 1000)
+    }
+  }, [status])
+
+  if (status === "loading" || loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-500">Loading analytics...</p>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <div className="h-8 bg-gray-200 rounded w-64 animate-pulse"></div>
+            <div className="h-4 bg-gray-200 rounded w-96 animate-pulse"></div>
           </div>
+          <DashboardStatsSkeleton />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="h-96 bg-gray-200 rounded animate-pulse"></div>
+            <div className="h-96 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+          <div className="h-64 bg-gray-200 rounded animate-pulse"></div>
         </div>
       </DashboardLayout>
     )
@@ -35,8 +50,7 @@ export default function AnalyticsPage() {
 
   return (
     <DashboardLayout>
-      <AnalyticsDashboard />
+      <ModernAnalyticsDashboard />
     </DashboardLayout>
   )
 }
-
