@@ -84,11 +84,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate Dutch postal code format
+    // Validate Dutch postal code format (allow both "1234AB" and "1234 AB")
     if (!/^\d{4}\s?[A-Z]{2}$/i.test(data.postalCode)) {
       console.log("Invalid postal code format:", data.postalCode)
       return NextResponse.json(
-        { error: "Invalid Dutch postal code format (e.g., 1234 AB)" },
+        { error: "Invalid Dutch postal code format (e.g., 1234AB or 1234 AB)" },
         { status: 400 }
       )
     }
@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
     // 6. Create trial subscription
     console.log("Creating trial subscription...")
     try {
-      const trialPlan = await authClient.subscriptionPlan.findFirst({
+      const trialPlan = await authClient.plan.findFirst({
         where: { name: "Trial" }
       })
 
