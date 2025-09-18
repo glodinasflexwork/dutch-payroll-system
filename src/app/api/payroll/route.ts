@@ -335,7 +335,8 @@ export async function PUT(request: NextRequest) {
     const month = payPeriodStartDate.getMonth() + 1
 
     // Check if record already exists for this period
-    const existingRecord = await getPayrollClient().payrollRecord.findFirst({
+    const payrollClient = await getPayrollClient()
+    const existingRecord = await payrollClient.payrollRecord.findFirst({
       where: {
         employeeId: employeeId,
         year: year,
@@ -347,7 +348,7 @@ export async function PUT(request: NextRequest) {
       console.log(`🔄 [PayrollAPI] Updating existing payroll record for period: ${year}-${month}`)
       
       // Update existing record with schema-compliant fields including employee data
-      const updatedRecord = await getPayrollClient().payrollRecord.update({
+      const updatedRecord = await payrollClient.payrollRecord.update({
         where: { id: existingRecord.id },
         data: {
           employeeNumber: employee.employeeNumber || `EMP${employee.id.slice(-4)}`, // Ensure employeeNumber is set
@@ -418,7 +419,7 @@ export async function PUT(request: NextRequest) {
       console.log(`📝 [PayrollAPI] Creating new payroll record for period: ${year}-${month}`)
       
       // Create new payroll record with schema-compliant fields including required employee data
-      const payrollRecord = await getPayrollClient().payrollRecord.create({
+      const payrollRecord = await payrollClient.payrollRecord.create({
         data: {
           employeeId: employeeId,
           employeeNumber: employee.employeeNumber || `EMP${employee.id.slice(-4)}`, // Use employeeNumber or generate from ID
@@ -564,7 +565,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch payroll records
-    const payrollRecords = await getPayrollClient().payrollRecord.findMany({
+    const payrollClient = await getPayrollClient()
+    const payrollRecords = await payrollClient.payrollRecord.findMany({
       where: whereClause,
       orderBy: {
         createdAt: 'desc'
@@ -574,12 +576,12 @@ export async function GET(request: NextRequest) {
     })
 
     // Get total count
-    const totalCount = await getPayrollClient().payrollRecord.count({
+    const totalCount = await payrollClient.payrollRecord.count({
       where: whereClause
     })
 
     // Calculate summary statistics
-    const summary = await getPayrollClient().payrollRecord.aggregate({
+    const summary = await payrollClient.payrollRecord.aggregate({
       where: whereClause,
       _sum: {
         grossSalary: true,

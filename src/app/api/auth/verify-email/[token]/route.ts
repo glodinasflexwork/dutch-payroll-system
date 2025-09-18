@@ -3,10 +3,10 @@ import { authClient } from "@/lib/auth-client"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
   try {
-    const { token } = params
+    const { token } = await params
 
     if (!token) {
       return NextResponse.redirect(

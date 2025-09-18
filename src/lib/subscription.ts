@@ -118,16 +118,13 @@ export async function validateSubscription(companyId: string) {
   try {
     console.log(`🔍 Validating subscription for company: ${companyId}`)
     
-    const company = await getAuthClient().company.findUnique({
-      where: { id: companyId },
-      include: {
-        Subscription: {
-          include: { Plan: true }
-        }
-      }
+    const authClient = await getAuthClient()
+    const subscription = await authClient.subscription.findUnique({
+      where: { companyId: companyId },
+      include: { Plan: true }
     })
 
-    if (!company?.Subscription) {
+    if (!subscription) {
       console.log(`⚠️ No subscription found for company: ${companyId}`)
       
       // Attempt automatic trial recovery
@@ -135,19 +132,16 @@ export async function validateSubscription(companyId: string) {
         await ensureTrialSubscription(companyId)
         console.log(`✅ Trial subscription created for company: ${companyId}`)
         
-        // Re-fetch the company with the new subscription
-        const updatedCompany = await getAuthClient().company.findUnique({
-          where: { id: companyId },
-          include: {
-            Subscription: {
-              include: { Plan: true }
-            }
-          }
+        // Re-fetch the subscription
+        const authClient2 = await getAuthClient()
+        const updatedSubscription = await authClient2.subscription.findUnique({
+          where: { companyId: companyId },
+          include: { Plan: true }
         })
         
-        if (updatedCompany?.Subscription) {
+        if (updatedSubscription) {
           // Continue with validation using the new subscription
-          return validateSubscriptionData(updatedCompany.Subscription)
+          return validateSubscriptionData(updatedSubscription)
         }
       } catch (recoveryError) {
         console.error(`❌ Failed to create trial subscription for company ${companyId}:`, recoveryError)
@@ -175,7 +169,7 @@ export async function validateSubscription(companyId: string) {
       }
     }
 
-    return validateSubscriptionData(company.Subscription)
+    return validateSubscriptionData(subscription)
 
   } catch (error) {
     console.error('❌ Subscription validation error:', error)
@@ -287,7 +281,8 @@ async function ensureTrialSubscription(companyId: string) {
   console.log(`🔧 Ensuring trial subscription for company: ${companyId}`)
   
   // Find the canonical trial plan
-  const trialPlan = await getAuthClient().plan.findFirst({
+  const authClient = await getAuthClient()
+  const trialPlan = await authClient.plan.findFirst({
     where: { 
       name: "Free Trial",
       isActive: true 
@@ -301,7 +296,7 @@ async function ensureTrialSubscription(companyId: string) {
   const now = new Date()
   const trialEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000) // 14 days from now
 
-  await getAuthClient().subscription.create({
+  await authClient.subscription.create({
     data: {
       companyId: companyId,
       planId: trialPlan.id,

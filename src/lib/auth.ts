@@ -13,9 +13,20 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials, req) {
-        console.log('[AUTH] Authorize function called with:', {
+        console.log('[AUTH] ===== AUTHORIZE FUNCTION CALLED =====')
+        console.log('[AUTH] Credentials:', {
           email: credentials?.email,
-          hasPassword: !!credentials?.password
+          hasPassword: !!credentials?.password,
+          passwordLength: credentials?.password?.length
+        })
+        console.log('[AUTH] Request info:', {
+          method: req?.method,
+          url: req?.url,
+          userAgent: req?.headers?.['user-agent']
+        })
+        console.log('[AUTH] Environment check:', {
+          authDbUrl: !!process.env.AUTH_DATABASE_URL,
+          nextAuthSecret: !!process.env.NEXTAUTH_SECRET
         })
 
         if (!credentials?.email || !credentials?.password) {
@@ -162,6 +173,7 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === 'development'
 }

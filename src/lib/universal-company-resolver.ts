@@ -164,7 +164,8 @@ export class UniversalCompanyResolver {
   private async getUserCompanies(userId: string) {
     try {
       // Get user with their company (based on auth schema structure)
-      const user = await getAuthClient().user.findUnique({
+      const authClient = await getAuthClient()
+      const user = await authClient.user.findUnique({
         where: { id: userId },
         include: {
           Company: true
@@ -196,13 +197,15 @@ export class UniversalCompanyResolver {
   private async validateAndGetCompanyData(companyId: string): Promise<CompanyData | null> {
     try {
       // Try auth database first
-      let company = await getAuthClient().company.findUnique({
+      const authClient = await getAuthClient()
+      let company = await authClient.company.findUnique({
         where: { id: companyId }
       })
 
       // Fallback to HR database
       if (!company) {
-        company = await getHRClient().company.findUnique({
+        const hrClient = await getHRClient()
+        company = await hrClient.company.findUnique({
           where: { id: companyId }
         })
       }

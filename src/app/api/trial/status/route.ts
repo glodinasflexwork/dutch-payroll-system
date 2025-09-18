@@ -23,7 +23,8 @@ export async function GET(request: NextRequest) {
     // Step 1: Check if session companyId exists and has active trial
     if (companyId) {
       try {
-        resolvedCompany = await getAuthClient().company.findUnique({
+        const authClient = await getAuthClient()
+        resolvedCompany = await authClient.company.findUnique({
           where: { id: companyId },
           include: {
             Subscription: true,
@@ -51,14 +52,16 @@ export async function GET(request: NextRequest) {
     // Step 2: Fallback to user's primary companyId if session company invalid
     if (!resolvedCompany) {
       console.log(`[TRIAL API] Falling back to user's primary company`);
-      const user = await getAuthClient().user.findUnique({
+      const authClient2 = await getAuthClient()
+      const user = await authClient2.user.findUnique({
         where: { id: session.user.id },
         select: { companyId: true }
       });
       
       if (user?.companyId && user.companyId !== companyId) {
         try {
-          resolvedCompany = await getAuthClient().company.findUnique({
+          const authClient3 = await getAuthClient()
+          resolvedCompany = await authClient3.company.findUnique({
             where: { id: user.companyId },
             include: {
               Subscription: true,
@@ -84,7 +87,8 @@ export async function GET(request: NextRequest) {
     // Step 3: Final fallback - find ANY company user has access to with active trial
     if (!resolvedCompany) {
       console.log(`[TRIAL API] Final fallback - searching all user companies for active trial`);
-      const userCompanies = await getAuthClient().userCompany.findMany({
+      const authClient4 = await getAuthClient()
+      const userCompanies = await authClient4.userCompany.findMany({
         where: { userId: session.user.id },
         include: {
           Company: {
