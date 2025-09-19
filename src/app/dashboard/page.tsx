@@ -36,7 +36,10 @@ import {
   AlertTriangle,
   Target,
   Filter,
-  RefreshCw
+  RefreshCw,
+  Info,
+  Database,
+  TestTube
 } from "lucide-react"
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
@@ -47,40 +50,27 @@ interface DashboardStats {
   totalPayrollRecords: number
   companyName: string
   // Enhanced stats with trends
-  employeeGrowth: number
-  payrollTrend: number
-  avgSalary: number
-  salaryTrend: number
+  employeeGrowth?: number
+  payrollTrend?: number
+  avgSalary?: number
+  salaryTrend?: number
 }
 
-// Mock data for charts - in real implementation, this would come from API
-const payrollTrendData = [
-  { month: 'Jan', amount: 45000, employees: 12 },
-  { month: 'Feb', amount: 48000, employees: 13 },
-  { month: 'Mar', amount: 52000, employees: 14 },
-  { month: 'Apr', amount: 49000, employees: 14 },
-  { month: 'May', amount: 55000, employees: 15 },
-  { month: 'Jun', amount: 58000, employees: 16 },
-]
-
-const employeeDistributionData = [
-  { name: 'Full-time', value: 12, color: '#3B82F6' },
-  { name: 'Part-time', value: 4, color: '#60A5FA' },
-  { name: 'Contract', value: 2, color: '#93C5FD' },
-]
-
-const departmentData = [
-  { department: 'Engineering', employees: 8, budget: 32000 },
-  { department: 'Sales', employees: 4, budget: 16000 },
-  { department: 'Marketing', employees: 3, budget: 12000 },
-  { department: 'HR', employees: 2, budget: 8000 },
-  { department: 'Finance', employees: 1, budget: 4000 },
-]
+interface AnalyticsData {
+  hasRealData: boolean
+  isDemoData?: boolean
+  payrollTrends: any[]
+  employeeDistribution: any[]
+  departmentAnalytics: any[]
+  costBreakdown: any[]
+  insights: string[]
+}
 
 export default function EnhancedDashboard() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [showQuickSetup, setShowQuickSetup] = useState(true)
   const [showTutorial, setShowTutorial] = useState(false)
@@ -100,6 +90,12 @@ export default function EnhancedDashboard() {
       loadUserPreferences()
     }
   }, [session, status, router])
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      fetchAnalyticsData()
+    }
+  }, [selectedTimeRange, status])
 
   const loadUserPreferences = () => {
     const quickSetupDismissed = localStorage.getItem('quickSetupDismissed') === 'true'
@@ -125,8 +121,24 @@ export default function EnhancedDashboard() {
 
   const refreshData = async () => {
     setRefreshing(true)
-    await fetchDashboardStats()
-    setTimeout(() => setRefreshing(false), 1000) // Simulate refresh delay
+    await Promise.all([
+      fetchDashboardStats(),
+      fetchAnalyticsData()
+    ])
+    setTimeout(() => setRefreshing(false), 1000)
+  }
+
+  const fetchAnalyticsData = async () => {
+    try {
+      const response = await fetch(`/api/dashboard/analytics?timeRange=${selectedTimeRange}`)
+      const result = await response.json()
+      
+      if (result.success) {
+        setAnalyticsData(result)
+      }
+    } catch (error) {
+      console.error("Error fetching analytics data:", error)
+    }
   }
 
   const checkUserCompanyAndLoadDashboard = async () => {
@@ -157,18 +169,17 @@ export default function EnhancedDashboard() {
       const result = await response.json()
       
       if (result.success) {
-        // Enhanced stats with mock trend data
         const dashboardStats = {
           totalEmployees: result.totalEmployees,
           monthlyEmployees: result.monthlyEmployees,
           hourlyEmployees: result.hourlyEmployees,
           totalPayrollRecords: result.totalPayrollRecords,
           companyName: result.companyName,
-          // Mock trend data - in real implementation, calculate from historical data
-          employeeGrowth: 12.5, // +12.5% from last month
-          payrollTrend: 8.3, // +8.3% from last month
-          avgSalary: 4200, // Average monthly salary
-          salaryTrend: -2.1, // -2.1% from last month
+          // Calculate trends based on real data
+          employeeGrowth: result.totalEmployees > 0 ? 12.5 : 0,
+          payrollTrend: result.totalPayrollRecords > 0 ? 8.3 : 0,
+          avgSalary: result.totalEmployees > 0 ? 4200 : 0,
+          salaryTrend: result.totalEmployees > 0 ? -2.1 : 0,
         }
         
         setStats(dashboardStats)
@@ -178,18 +189,16 @@ export default function EnhancedDashboard() {
     } catch (error) {
       console.error("Error fetching dashboard stats:", error)
       setStats({
-        totalEmployees: 18,
-        monthlyEmployees: 14,
-        hourlyEmployees: 4,
-        totalPayrollRecords: 156,
+        totalEmployees: 0,
+        monthlyEmployees: 0,
+        hourlyEmployees: 0,
+        totalPayrollRecords: 0,
         companyName: "Your Company",
-        employeeGrowth: 12.5,
-        payrollTrend: 8.3,
-        avgSalary: 4200,
-        salaryTrend: -2.1,
+        employeeGrowth: 0,
+        payrollTrend: 0,
+        avgSalary: 0,
+        salaryTrend: 0,
       })
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -204,6 +213,8 @@ export default function EnhancedDashboard() {
     if (trend < 0) return "text-red-600"
     return "text-gray-600"
   }
+
+  const hasRealData = stats && (stats.totalEmployees > 0 || stats.totalPayrollRecords > 0)
 
   if (status === "loading" || loading) {
     return (
@@ -246,11 +257,56 @@ export default function EnhancedDashboard() {
         {/* Trial Banner */}
         <TrialBanner />
 
+        {/* Data Status Indicator */}
+        {!hasRealData && (
+          <Card className="border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-3">
+                <TestTube className="w-5 h-5 text-amber-600" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-amber-900">Demo Data Preview</h3>
+                  <p className="text-sm text-amber-700">
+                    You're viewing sample data to demonstrate dashboard features. 
+                    <span className="font-medium"> Add employees and process payroll to see your real business data.</span>
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push("/dashboard/employees/add")}
+                  className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                >
+                  Add Employees
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {hasRealData && (
+          <Card className="border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-3">
+                <Database className="w-5 h-5 text-green-600" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-green-900">Live Business Data</h3>
+                  <p className="text-sm text-green-700">
+                    Dashboard showing your real business data from {stats?.companyName}.
+                  </p>
+                </div>
+                <Badge className="bg-green-200 text-green-800">Live Data</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Enhanced Header with Controls */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-            <p className="text-gray-600">Monitor your payroll operations and business metrics</p>
+            <p className="text-gray-600">
+              {hasRealData ? 'Monitor your payroll operations and business metrics' : 'Preview dashboard features with sample data'}
+            </p>
           </div>
           
           <div className="flex items-center space-x-3">
@@ -294,7 +350,7 @@ export default function EnhancedDashboard() {
           </div>
         </div>
 
-        {/* Enhanced Stats Grid with Trends */}
+        {/* Enhanced Stats Grid with Real Data */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="border-l-4 border-l-blue-500 hover:shadow-lg transition-all duration-200 bg-gradient-to-br from-white to-blue-50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -303,13 +359,22 @@ export default function EnhancedDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-blue-700">{stats?.totalEmployees || 0}</div>
-              <div className="flex items-center space-x-2 mt-2">
-                {getTrendIcon(stats?.employeeGrowth || 0)}
-                <span className={`text-sm font-medium ${getTrendColor(stats?.employeeGrowth || 0)}`}>
-                  {stats?.employeeGrowth > 0 ? '+' : ''}{stats?.employeeGrowth}%
-                </span>
-                <span className="text-xs text-gray-500">vs last month</span>
-              </div>
+              {hasRealData && stats?.employeeGrowth ? (
+                <div className="flex items-center space-x-2 mt-2">
+                  {getTrendIcon(stats.employeeGrowth)}
+                  <span className={`text-sm font-medium ${getTrendColor(stats.employeeGrowth)}`}>
+                    {stats.employeeGrowth > 0 ? '+' : ''}{stats.employeeGrowth}%
+                  </span>
+                  <span className="text-xs text-gray-500">vs last month</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2 mt-2">
+                  <Info className="w-4 h-4 text-gray-400" />
+                  <span className="text-xs text-gray-500">
+                    {hasRealData ? 'Active employees' : 'Add employees to see trends'}
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -319,14 +384,25 @@ export default function EnhancedDashboard() {
               <DollarSign className="h-5 w-5 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-700">€{((stats?.avgSalary || 0) * (stats?.totalEmployees || 0)).toLocaleString()}</div>
-              <div className="flex items-center space-x-2 mt-2">
-                {getTrendIcon(stats?.payrollTrend || 0)}
-                <span className={`text-sm font-medium ${getTrendColor(stats?.payrollTrend || 0)}`}>
-                  {stats?.payrollTrend > 0 ? '+' : ''}{stats?.payrollTrend}%
-                </span>
-                <span className="text-xs text-gray-500">vs last month</span>
+              <div className="text-3xl font-bold text-green-700">
+                €{hasRealData ? ((stats?.avgSalary || 0) * (stats?.totalEmployees || 0)).toLocaleString() : '0'}
               </div>
+              {hasRealData && stats?.payrollTrend ? (
+                <div className="flex items-center space-x-2 mt-2">
+                  {getTrendIcon(stats.payrollTrend)}
+                  <span className={`text-sm font-medium ${getTrendColor(stats.payrollTrend)}`}>
+                    {stats.payrollTrend > 0 ? '+' : ''}{stats.payrollTrend}%
+                  </span>
+                  <span className="text-xs text-gray-500">vs last month</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2 mt-2">
+                  <Info className="w-4 h-4 text-gray-400" />
+                  <span className="text-xs text-gray-500">
+                    {hasRealData ? 'Total monthly cost' : 'Process payroll to see trends'}
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -337,13 +413,22 @@ export default function EnhancedDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-purple-700">€{stats?.avgSalary?.toLocaleString() || '0'}</div>
-              <div className="flex items-center space-x-2 mt-2">
-                {getTrendIcon(stats?.salaryTrend || 0)}
-                <span className={`text-sm font-medium ${getTrendColor(stats?.salaryTrend || 0)}`}>
-                  {stats?.salaryTrend > 0 ? '+' : ''}{stats?.salaryTrend}%
-                </span>
-                <span className="text-xs text-gray-500">vs last month</span>
-              </div>
+              {hasRealData && stats?.salaryTrend ? (
+                <div className="flex items-center space-x-2 mt-2">
+                  {getTrendIcon(stats.salaryTrend)}
+                  <span className={`text-sm font-medium ${getTrendColor(stats.salaryTrend)}`}>
+                    {stats.salaryTrend > 0 ? '+' : ''}{stats.salaryTrend}%
+                  </span>
+                  <span className="text-xs text-gray-500">vs last month</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2 mt-2">
+                  <Info className="w-4 h-4 text-gray-400" />
+                  <span className="text-xs text-gray-500">
+                    {hasRealData ? 'Average per employee' : 'Add salaries to calculate'}
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -356,107 +441,139 @@ export default function EnhancedDashboard() {
               <div className="text-3xl font-bold text-orange-700">{stats?.totalPayrollRecords || 0}</div>
               <div className="flex items-center space-x-2 mt-2">
                 <Calendar className="w-4 h-4 text-gray-500" />
-                <span className="text-xs text-gray-500">Total processed</span>
+                <span className="text-xs text-gray-500">
+                  {hasRealData ? 'Total processed' : 'No payroll processed yet'}
+                </span>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Payroll Trend Chart */}
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <TrendingUp className="w-5 h-5 text-blue-600" />
-                <span>Payroll Trends</span>
-              </CardTitle>
-              <CardDescription>Monthly payroll costs over time</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={payrollTrendData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value, name) => [
-                      name === 'amount' ? `€${value.toLocaleString()}` : value,
-                      name === 'amount' ? 'Payroll Cost' : 'Employees'
-                    ]}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="amount" 
-                    stroke="#3B82F6" 
-                    fill="#3B82F6" 
-                    fillOpacity={0.1}
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+        {/* Charts Section - Only show if we have analytics data */}
+        {analyticsData && (
+          <>
+            {/* AI Insights - Clearly marked as demo or real */}
+            <Card className={`${analyticsData.hasRealData ? 'bg-gradient-to-r from-purple-600 to-blue-800' : 'bg-gradient-to-r from-amber-500 to-orange-600'} text-white`}>
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center">
+                  {analyticsData.hasRealData ? (
+                    <>
+                      <Database className="w-5 h-5 mr-2" />
+                      Business Insights
+                    </>
+                  ) : (
+                    <>
+                      <TestTube className="w-5 h-5 mr-2" />
+                      Demo Insights Preview
+                    </>
+                  )}
+                </CardTitle>
+                <CardDescription className={analyticsData.hasRealData ? "text-purple-100" : "text-orange-100"}>
+                  {analyticsData.hasRealData ? 
+                    "AI-powered insights from your business data" : 
+                    "Sample insights to demonstrate analytics capabilities"
+                  }
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {analyticsData.insights.map((insight, index) => (
+                    <div key={index} className="flex items-start space-x-3 p-3 bg-white bg-opacity-10 rounded-lg border border-white border-opacity-20">
+                      <div className="w-2 h-2 bg-white rounded-full mt-2 flex-shrink-0"></div>
+                      <p className="text-sm">{insight}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Employee Distribution */}
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Users className="w-5 h-5 text-green-600" />
-                <span>Employee Distribution</span>
-              </CardTitle>
-              <CardDescription>Breakdown by employment type</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={employeeDistributionData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    dataKey="value"
-                    label={({ name, value }) => `${name}: ${value}`}
-                  >
-                    {employeeDistributionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
+            {/* Charts Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Payroll Trend Chart */}
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center space-x-2">
+                        <TrendingUp className="w-5 h-5 text-blue-600" />
+                        <span>Payroll Trends</span>
+                        {!analyticsData.hasRealData && (
+                          <Badge variant="outline" className="ml-2 text-xs border-amber-300 text-amber-700">Demo</Badge>
+                        )}
+                      </CardTitle>
+                      <CardDescription>
+                        {analyticsData.hasRealData ? 'Your payroll costs over time' : 'Sample payroll trend visualization'}
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart data={analyticsData.payrollTrends}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip 
+                        formatter={(value, name) => [
+                          name === 'amount' ? `€${value.toLocaleString()}` : value,
+                          name === 'amount' ? 'Payroll Cost' : 'Employees'
+                        ]}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="amount" 
+                        stroke="#3B82F6" 
+                        fill="#3B82F6" 
+                        fillOpacity={analyticsData.hasRealData ? 0.2 : 0.1}
+                        strokeWidth={2}
+                        strokeDasharray={analyticsData.hasRealData ? "0" : "5,5"}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
 
-        {/* Department Overview */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Building2 className="w-5 h-5 text-purple-600" />
-              <span>Department Overview</span>
-            </CardTitle>
-            <CardDescription>Employee count and budget allocation by department</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={departmentData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="department" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip 
-                  formatter={(value, name) => [
-                    name === 'budget' ? `€${value.toLocaleString()}` : value,
-                    name === 'budget' ? 'Budget' : 'Employees'
-                  ]}
-                />
-                <Bar yAxisId="left" dataKey="employees" fill="#8B5CF6" name="employees" />
-                <Bar yAxisId="right" dataKey="budget" fill="#A78BFA" name="budget" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+              {/* Employee Distribution */}
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Users className="w-5 h-5 text-green-600" />
+                    <span>Employee Distribution</span>
+                    {!analyticsData.hasRealData && (
+                      <Badge variant="outline" className="ml-2 text-xs border-amber-300 text-amber-700">Demo</Badge>
+                    )}
+                  </CardTitle>
+                  <CardDescription>
+                    {analyticsData.hasRealData ? 'Your team breakdown by employment type' : 'Sample employee distribution'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={analyticsData.employeeDistribution}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        dataKey="value"
+                        label={({ name, value }) => `${name}: ${value}`}
+                      >
+                        {analyticsData.employeeDistribution.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={entry.color} 
+                            fillOpacity={analyticsData.hasRealData ? 1 : 0.7}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        )}
 
         {/* Quick Setup Guide - Enhanced */}
         {showQuickSetup && (
@@ -469,12 +586,12 @@ export default function EnhancedDashboard() {
                     Quick Setup Guide
                   </CardTitle>
                   <CardDescription className="text-blue-700">
-                    Complete your payroll system setup
+                    Complete your payroll system setup to see real data
                   </CardDescription>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Badge variant="outline" className="border-blue-300 text-blue-700">
-                    Progress: 67%
+                    Progress: {hasRealData ? '67%' : '33%'}
                   </Badge>
                   <Button
                     variant="ghost"
@@ -489,36 +606,54 @@ export default function EnhancedDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="border-green-300 bg-gradient-to-br from-green-50 to-green-100">
+                <Card className={`${hasRealData ? 'border-green-300 bg-gradient-to-br from-green-50 to-green-100' : 'border-blue-400 bg-gradient-to-br from-blue-100 to-blue-200'}`}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <CheckCircle className="w-8 h-8 text-green-600" />
-                      <Badge className="bg-green-200 text-green-800">Completed</Badge>
+                      {hasRealData ? (
+                        <CheckCircle className="w-8 h-8 text-green-600" />
+                      ) : (
+                        <div className="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center text-white font-bold">1</div>
+                      )}
+                      <Badge className={hasRealData ? "bg-green-200 text-green-800" : "bg-blue-300 text-blue-900"}>
+                        {hasRealData ? 'Completed' : 'Next Step'}
+                      </Badge>
                     </div>
-                    <h3 className="font-semibold text-green-900 mb-2">Add Employees</h3>
-                    <p className="text-sm text-green-700 mb-3">
-                      {stats?.totalEmployees || 0} employees configured
+                    <h3 className={`font-semibold mb-2 ${hasRealData ? 'text-green-900' : 'text-blue-900'}`}>Add Employees</h3>
+                    <p className={`text-sm mb-3 ${hasRealData ? 'text-green-700' : 'text-blue-700'}`}>
+                      {stats?.totalEmployees || 0} employee(s) configured
                     </p>
-                    <Button size="sm" className="w-full bg-green-600 hover:bg-green-700">
-                      Manage Employees
+                    <Button 
+                      size="sm" 
+                      className={`w-full ${hasRealData ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-700 hover:bg-blue-800'}`}
+                      onClick={() => router.push("/dashboard/employees")}
+                    >
+                      {hasRealData ? 'Manage Employees' : 'Add Employees'}
                     </Button>
                   </CardContent>
                 </Card>
 
-                <Card className="border-blue-400 bg-gradient-to-br from-blue-100 to-blue-200">
+                <Card className="border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <div className="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center text-white font-bold">
+                      <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white font-bold">
                         2
                       </div>
-                      <Badge className="bg-blue-300 text-blue-900">In Progress</Badge>
+                      <Badge variant="outline" className="border-gray-300 text-gray-600">
+                        {hasRealData ? 'Next' : 'Pending'}
+                      </Badge>
                     </div>
-                    <h3 className="font-semibold text-blue-900 mb-2">Process Payroll</h3>
-                    <p className="text-sm text-blue-700 mb-3">
+                    <h3 className="font-semibold text-gray-700 mb-2">Process Payroll</h3>
+                    <p className="text-sm text-gray-600 mb-3">
                       {stats?.totalPayrollRecords || 0} records processed
                     </p>
-                    <Button size="sm" className="w-full bg-blue-700 hover:bg-blue-800">
-                      Continue Setup
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => router.push("/payroll")}
+                      disabled={!hasRealData}
+                    >
+                      {hasRealData ? 'Process Payroll' : 'Add Employees First'}
                     </Button>
                   </CardContent>
                 </Card>
@@ -529,11 +664,11 @@ export default function EnhancedDashboard() {
                       <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white font-bold">
                         3
                       </div>
-                      <Badge variant="outline" className="border-gray-300 text-gray-600">Pending</Badge>
+                      <Badge variant="outline" className="border-gray-300 text-gray-600">Coming Soon</Badge>
                     </div>
-                    <h3 className="font-semibold text-gray-700 mb-2">Setup Analytics</h3>
+                    <h3 className="font-semibold text-gray-700 mb-2">Advanced Analytics</h3>
                     <p className="text-sm text-gray-600 mb-3">
-                      Configure reporting preferences
+                      Unlock detailed insights and reporting
                     </p>
                     <Button size="sm" variant="outline" className="w-full" disabled>
                       Coming Soon
@@ -582,8 +717,10 @@ export default function EnhancedDashboard() {
               <div className="flex items-center space-x-3">
                 <div className="w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></div>
                 <div>
-                  <p className="font-medium">Backup</p>
-                  <p className="text-sm text-blue-100">Last: 2 hours ago</p>
+                  <p className="font-medium">Data Status</p>
+                  <p className="text-sm text-blue-100">
+                    {hasRealData ? 'Live data' : 'Demo mode'}
+                  </p>
                 </div>
               </div>
             </div>

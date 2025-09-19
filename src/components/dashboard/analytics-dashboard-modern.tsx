@@ -1,6 +1,20 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+
+interface AnalyticsData {
+  hasRealData: boolean
+  isDemoData?: boolean
+  payrollTrends: any[]
+  employeeDistribution: any[]
+  departmentAnalytics: any[]
+  costBreakdown: any[]
+  insights: string[]
+}
+
+interface ModernAnalyticsDashboardProps {
+  analyticsData?: AnalyticsData | null
+}
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
