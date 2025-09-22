@@ -7,6 +7,7 @@ import DashboardLayout from "@/components/layout/dashboard-layout"
 import TrialBanner from "@/components/trial/TrialBanner"
 import SessionRefreshHandler from "@/components/SessionRefreshHandler"
 import { TutorialSystem } from "@/components/tutorial/TutorialSystem"
+import { InteractiveSetupGuide } from "@/components/ui/interactive-setup-guide"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -42,6 +43,9 @@ import {
   TestTube
 } from "lucide-react"
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { useDataMode } from "@/components/ui/data-mode-toggle"
+import { Switch } from "@/components/ui/switch"
+import { DemoDataService } from "@/lib/demo-data"
 
 interface DashboardStats {
   totalEmployees: number
@@ -66,9 +70,10 @@ interface AnalyticsData {
   insights: string[]
 }
 
-export default function EnhancedDashboard() {
+function DashboardContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const { isDemoMode, toggleDataMode } = useDataMode()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -96,6 +101,14 @@ export default function EnhancedDashboard() {
       fetchAnalyticsData()
     }
   }, [selectedTimeRange, status])
+
+  // Refresh data when demo mode changes
+  useEffect(() => {
+    if (status === "authenticated") {
+      fetchDashboardStats()
+      fetchAnalyticsData()
+    }
+  }, [isDemoMode, status])
 
   const loadUserPreferences = () => {
     const quickSetupDismissed = localStorage.getItem('quickSetupDismissed') === 'true'
@@ -130,6 +143,22 @@ export default function EnhancedDashboard() {
 
   const fetchAnalyticsData = async () => {
     try {
+      // Use demo data if in demo mode
+      if (isDemoMode) {
+        const demoAnalytics = await DemoDataService.getAnalytics()
+        setAnalyticsData({
+          hasRealData: false,
+          isDemoData: true,
+          payrollTrends: demoAnalytics.payrollTrends,
+          employeeDistribution: demoAnalytics.employeeDistribution,
+          departmentAnalytics: [],
+          costBreakdown: [],
+          insights: demoAnalytics.insights
+        })
+        return
+      }
+
+      // Fetch real analytics data from API
       const response = await fetch(`/api/dashboard/analytics?timeRange=${selectedTimeRange}`)
       const result = await response.json()
       
@@ -165,6 +194,24 @@ export default function EnhancedDashboard() {
 
   const fetchDashboardStats = async (primaryCompany?: any) => {
     try {
+      // Use demo data if in demo mode
+      if (isDemoMode) {
+        const demoStats = await DemoDataService.getStats()
+        setStats({
+          totalEmployees: demoStats.totalEmployees,
+          monthlyEmployees: demoStats.monthlyEmployees,
+          hourlyEmployees: demoStats.hourlyEmployees,
+          totalPayrollRecords: demoStats.totalPayrollRecords,
+          companyName: "Demo Company B.V.",
+          employeeGrowth: demoStats.employeeGrowth,
+          payrollTrend: demoStats.payrollTrend,
+          avgSalary: demoStats.avgSalary,
+          salaryTrend: demoStats.salaryTrend,
+        })
+        return
+      }
+
+      // Fetch real data from API
       const response = await fetch("/api/dashboard/stats")
       const result = await response.json()
       
@@ -251,65 +298,23 @@ export default function EnhancedDashboard() {
   }
 
   return (
-    <DashboardLayout>
+    <>
       <SessionRefreshHandler />
       <div className="space-y-6">
-        {/* Trial Banner */}
-        <TrialBanner />
-
-        {/* Data Status Indicator */}
-        {!hasRealData && (
-          <Card className="border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50">
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-3">
-                <TestTube className="w-5 h-5 text-amber-600" />
-                <div className="flex-1">
-                  <h3 className="font-semibold text-amber-900">Demo Data Preview</h3>
-                  <p className="text-sm text-amber-700">
-                    You're viewing sample data to demonstrate dashboard features. 
-                    <span className="font-medium"> Add employees and process payroll to see your real business data.</span>
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => router.push("/dashboard/employees/add")}
-                  className="border-amber-300 text-amber-700 hover:bg-amber-100"
-                >
-                  Add Employees
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {hasRealData && (
-          <Card className="border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-3">
-                <Database className="w-5 h-5 text-green-600" />
-                <div className="flex-1">
-                  <h3 className="font-semibold text-green-900">Live Business Data</h3>
-                  <p className="text-sm text-green-700">
-                    Dashboard showing your real business data from {stats?.companyName}.
-                  </p>
-                </div>
-                <Badge className="bg-green-200 text-green-800">Live Data</Badge>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Enhanced Header with Controls */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-            <p className="text-gray-600">
-              {hasRealData ? 'Monitor your payroll operations and business metrics' : 'Preview dashboard features with sample data'}
-            </p>
-          </div>
-          
+        {/* Dashboard Controls */}
+        <div className="flex justify-end items-center">
           <div className="flex items-center space-x-3">
+            {/* Simplified Data Mode Toggle - Just the switch */}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-600">Demo</span>
+              <Switch
+                checked={!isDemoMode}
+                onCheckedChange={toggleDataMode}
+                className="data-[state=checked]:bg-green-600"
+              />
+              <span className="text-sm text-gray-600">Live</span>
+            </div>
+
             {/* Time Range Filter */}
             <div className="flex items-center space-x-2">
               <Filter className="w-4 h-4 text-gray-500" />
@@ -337,16 +342,7 @@ export default function EnhancedDashboard() {
               <span>Refresh</span>
             </Button>
 
-            {/* Tutorial Button */}
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={openTutorial}
-              className="flex items-center space-x-2"
-            >
-              <BookOpen className="w-4 h-4" />
-              <span>Tutorial</span>
-            </Button>
+
           </div>
         </div>
 
@@ -449,43 +445,33 @@ export default function EnhancedDashboard() {
           </Card>
         </div>
 
-        {/* Charts Section - Only show if we have analytics data */}
-        {analyticsData && (
+        {/* Charts Section */}
+        {analyticsData ? (
           <>
-            {/* AI Insights - Clearly marked as demo or real */}
-            <Card className={`${analyticsData.hasRealData ? 'bg-gradient-to-r from-purple-600 to-blue-800' : 'bg-gradient-to-r from-amber-500 to-orange-600'} text-white`}>
-              <CardHeader>
-                <CardTitle className="text-xl flex items-center">
-                  {analyticsData.hasRealData ? (
-                    <>
-                      <Database className="w-5 h-5 mr-2" />
-                      Business Insights
-                    </>
-                  ) : (
-                    <>
-                      <TestTube className="w-5 h-5 mr-2" />
-                      Demo Insights Preview
-                    </>
-                  )}
-                </CardTitle>
-                <CardDescription className={analyticsData.hasRealData ? "text-purple-100" : "text-orange-100"}>
-                  {analyticsData.hasRealData ? 
-                    "AI-powered insights from your business data" : 
-                    "Sample insights to demonstrate analytics capabilities"
-                  }
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {analyticsData.insights.map((insight, index) => (
-                    <div key={index} className="flex items-start space-x-3 p-3 bg-white bg-opacity-10 rounded-lg border border-white border-opacity-20">
-                      <div className="w-2 h-2 bg-white rounded-full mt-2 flex-shrink-0"></div>
-                      <p className="text-sm">{insight}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            {/* AI Insights - Only show for real data */}
+            {analyticsData.hasRealData && (
+              <Card className="bg-gradient-to-r from-purple-600 to-blue-800 text-white">
+                <CardHeader>
+                  <CardTitle className="text-xl flex items-center">
+                    <Database className="w-5 h-5 mr-2" />
+                    Business Insights
+                  </CardTitle>
+                  <CardDescription className="text-purple-100">
+                    AI-powered insights from your business data
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {analyticsData.insights.map((insight, index) => (
+                      <div key={index} className="flex items-start space-x-3 p-3 bg-white bg-opacity-10 rounded-lg border border-white border-opacity-20">
+                        <div className="w-2 h-2 bg-white rounded-full mt-2 flex-shrink-0"></div>
+                        <p className="text-sm">{insight}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -508,28 +494,48 @@ export default function EnhancedDashboard() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={analyticsData.payrollTrends}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip 
-                        formatter={(value, name) => [
-                          name === 'amount' ? `€${value.toLocaleString()}` : value,
-                          name === 'amount' ? 'Payroll Cost' : 'Employees'
-                        ]}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="amount" 
-                        stroke="#3B82F6" 
-                        fill="#3B82F6" 
-                        fillOpacity={analyticsData.hasRealData ? 0.2 : 0.1}
-                        strokeWidth={2}
-                        strokeDasharray={analyticsData.hasRealData ? "0" : "5,5"}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  {analyticsData.hasRealData || isDemoMode ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <AreaChart data={analyticsData.payrollTrends}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip 
+                          formatter={(value, name) => [
+                            name === 'amount' ? `€${value.toLocaleString()}` : value,
+                            name === 'amount' ? 'Payroll Cost' : 'Employees'
+                          ]}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="amount" 
+                          stroke="#3B82F6" 
+                          fill="#3B82F6" 
+                          fillOpacity={analyticsData.hasRealData ? 0.2 : 0.1}
+                          strokeWidth={2}
+                          strokeDasharray={analyticsData.hasRealData ? "0" : "5,5"}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[300px] flex flex-col items-center justify-center text-center space-y-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                      <BarChart3 className="w-12 h-12 text-gray-400" />
+                      <div>
+                        <h3 className="font-medium text-gray-900 mb-2">No Payroll Data Available</h3>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Process payroll for at least 2 months to see trend analysis
+                        </p>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => router.push('/payroll')}
+                          className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                        >
+                          Process First Payroll
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -548,185 +554,124 @@ export default function EnhancedDashboard() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={analyticsData.employeeDistribution}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={80}
-                        dataKey="value"
-                        label={({ name, value }) => `${name}: ${value}`}
-                      >
-                        {analyticsData.employeeDistribution.map((entry, index) => (
-                          <Cell 
-                            key={`cell-${index}`} 
-                            fill={entry.color} 
-                            fillOpacity={analyticsData.hasRealData ? 1 : 0.7}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  {analyticsData.hasRealData || isDemoMode ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={analyticsData.employeeDistribution}
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
+                          dataKey="value"
+                          label={({ name, value }) => `${name}: ${value}`}
+                        >
+                          {analyticsData.employeeDistribution.map((entry, index) => (
+                            <Cell 
+                              key={`cell-${index}`} 
+                              fill={entry.color} 
+                              fillOpacity={analyticsData.hasRealData ? 1 : 0.3}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[300px] flex flex-col items-center justify-center text-center space-y-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                      <Users className="w-12 h-12 text-gray-400" />
+                      <div>
+                        <h3 className="font-medium text-gray-900 mb-2">No Employee Data Available</h3>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Add employees to your company to see distribution charts
+                        </p>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => router.push('/employees/add')}
+                          className="text-green-600 border-green-600 hover:bg-green-50"
+                        >
+                          Add First Employee
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
           </>
-        )}
-
-        {/* Quick Setup Guide - Enhanced */}
-        {showQuickSetup && (
-          <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-xl text-blue-900 flex items-center">
-                    <Play className="w-5 h-5 mr-2" />
-                    Quick Setup Guide
+        ) : (
+          !isDemoMode && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Empty Payroll Chart */}
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <TrendingUp className="w-5 h-5 text-blue-600" />
+                    <span>Payroll Trends</span>
                   </CardTitle>
-                  <CardDescription className="text-blue-700">
-                    Complete your payroll system setup to see real data
-                  </CardDescription>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Badge variant="outline" className="border-blue-300 text-blue-700">
-                    Progress: {hasRealData ? '67%' : '33%'}
-                  </Badge>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={dismissQuickSetup}
-                    className="h-8 w-8 text-blue-600 hover:text-blue-800 hover:bg-blue-200"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className={`${hasRealData ? 'border-green-300 bg-gradient-to-br from-green-50 to-green-100' : 'border-blue-400 bg-gradient-to-br from-blue-100 to-blue-200'}`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      {hasRealData ? (
-                        <CheckCircle className="w-8 h-8 text-green-600" />
-                      ) : (
-                        <div className="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center text-white font-bold">1</div>
-                      )}
-                      <Badge className={hasRealData ? "bg-green-200 text-green-800" : "bg-blue-300 text-blue-900"}>
-                        {hasRealData ? 'Completed' : 'Next Step'}
-                      </Badge>
+                  <CardDescription>Track your payroll costs over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px] flex flex-col items-center justify-center text-center space-y-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <BarChart3 className="w-12 h-12 text-gray-400" />
+                    <div>
+                      <h3 className="font-medium text-gray-900 mb-2">No Payroll Data Available</h3>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Process payroll for at least 2 months to see trend analysis
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => router.push('/payroll')}
+                        className="text-blue-600 border-blue-600 hover:bg-blue-50"
+                      >
+                        Process First Payroll
+                      </Button>
                     </div>
-                    <h3 className={`font-semibold mb-2 ${hasRealData ? 'text-green-900' : 'text-blue-900'}`}>Add Employees</h3>
-                    <p className={`text-sm mb-3 ${hasRealData ? 'text-green-700' : 'text-blue-700'}`}>
-                      {stats?.totalEmployees || 0} employee(s) configured
-                    </p>
-                    <Button 
-                      size="sm" 
-                      className={`w-full ${hasRealData ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-700 hover:bg-blue-800'}`}
-                      onClick={() => router.push("/dashboard/employees")}
-                    >
-                      {hasRealData ? 'Manage Employees' : 'Add Employees'}
-                    </Button>
-                  </CardContent>
-                </Card>
+                  </div>
+                </CardContent>
+              </Card>
 
-                <Card className="border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white font-bold">
-                        2
-                      </div>
-                      <Badge variant="outline" className="border-gray-300 text-gray-600">
-                        {hasRealData ? 'Next' : 'Pending'}
-                      </Badge>
+              {/* Empty Employee Chart */}
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Users className="w-5 h-5 text-green-600" />
+                    <span>Employee Distribution</span>
+                  </CardTitle>
+                  <CardDescription>View your team breakdown by employment type</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px] flex flex-col items-center justify-center text-center space-y-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                    <Users className="w-12 h-12 text-gray-400" />
+                    <div>
+                      <h3 className="font-medium text-gray-900 mb-2">No Employee Data Available</h3>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Add employees to your company to see distribution charts
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => router.push('/employees/add')}
+                        className="text-green-600 border-green-600 hover:bg-green-50"
+                      >
+                        Add First Employee
+                      </Button>
                     </div>
-                    <h3 className="font-semibold text-gray-700 mb-2">Process Payroll</h3>
-                    <p className="text-sm text-gray-600 mb-3">
-                      {stats?.totalPayrollRecords || 0} records processed
-                    </p>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="w-full"
-                      onClick={() => router.push("/payroll")}
-                      disabled={!hasRealData}
-                    >
-                      {hasRealData ? 'Process Payroll' : 'Add Employees First'}
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center text-white font-bold">
-                        3
-                      </div>
-                      <Badge variant="outline" className="border-gray-300 text-gray-600">Coming Soon</Badge>
-                    </div>
-                    <h3 className="font-semibold text-gray-700 mb-2">Advanced Analytics</h3>
-                    <p className="text-sm text-gray-600 mb-3">
-                      Unlock detailed insights and reporting
-                    </p>
-                    <Button size="sm" variant="outline" className="w-full" disabled>
-                      Coming Soon
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </CardContent>
-          </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )
         )}
 
-        {/* System Status - Enhanced */}
-        <Card className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
-          <CardHeader>
-            <CardTitle className="text-xl flex items-center">
-              <Activity className="w-5 h-5 mr-2" />
-              System Health & Performance
-            </CardTitle>
-            <CardDescription className="text-blue-100">
-              Real-time system status and performance metrics
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                <div>
-                  <p className="font-medium">Database</p>
-                  <p className="text-sm text-blue-100">99.9% uptime</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                <div>
-                  <p className="font-medium">API Services</p>
-                  <p className="text-sm text-blue-100">All operational</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                <div>
-                  <p className="font-medium">Tax Engine</p>
-                  <p className="text-sm text-blue-100">2025 rates active</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></div>
-                <div>
-                  <p className="font-medium">Data Status</p>
-                  <p className="text-sm text-blue-100">
-                    {hasRealData ? 'Live data' : 'Demo mode'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
+
+      {/* Interactive Setup Guide - Stripe Style */}
+      <InteractiveSetupGuide 
+        isOpen={showQuickSetup}
+        onClose={dismissQuickSetup}
+      />
 
       {/* Tutorial System */}
       <TutorialSystem 
@@ -735,6 +680,15 @@ export default function EnhancedDashboard() {
         onPermanentDismiss={handleTutorialPermanentDismiss}
         startPhase={3}
       />
+    </>
+  )
+}
+
+// Main export component that wraps content in layout
+export default function EnhancedDashboard() {
+  return (
+    <DashboardLayout>
+      <DashboardContent />
     </DashboardLayout>
   )
 }

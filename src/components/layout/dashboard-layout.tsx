@@ -34,6 +34,7 @@ import { Badge } from "@/components/ui/badge"
 import { CompanySwitcherTrigger } from "@/components/ui/modern-company-switcher"
 import { TutorialSystem } from "@/components/tutorial/TutorialSystem"
 import { cn } from "@/lib/utils"
+import { DataModeProvider, DataModeBanner, useDataMode } from "@/components/ui/data-mode-toggle"
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -172,7 +173,7 @@ const navigationGroups: NavigationGroup[] = [
   }
 ]
 
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
+function DashboardLayoutInner({ children }: DashboardLayoutProps) {
   const { data: session } = useSession()
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -320,20 +321,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </Button>
           </div>
 
-          {/* Tutorial Button */}
-          <div className="p-4 border-b border-gray-200">
-            <Button
-              onClick={() => setShowTutorial(true)}
-              className="w-full justify-start text-left h-auto p-3"
-              variant="outline"
-            >
-              <Play className="w-4 h-4 mr-3 flex-shrink-0" />
-              <div className="text-left">
-                <div className="font-medium text-sm">Start Tutorial</div>
-                <div className="text-xs text-muted-foreground">Learn SalarySync step by step</div>
-              </div>
-            </Button>
-          </div>
+
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto p-4 space-y-2">
@@ -428,10 +416,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 variant="ghost"
                 size="sm"
                 className="w-full justify-start h-8"
-                onClick={() => window.open("/help", "_blank")}
+                asChild
               >
-                <HelpCircle className="w-4 h-4 mr-2" />
-                Help & Support
+                <Link href="/dashboard/help">
+                  <HelpCircle className="w-4 h-4 mr-2" />
+                  Help & Support
+                </Link>
               </Button>
               <Button
                 variant="ghost"
@@ -465,17 +455,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
             <div className="flex items-center space-x-4">
               <CompanySwitcherTrigger />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowTutorial(true)}
-              >
-                <Play className="w-4 h-4 mr-2" />
-                Start Tutorial
-              </Button>
             </div>
           </div>
         </div>
+
+        {/* Data Mode Banner */}
+        <DataModeBannerWithContext />
 
         {/* Page Content */}
         <main className="flex-1 overflow-auto p-4 lg:p-6 pt-20 lg:pt-6">
@@ -491,6 +476,39 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         onClose={() => setShowTutorial(false)}
       />
     </div>
+  )
+}
+
+// Simplified banner component that uses the data mode context
+function DataModeBannerWithContext() {
+  const { isDemoMode, setDemoMode } = useDataMode()
+  
+  // Only show a subtle banner, not the full Stripe-style banner
+  if (!isDemoMode) return null
+  
+  return (
+    <div className="bg-amber-100 border-b border-amber-200 px-4 py-2 text-center">
+      <div className="flex items-center justify-center space-x-4">
+        <span className="text-sm text-amber-800">
+          <strong>Demo Mode:</strong> You're viewing sample data
+        </span>
+        <button
+          onClick={() => setDemoMode(false)}
+          className="text-sm text-amber-700 hover:text-amber-900 underline"
+        >
+          Switch to live data
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// Main layout component wrapped with DataModeProvider
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  return (
+    <DataModeProvider>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
+    </DataModeProvider>
   )
 }
 

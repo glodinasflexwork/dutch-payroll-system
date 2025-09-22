@@ -1,6 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useDataMode } from "@/components/ui/data-mode-toggle"
+import { Switch } from "@/components/ui/switch"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 
 interface AnalyticsData {
   hasRealData: boolean
@@ -11,18 +15,12 @@ interface AnalyticsData {
   costBreakdown: any[]
   insights: string[]
 }
-
-interface ModernAnalyticsDashboardProps {
-  analyticsData?: AnalyticsData | null
-}
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Users, 
-  DollarSign, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Users,
+  DollarSign,
   Calendar,
   Target,
   AlertTriangle,
@@ -54,6 +52,7 @@ import {
   ScatterChart,
   Scatter
 } from 'recharts'
+import { InteractiveSetupGuide } from "@/components/ui/interactive-setup-guide"
 
 // Enhanced mock data for comprehensive analytics
 const payrollAnalyticsData = [
@@ -138,34 +137,152 @@ const costBreakdownData = [
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1']
 
 interface AnalyticsDashboardProps {
+  analyticsData?: AnalyticsData | null
   className?: string
+  showSetupGuide?: boolean
 }
 
-export default function ModernAnalyticsDashboard({ className }: AnalyticsDashboardProps) {
+export default function ModernAnalyticsDashboard({ analyticsData, className, showSetupGuide }: AnalyticsDashboardProps) {
   const [selectedTimeRange, setSelectedTimeRange] = useState('9months')
   const [selectedMetric, setSelectedMetric] = useState('totalCost')
   const [refreshing, setRefreshing] = useState(false)
   const [insights, setInsights] = useState<string[]>([])
+  const { isDemoMode, toggleDemoMode } = useDataMode()
+
+  // Get the appropriate data based on mode and availability
+  const getDisplayData = () => {
+    if (isDemoMode) {
+      return {
+        payrollTrends: payrollAnalyticsData,
+        departmentAnalytics: departmentAnalytics,
+        employeePerformance: employeePerformanceData,
+        costBreakdown: costBreakdownData,
+        isDemo: true
+      }
+    } else if (analyticsData?.hasRealData) {
+      return {
+        payrollTrends: analyticsData.payrollTrends || [],
+        departmentAnalytics: analyticsData.departmentAnalytics || [],
+        employeePerformance: analyticsData.employeePerformance || [],
+        costBreakdown: analyticsData.costBreakdown || [],
+        isDemo: false
+      }
+    } else {
+      // Live mode but no real data - show empty states
+      return {
+        payrollTrends: [],
+        departmentAnalytics: [],
+        employeePerformance: [],
+        costBreakdown: [],
+        isDemo: false
+      }
+    }
+  }
+
+  const displayData = getDisplayData()
+
+  // Calculate key metrics from current data
+  const getKeyMetrics = () => {
+    if (isDemoMode) {
+      return {
+        totalCost: 63000,
+        costPerEmployee: 3500,
+        overtimeHours: 156,
+        satisfaction: 4.2
+      }
+    } else if (analyticsData?.hasRealData) {
+      const trends = displayData.payrollTrends
+      if (trends.length === 0) {
+        return {
+          totalCost: 0,
+          costPerEmployee: 0,
+          overtimeHours: 0,
+          satisfaction: 0
+        }
+      }
+      
+      const latest = trends[trends.length - 1]
+      return {
+        totalCost: latest.amount || 0,
+        costPerEmployee: latest.employees > 0 ? Math.round((latest.amount || 0) / latest.employees) : 0,
+        overtimeHours: latest.overtime || 0,
+        satisfaction: 4.0 // Default for live data
+      }
+    } else {
+      // Live mode but no real data
+      return {
+        totalCost: 0,
+        costPerEmployee: 0,
+        overtimeHours: 0,
+        satisfaction: 0
+      }
+    }
+  }
+
+  const keyMetrics = getKeyMetrics()
+
+
+
+
 
   useEffect(() => {
-    // Generate AI-powered insights based on data
+    // Generate AI-powered insights based on data mode
     const generateInsights = () => {
-      const newInsights = [
-        "📈 Payroll costs increased 8.3% this month, primarily due to overtime",
-        "⚠️ Engineering department shows highest productivity but also highest turnover risk",
-        "💡 Average salary growth is outpacing industry standards by 12%",
-        "🎯 Q3 budget utilization is at 94% - on track for yearly targets"
-      ]
-      setInsights(newInsights)
+      if (isDemoMode) {
+        const demoInsights = [
+          "📈 Payroll costs increased 8.3% this month, primarily due to overtime",
+          "⚠️ Engineering department shows highest productivity but also highest turnover risk", 
+          "💡 Average salary growth is outpacing industry standards by 12%",
+          "🎯 Q3 budget utilization is at 94% - on track for yearly targets"
+        ]
+        setInsights(demoInsights)
+      } else if (analyticsData?.hasRealData) {
+        // Use real insights from analyticsData
+        if (analyticsData?.insights && analyticsData.insights.length > 0) {
+          setInsights(analyticsData.insights)
+        } else {
+          setInsights([
+            "📊 Your payroll data is being analyzed for insights",
+            "🔍 More insights will appear as you process additional payroll cycles"
+          ])
+        }
+      } else {
+        // Live mode but no real data
+        setInsights([
+          "📊 Add employees and process payroll to generate AI-powered insights",
+          "🔍 Insights will appear here once you have sufficient payroll data"
+        ])
+      }
     }
 
     generateInsights()
-  }, [selectedTimeRange])
+  }, [selectedTimeRange, isDemoMode, analyticsData])
 
   const refreshData = async () => {
     setRefreshing(true)
-    // Simulate API call
-    setTimeout(() => setRefreshing(false), 1500)
+    
+    // Trigger a re-fetch of data by calling the parent's fetch function
+    // This will be passed down as a prop or we can emit an event
+    try {
+      if (!isDemoMode) {
+        // Force refresh of live data
+        const response = await fetch("/api/dashboard/analytics?timeRange=" + selectedTimeRange, {
+          cache: 'no-store'
+        })
+        const result = await response.json()
+        
+        if (result.success) {
+          // The parent component should handle this, but we can show a success message
+          console.log("Data refreshed successfully")
+        }
+      }
+      
+      // Simulate refresh delay for demo mode
+      setTimeout(() => setRefreshing(false), 1500)
+    } catch (error) {
+      console.error("Error refreshing data:", error)
+      setTimeout(() => setRefreshing(false), 1500)
+    }
   }
 
   const exportData = () => {
@@ -185,11 +302,21 @@ export default function ModernAnalyticsDashboard({ className }: AnalyticsDashboa
 
   return (
     <div className={`space-y-6 ${className}`}>
+      {showSetupGuide && !isDemoMode && !analyticsData?.hasRealData && (
+        <InteractiveSetupGuide
+          title="Unlock Your Payroll Analytics"
+          description="Start by adding employees and processing payroll to see powerful insights into your workforce costs and trends."
+          steps={[
+            { title: "Add Your First Employee", description: "Go to People > Employees and add details for your team members.", link: "/dashboard/employees" },
+            { title: "Process Your First Payroll", description: "Navigate to Payroll > Run Payroll to calculate and finalize payments.", link: "/dashboard/payroll" },
+            { title: "Explore Detailed Reports", description: "Visit the Reports section to generate comprehensive payroll summaries.", link: "/dashboard/reports" },
+          ]}
+        />
+      )}
       {/* Analytics Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Payroll Analytics</h2>
-          <p className="text-gray-600 mt-1">Comprehensive insights into your payroll operations</p>
+
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
@@ -206,6 +333,22 @@ export default function ModernAnalyticsDashboard({ className }: AnalyticsDashboa
               <option value="9months">Last 9 Months</option>
               <option value="1year">Last Year</option>
             </select>
+          </div>
+
+          {/* Demo/Live Toggle */}
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-700">Demo</span>
+              <Switch
+                checked={!isDemoMode}
+                onCheckedChange={() => toggleDemoMode()}
+                className="data-[state=checked]:bg-green-600"
+              />
+              <span className="text-sm font-medium text-gray-700">Live</span>
+            </div>
+            <Badge variant={isDemoMode ? "secondary" : "default"} className="text-xs">
+              {isDemoMode ? "Demo Data" : "Live Data"}
+            </Badge>
           </div>
 
           {/* Action Buttons */}
@@ -235,23 +378,48 @@ export default function ModernAnalyticsDashboard({ className }: AnalyticsDashboa
       {/* AI-Powered Insights */}
       <Card className="border-l-4 border-l-purple-500 bg-gradient-to-r from-purple-50 to-indigo-50">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2 text-purple-900">
-            <Zap className="w-5 h-5" />
-            <span>AI-Powered Insights</span>
+          <CardTitle className="flex items-center justify-between text-purple-900">
+            <div className="flex items-center space-x-2">
+              <Zap className="w-5 h-5" />
+              <span>AI-Powered Insights</span>
+            </div>
+            {isDemoMode && (
+              <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-xs">
+                Demo
+              </Badge>
+            )}
           </CardTitle>
           <CardDescription className="text-purple-700">
             Automatically generated insights from your payroll data
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {insights.map((insight, index) => (
-              <div key={index} className="flex items-start space-x-3 p-3 bg-white rounded-lg border">
-                <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 flex-shrink-0"></div>
-                <p className="text-sm text-gray-700">{insight}</p>
+          {!isDemoMode && !analyticsData?.hasRealData ? (
+            <div className="text-center py-8">
+              <Zap className="w-16 h-16 mx-auto mb-4 text-purple-300" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No Insights Yet</h3>
+              <p className="text-gray-600 mb-4">
+                Add employees and process payroll to unlock AI-powered insights about your workforce.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                <Button asChild variant="default" size="sm">
+                  <a href="/dashboard/employees">Add Employees</a>
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <a href="/dashboard/payroll">Process Payroll</a>
+                </Button>
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {insights.map((insight, index) => (
+                <div key={index} className="flex items-start space-x-3 p-3 bg-white rounded-lg border">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 flex-shrink-0"></div>
+                  <p className="text-sm text-gray-700">{insight}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -263,11 +431,20 @@ export default function ModernAnalyticsDashboard({ className }: AnalyticsDashboa
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">€63,000</div>
+            <div className="text-2xl font-bold">
+              {keyMetrics.totalCost > 0 ? `€${keyMetrics.totalCost.toLocaleString()}` : '€0'}
+            </div>
             <div className="flex items-center space-x-1 text-xs text-green-600">
               <TrendingUp className="w-3 h-3" />
-              <span>+8.3% from last month</span>
+              <span>{isDemoMode ? '+8.3% from last month' : 'No trend data yet'}</span>
             </div>
+            {!isDemoMode && keyMetrics.totalCost === 0 && (
+              <div className="mt-2">
+                <Button asChild variant="outline" size="sm" className="text-xs">
+                  <a href="/dashboard/payroll">Process Payroll</a>
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -277,11 +454,20 @@ export default function ModernAnalyticsDashboard({ className }: AnalyticsDashboa
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">€3,500</div>
+            <div className="text-2xl font-bold">
+              {keyMetrics.costPerEmployee > 0 ? `€${keyMetrics.costPerEmployee.toLocaleString()}` : '€0'}
+            </div>
             <div className="flex items-center space-x-1 text-xs text-red-600">
               <TrendingDown className="w-3 h-3" />
-              <span>-2.1% from last month</span>
+              <span>{isDemoMode ? '-2.1% from last month' : 'No trend data yet'}</span>
             </div>
+            {!isDemoMode && keyMetrics.costPerEmployee === 0 && (
+              <div className="mt-2">
+                <Button asChild variant="outline" size="sm" className="text-xs">
+                  <a href="/dashboard/employees">Add Employees</a>
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -291,11 +477,18 @@ export default function ModernAnalyticsDashboard({ className }: AnalyticsDashboa
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">156</div>
+            <div className="text-2xl font-bold">{keyMetrics.overtimeHours}</div>
             <div className="flex items-center space-x-1 text-xs text-yellow-600">
               <AlertTriangle className="w-3 h-3" />
-              <span>+15% from last month</span>
+              <span>{isDemoMode ? '+15% from last month' : 'No trend data yet'}</span>
             </div>
+            {!isDemoMode && keyMetrics.overtimeHours === 0 && (
+              <div className="mt-2">
+                <Button asChild variant="outline" size="sm" className="text-xs">
+                  <a href="/dashboard/payroll">Track Overtime</a>
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -305,11 +498,20 @@ export default function ModernAnalyticsDashboard({ className }: AnalyticsDashboa
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">4.2/5</div>
+            <div className="text-2xl font-bold">
+              {keyMetrics.satisfaction > 0 ? `${keyMetrics.satisfaction}/5` : 'N/A'}
+            </div>
             <div className="flex items-center space-x-1 text-xs text-green-600">
               <TrendingUp className="w-3 h-3" />
-              <span>+0.3 from last quarter</span>
+              <span>{isDemoMode ? '+0.3 from last quarter' : 'No survey data yet'}</span>
             </div>
+            {!isDemoMode && keyMetrics.satisfaction === 0 && (
+              <div className="mt-2">
+                <Button asChild variant="outline" size="sm" className="text-xs">
+                  <a href="/dashboard/employees">Conduct Surveys</a>
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -343,7 +545,7 @@ export default function ModernAnalyticsDashboard({ className }: AnalyticsDashboa
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={350}>
-              <ComposedChart data={payrollAnalyticsData}>
+              <ComposedChart data={displayData.payrollTrends}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" angle={-45} textAnchor="end" height={80} />
                 <YAxis yAxisId="left" />
@@ -351,7 +553,7 @@ export default function ModernAnalyticsDashboard({ className }: AnalyticsDashboa
                 <Tooltip 
                   formatter={(value, name) => [
                     typeof value === 'number' && name !== 'employees' ? `€${value.toLocaleString()}` : value,
-                    name === 'totalCost' ? 'Total Cost' : 
+                    name === 'totalCost' || name === 'amount' ? 'Total Cost' : 
                     name === 'avgSalary' ? 'Avg Salary' :
                     name === 'overtime' ? 'Overtime' :
                     name === 'benefits' ? 'Benefits' :
@@ -361,7 +563,7 @@ export default function ModernAnalyticsDashboard({ className }: AnalyticsDashboa
                 <Legend />
                 <Bar 
                   yAxisId="left" 
-                  dataKey={selectedMetric} 
+                  dataKey={selectedMetric === 'totalCost' ? 'amount' : selectedMetric} 
                   fill={getMetricColor(selectedMetric)} 
                   name={selectedMetric === 'totalCost' ? 'Total Cost' : 
                         selectedMetric === 'avgSalary' ? 'Avg Salary' :
@@ -378,6 +580,18 @@ export default function ModernAnalyticsDashboard({ className }: AnalyticsDashboa
                 />
               </ComposedChart>
             </ResponsiveContainer>
+            {!isDemoMode && displayData.payrollTrends.length === 0 && (
+              <div className="flex items-center justify-center h-64 text-gray-500">
+                <div className="text-center">
+                  <BarChart3 className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium mb-2">No payroll data yet</p>
+                  <p className="text-sm mb-4">Process payroll to see trends</p>
+                  <Button asChild variant="default" size="sm">
+                    <a href="/dashboard/payroll">Process First Payroll</a>
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -394,20 +608,32 @@ export default function ModernAnalyticsDashboard({ className }: AnalyticsDashboa
             <ResponsiveContainer width="100%" height={350}>
               <PieChart>
                 <Pie
-                  data={costBreakdownData}
+                  data={displayData.costBreakdown}
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
                   dataKey="value"
                   label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                 >
-                  {costBreakdownData.map((entry, index) => (
+                  {displayData.costBreakdown.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip formatter={(value) => [`€${value.toLocaleString()}`, 'Amount']} />
               </PieChart>
             </ResponsiveContainer>
+            {!isDemoMode && displayData.costBreakdown.length === 0 && (
+              <div className="flex items-center justify-center h-64 text-gray-500">
+                <div className="text-center">
+                  <PieChartIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium mb-2">No cost data yet</p>
+                  <p className="text-sm mb-4">Process payroll to see breakdown</p>
+                  <Button asChild variant="default" size="sm">
+                    <a href="/dashboard/payroll">Process First Payroll</a>
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -436,7 +662,7 @@ export default function ModernAnalyticsDashboard({ className }: AnalyticsDashboa
                 </tr>
               </thead>
               <tbody>
-                {departmentAnalytics.map((dept, index) => (
+                {displayData.departmentAnalytics.map((dept, index) => (
                   <tr key={index} className="border-b hover:bg-gray-50">
                     <td className="py-3 px-4 font-medium">{dept.department}</td>
                     <td className="text-right py-3 px-4">{dept.employees}</td>
@@ -467,6 +693,18 @@ export default function ModernAnalyticsDashboard({ className }: AnalyticsDashboa
                 ))}
               </tbody>
             </table>
+            {!isDemoMode && displayData.departmentAnalytics.length === 0 && (
+              <div className="flex items-center justify-center h-32 text-gray-500">
+                <div className="text-center">
+                  <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                  <p className="font-medium mb-2">No department data yet</p>
+                  <p className="text-sm mb-3">Add employees to departments to see analytics</p>
+                  <Button asChild variant="default" size="sm">
+                    <a href="/dashboard/employees">Add Employees</a>
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -482,7 +720,7 @@ export default function ModernAnalyticsDashboard({ className }: AnalyticsDashboa
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <ScatterChart data={employeePerformanceData}>
+            <ScatterChart data={displayData.employeePerformance}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="experience" name="Experience (years)" />
               <YAxis dataKey="salary" name="Salary (€)" />
@@ -499,6 +737,18 @@ export default function ModernAnalyticsDashboard({ className }: AnalyticsDashboa
               />
             </ScatterChart>
           </ResponsiveContainer>
+          {!isDemoMode && displayData.employeePerformance.length === 0 && (
+            <div className="flex items-center justify-center h-64 text-gray-500">
+              <div className="text-center">
+                <Target className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p className="text-lg font-medium mb-2">No performance data yet</p>
+                <p className="text-sm mb-4">Add employee performance reviews to see correlation</p>
+                <Button asChild variant="default" size="sm">
+                  <a href="/dashboard/employees">Add Performance Reviews</a>
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
