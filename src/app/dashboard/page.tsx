@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import DashboardLayout from "@/components/layout/dashboard-layout"
+
 import TrialBanner from "@/components/trial/TrialBanner"
 import SessionRefreshHandler from "@/components/SessionRefreshHandler"
 import { TutorialSystem } from "@/components/tutorial/TutorialSystem"
@@ -265,8 +265,7 @@ function DashboardContent() {
 
   if (status === "loading" || loading) {
     return (
-      <DashboardLayout>
-        <div className="space-y-6">
+      <div className="space-y-6">
           <div className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -289,7 +288,6 @@ function DashboardContent() {
             <CardSkeleton />
           </div>
         </div>
-      </DashboardLayout>
     )
   }
 
@@ -480,13 +478,15 @@ function DashboardContent() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="flex items-center space-x-2">
-                        <TrendingUp className="w-5 h-5 text-blue-600" />
-                        <span>Payroll Trends</span>
-                        {!analyticsData.hasRealData && (
-                          <Badge variant="outline" className="ml-2 text-xs border-amber-300 text-amber-700">Demo</Badge>
-                        )}
-                      </CardTitle>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <BarChart3 className="w-5 h-5 text-blue-600" />
+                      <span>Payroll Trends</span>
+                    </div>
+                    {isDemoMode && (
+                      <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">Demo</Badge>
+                    )}
+                  </CardTitle>
                       <CardDescription>
                         {analyticsData.hasRealData ? 'Your payroll costs over time' : 'Sample payroll trend visualization'}
                       </CardDescription>
@@ -542,11 +542,13 @@ function DashboardContent() {
               {/* Employee Distribution */}
               <Card className="hover:shadow-lg transition-shadow">
                 <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Users className="w-5 h-5 text-green-600" />
-                    <span>Employee Distribution</span>
-                    {!analyticsData.hasRealData && (
-                      <Badge variant="outline" className="ml-2 text-xs border-amber-300 text-amber-700">Demo</Badge>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Users className="w-5 h-5 text-green-600" />
+                      <span>Employee Distribution</span>
+                    </div>
+                    {isDemoMode && (
+                      <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">Demo</Badge>
                     )}
                   </CardTitle>
                   <CardDescription>
@@ -684,11 +686,7 @@ function DashboardContent() {
   )
 }
 
-// Main export component that wraps content in layout
+// Main export component - layout will be handled by layout.tsx
 export default function EnhancedDashboard() {
-  return (
-    <DashboardLayout>
-      <DashboardContent />
-    </DashboardLayout>
-  )
+  return <DashboardContent />
 }

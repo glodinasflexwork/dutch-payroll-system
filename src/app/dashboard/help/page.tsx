@@ -31,7 +31,7 @@ import {
   Shield,
   Zap
 } from "lucide-react"
-import DashboardLayout from "@/components/layout/dashboard-layout"
+
 
 interface FAQItem {
   id: string
@@ -439,11 +439,7 @@ function HelpSupportContent() {
 }
 
 export default function EnhancedHelpSupportPage() {
-  return (
-    <DashboardLayout>
-      <HelpSupportContent />
-    </DashboardLayout>
-  )
+  return <HelpSupportContent />
 }
 
 

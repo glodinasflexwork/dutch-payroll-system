@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import DashboardLayout from "@/components/layout/dashboard-layout"
+
 import ModernAnalyticsDashboard from "@/components/dashboard/analytics-dashboard-modern"
 import { DashboardStatsSkeleton } from "@/components/ui/loading-skeleton"
 import { useDataMode } from "@/components/ui/data-mode-toggle"
@@ -116,9 +116,5 @@ function AnalyticsContent() {
 }
 
 export default function EnhancedAnalyticsPage() {
-  return (
-    <DashboardLayout>
-      <AnalyticsContent />
-    </DashboardLayout>
-  )
+  return <AnalyticsContent />
 }

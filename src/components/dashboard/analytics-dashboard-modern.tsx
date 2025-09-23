@@ -523,9 +523,12 @@ export default function ModernAnalyticsDashboard({ analyticsData, className, sho
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="flex items-center space-x-2">
-                  <BarChart3 className="w-5 h-5 text-blue-600" />
-                  <span>Payroll Cost Analysis</span>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <BarChart3 className="w-5 h-5 text-blue-600" />
+                    <span>Payroll Cost Analysis</span>
+                  </div>
+                  {isDemoMode && <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-xs">Demo</Badge>}
                 </CardTitle>
                 <CardDescription>Monthly breakdown of payroll expenses</CardDescription>
               </div>
@@ -598,9 +601,12 @@ export default function ModernAnalyticsDashboard({ analyticsData, className, sho
         {/* Cost Breakdown */}
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <PieChartIcon className="w-5 h-5 text-green-600" />
-              <span>Cost Breakdown</span>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <PieChartIcon className="w-5 h-5 text-green-600" />
+                <span>Cost Breakdown</span>
+              </div>
+              {isDemoMode && <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-xs">Demo</Badge>}
             </CardTitle>
             <CardDescription>Current month expense distribution</CardDescription>
           </CardHeader>
@@ -641,10 +647,13 @@ export default function ModernAnalyticsDashboard({ analyticsData, className, sho
       {/* Department Analytics */}
       <Card className="hover:shadow-lg transition-shadow">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Users className="w-5 h-5 text-purple-600" />
-            <span>Department Performance Matrix</span>
-          </CardTitle>
+          <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Users className="w-5 h-5 text-purple-600" />
+                <span>Department Performance Matrix</span>
+              </div>
+              {isDemoMode && <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-xs">Demo</Badge>}
+            </CardTitle>
           <CardDescription>Comprehensive view of department metrics</CardDescription>
         </CardHeader>
         <CardContent>
@@ -712,10 +721,13 @@ export default function ModernAnalyticsDashboard({ analyticsData, className, sho
       {/* Employee Performance Correlation */}
       <Card className="hover:shadow-lg transition-shadow">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Target className="w-5 h-5 text-orange-600" />
-            <span>Salary vs Performance Correlation</span>
-          </CardTitle>
+          <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Target className="w-5 h-5 text-orange-600" />
+                <span>Salary vs Performance Correlation</span>
+              </div>
+              {isDemoMode && <Badge variant="secondary" className="bg-orange-100 text-orange-800 text-xs">Demo</Badge>}
+            </CardTitle>
           <CardDescription>Relationship between experience, salary, and performance</CardDescription>
         </CardHeader>
         <CardContent>
