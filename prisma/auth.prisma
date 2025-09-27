@@ -52,6 +52,7 @@ model User {
   Session                 Session[]
   Company                 Company?      @relation(fields: [companyId], references: [id])
   UserCompany             UserCompany[]
+  CompanyJoinRequest      CompanyJoinRequest[]
 }
 
 model Company {
@@ -67,6 +68,9 @@ model Company {
   kvkNumber     String?
   taxNumber     String?
   vatNumber     String?
+  rsin          String?         // Rechtspersonen en Samenwerkingsverbanden Informatienummer
+  loonheffingennummer String?   // Payroll Tax Number
+  taxNumbersVerified Boolean   @default(false) // Flag for manual verification status
   bankAccount   String?
   contactEmail  String?
   contactPhone  String?
@@ -83,6 +87,7 @@ model Company {
   CompanyPoints CompanyPoints?
   PortalAccessBilling PortalAccessBilling[]
   PortalAccessQuota   PortalAccessQuota?
+  CompanyJoinRequest  CompanyJoinRequest[]
 }
 
 model UserCompany {
@@ -275,5 +280,30 @@ model PortalAccessQuota {
   Company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   
   @@index([companyId])
+}
+
+
+// Company Join Request Model for handling user requests to join existing companies
+model CompanyJoinRequest {
+  id              String   @id @default(cuid())
+  userId          String
+  companyId       String
+  status          String   @default("pending") // 'pending', 'approved', 'rejected'
+  requestMessage  String?
+  
+  // Approval/Rejection details
+  reviewedBy      String?  // User ID of the admin who reviewed
+  reviewedAt      DateTime?
+  rejectionReason String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  User            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, companyId]) // Prevent duplicate requests from same user to same company
+  @@index([companyId, status])
+  @@index([status])
 }
 

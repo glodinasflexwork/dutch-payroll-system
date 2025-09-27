@@ -107,7 +107,7 @@ export function ModernCompanySwitcher({ isOpen, onClose, className }: ModernComp
   }
 
   const handleAddNewCompany = () => {
-    router.push('/setup/company')
+    router.push('/dashboard/add-company')
     onClose()
   }
 

@@ -141,21 +141,11 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Check if user already has a company
-    const authClient = await getAuthClient()
-    const existingUserCompany = await authClient.userCompany.findFirst({
-      where: { userId: session.user.id }
-    })
-
-    if (existingUserCompany) {
-      return NextResponse.json(
-        { error: "User already has a company" },
-        { status: 400 }
-      )
-    }
+    // Multi-company support: Removed validation that prevents a user from creating multiple companies.
+    // A user can now create and be associated with multiple companies.
 
     const body = await req.json()
-    const { name, address, city, postalCode, kvkNumber, industry, isDGA } = body
+    const { name, address, city, postalCode, kvkNumber, industry, rsin, loonheffingennummer } = body
 
     // Validate required fields
     if (!name || !industry) {
@@ -181,6 +171,22 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Validate RSIN format if provided
+    if (rsin && !/^\d{8}$/.test(rsin)) {
+      return NextResponse.json(
+        { error: "RSIN must be 8 digits" },
+        { status: 400 }
+      )
+    }
+
+    // Validate Loonheffingennummer format if provided
+    if (loonheffingennummer && !/^\d{9}L\d{2}$/.test(loonheffingennummer)) {
+      return NextResponse.json(
+        { error: "Loonheffingennummer must be in format: 123456789L01" },
+        { status: 400 }
+      )
+    }
+
     // Create company and user-company relationship in a transaction
     const result = await authClient.$transaction(async (tx) => {
       // Create the company
@@ -191,8 +197,10 @@ export async function POST(req: NextRequest) {
           city: city?.trim() || null,
           postalCode: postalCode || null,
           kvkNumber: kvkNumber || null,
-          industry: industry
-          // Note: isDGA field doesn't exist in schema - removed
+          industry: industry,
+          rsin: rsin || null,
+          loonheffingennummer: loonheffingennummer || null,
+          taxNumbersVerified: false // Will be verified manually
         }
       })
 

@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { getIndustryOptions, getCAOByIndustry, type CAOInfo } from "@/lib/cao-data"
+import { validateTaxNumbers, formatRSIN, formatLoonheffingennummer } from "@/lib/tax-validation"
 import { 
   Building2, 
   MapPin, 
@@ -30,7 +31,8 @@ import {
   Download,
   UserPlus,
   CheckCircle2,
-  BarChart3
+  BarChart3,
+  HelpCircle
 } from "lucide-react"
 
 interface Company {
@@ -44,7 +46,9 @@ interface Company {
   email?: string
   website?: string
   kvkNumber?: string
+  rsin?: string
   loonheffingennummer?: string
+  taxNumbersVerified?: boolean
   vatNumber?: string
   description?: string
   industry?: string
@@ -127,6 +131,21 @@ export default function CompanyPage() {
     try {
       setSaving(true)
       setError(null)
+
+      // Validate tax numbers if provided
+      if (formData.rsin || formData.loonheffingennummer) {
+        const taxValidation = validateTaxNumbers(formData.rsin || '', formData.loonheffingennummer || '')
+        if (!taxValidation.isValid) {
+          if (formData.rsin && !taxValidation.rsin.isValid) {
+            setError(`RSIN: ${taxValidation.rsin.error}`)
+            return
+          }
+          if (formData.loonheffingennummer && !taxValidation.loonheffingennummer.isValid) {
+            setError(`Loonheffingennummer: ${taxValidation.loonheffingennummer.error}`)
+            return
+          }
+        }
+      }
 
       const response = await fetch("/api/companies", {
         method: "PUT",
@@ -634,7 +653,7 @@ export default function CompanyPage() {
                   </CardDescription>
                 </div>
                 <CardContent className="p-6 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         KvK Number
@@ -652,21 +671,6 @@ export default function CompanyPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Loonheffingennummer
-                      </label>
-                      {editing ? (
-                        <Input
-                          value={formData.loonheffingennummer || ''}
-                          onChange={(e) => handleInputChange('loonheffingennummer', e.target.value)}
-                          placeholder="123456789L01"
-                          className="focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      ) : (
-                        <p className="text-gray-900">{company.loonheffingennummer || 'Not provided'}</p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         VAT Number
                       </label>
                       {editing ? (
@@ -679,6 +683,70 @@ export default function CompanyPage() {
                       ) : (
                         <p className="text-gray-900">{company.vatNumber || 'Not provided'}</p>
                       )}
+                    </div>
+                  </div>
+
+                  {/* Tax Numbers Section */}
+                  <div className="border-t pt-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <h3 className="text-lg font-medium">Tax Information</h3>
+                      <HelpCircle className="h-4 w-4 text-gray-400" />
+                      {company.taxNumbersVerified && (
+                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Verified
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4">
+                      These numbers are required for payroll processing and will be verified by our team.
+                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          RSIN
+                        </label>
+                        {editing ? (
+                          <Input
+                            value={formData.rsin || ''}
+                            onChange={(e) => {
+                              const formatted = formatRSIN(e.target.value)
+                              handleInputChange('rsin', formatted)
+                            }}
+                            placeholder="1234 5678"
+                            maxLength={9}
+                            className="focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        ) : (
+                          <p className="text-gray-900">{company.rsin || 'Not provided'}</p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          Rechtspersonen en Samenwerkingsverbanden Informatienummer
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Loonheffingennummer
+                        </label>
+                        {editing ? (
+                          <Input
+                            value={formData.loonheffingennummer || ''}
+                            onChange={(e) => {
+                              const formatted = formatLoonheffingennummer(e.target.value)
+                              handleInputChange('loonheffingennummer', formatted)
+                            }}
+                            placeholder="123 456 789L01"
+                            maxLength={14}
+                            className="focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        ) : (
+                          <p className="text-gray-900">{company.loonheffingennummer || 'Not provided'}</p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          Payroll Tax Number (format: 123456789L01)
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

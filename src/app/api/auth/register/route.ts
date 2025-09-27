@@ -114,19 +114,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if KvK number already exists
-    console.log("Checking if KvK number exists...")
-    const existingCompany = await authClient.company.findFirst({
-      where: { kvkNumber: data.kvkNumber }
-    })
-
-    if (existingCompany) {
-      console.log("KvK number already exists:", data.kvkNumber)
-      return NextResponse.json(
-        { error: "Company with this KvK number already exists" },
-        { status: 400 }
-      )
-    }
+    // Note: KvK uniqueness is no longer enforced at registration level
+    // Multiple users can register companies with the same KvK number
+    // Validation will occur at payroll processing level using loonheffingennummer
+    console.log("Proceeding with company registration (KvK uniqueness not enforced)...")
 
     console.log("No existing user or company found")
 
