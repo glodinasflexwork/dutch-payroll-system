@@ -254,16 +254,12 @@ export default function SignUpImproved() {
       <div className="max-w-2xl w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <div className="flex justify-center">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
-                <div className="flex space-x-1">
-                  <div className="w-1 h-1 bg-white rounded-full"></div>
-                  <div className="w-1 h-1 bg-orange-400 rounded-full"></div>
-                </div>
-              </div>
-              <span className="text-2xl font-bold text-gray-900">SalarySync</span>
-            </div>
+          <div className="flex justify-center mb-6">
+            <img 
+              src="/salarysync-logo.png" 
+              alt="SalarySync" 
+              className="h-12 w-auto"
+            />
           </div>
           <h1 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Create your account & company

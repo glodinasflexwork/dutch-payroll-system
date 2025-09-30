@@ -21,11 +21,12 @@ export function UnifiedNavigation() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" onClick={session ? handlePublicSiteVisit : undefined} className="flex items-center space-x-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
-              <Building2 className="h-6 w-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold text-gray-900">SalarySync</span>
+          <Link href="/" onClick={session ? handlePublicSiteVisit : undefined} className="flex items-center">
+            <img 
+              src="/salarysync-logo.png" 
+              alt="SalarySync" 
+              className="h-8 w-auto"
+            />
           </Link>
 
           {/* Desktop Navigation */}
