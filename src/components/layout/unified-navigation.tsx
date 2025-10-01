@@ -25,7 +25,7 @@ export function UnifiedNavigation() {
             <img 
               src="/salarysync-logo.png" 
               alt="SalarySync" 
-              className="h-8 w-auto"
+              className="h-10 w-auto"
             />
           </Link>
 

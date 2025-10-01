@@ -102,7 +102,7 @@ function SignInForm() {
               <img 
                 src="/salarysync-logo.png" 
                 alt="SalarySync" 
-                className="h-12 w-auto"
+                className="h-16 w-auto"
               />
             </div>
             <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">

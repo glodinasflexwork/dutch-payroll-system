@@ -293,7 +293,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
               <img 
                 src="/salarysync-logo.png" 
                 alt="SalarySync" 
-                className="h-8 w-auto"
+                className="h-10 w-auto"
               />
             </div>
           </div>
@@ -304,7 +304,7 @@ function DashboardLayoutInner({ children }: DashboardLayoutProps) {
               <img 
                 src="/salarysync-logo.png" 
                 alt="SalarySync" 
-                className="h-6 w-auto"
+                className="h-8 w-auto"
               />
             </div>
             <Button
