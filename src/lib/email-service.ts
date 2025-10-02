@@ -1,3 +1,7 @@
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 /**
  * Email Service
  * 
@@ -111,48 +115,26 @@ const EMAIL_TEMPLATES = {
  */
 async function sendEmail(to: string, subject: string, html: string, text: string) {
   try {
-    // For development, just log the email instead of sending
-    if (process.env.NODE_ENV === 'development') {
-      console.log('📧 Email would be sent:');
-      console.log(`To: ${to}`);
-      console.log(`Subject: ${subject}`);
-      console.log(`HTML: ${html.substring(0, 200)}...`);
-      console.log(`Text: ${text.substring(0, 200)}...`);
-      return { success: true, messageId: 'dev-' + Date.now() };
-    }
-
-    const apiToken = process.env.MAILTRAP_API_TOKEN;
-    const apiUrl = process.env.MAILTRAP_API_URL;
     const fromEmail = process.env.EMAIL_FROM;
-    const fromName = process.env.EMAIL_FROM_NAME;
+    const fromName = process.env.EMAIL_FROM_NAME || 'SalarySync';
 
-    if (!apiToken || !apiUrl || !fromEmail) {
-      throw new Error('Email service configuration missing');
+    if (!process.env.RESEND_API_KEY || !fromEmail) {
+      throw new Error('Resend API key or sender email is not configured.');
     }
 
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        from: {
-          email: fromEmail,
-          name: fromName || 'SalarySync'
-        },
-        to: [{ email: to }],
-        subject,
-        html,
-        text
-      })
+    const { data, error } = await resend.emails.send({
+      from: `${fromName} <${fromEmail}>`,
+      to: [to],
+      subject,
+      html,
+      text,
     });
 
-    if (!response.ok) {
-      throw new Error(`Email API error: ${response.status} ${response.statusText}`);
+    if (error) {
+      throw new Error(error.message);
     }
 
-    return await response.json();
+    return { success: true, messageId: data?.id };
   } catch (error) {
     console.error('Error sending email:', error);
     throw error;
